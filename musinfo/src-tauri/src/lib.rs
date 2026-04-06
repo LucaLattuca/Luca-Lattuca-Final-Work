@@ -10,6 +10,13 @@ devices = sd.query_devices()
 host_apis = sd.query_hostapis()
 result = []
 for i, d in enumerate(devices):
+    api_name = host_apis[d["hostapi"]]["name"]
+
+    # Only include input devices and those using Windows WASAPI (Windows Audio Session API)
+    if d["max_input_channels"] == 0:
+        continue
+    if api_name != "Windows WASAPI":
+        continue
     result.append({
         "index": i,
         "name": d["name"],
