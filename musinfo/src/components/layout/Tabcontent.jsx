@@ -1,11 +1,15 @@
-import React from 'react';
+import React, { act } from 'react';
 import styles from './Tabcontent.module.css';
-import AudioDevices from '../audio-devices/AudioDevices';
-// TODO load content components based on selected tab
-const Tabcontent = () => {
+import Performance from './tabs/Performance';
+import Setup from './tabs/Setup';
+import OSCConfig from './tabs/OSCConfig';
+
+const Tabcontent = ({ activeTab }) => {
   return (
     <div className={styles.tabcontent}>
-        <AudioDevices />
+        {activeTab === 'performance' && <Performance />}
+        {activeTab === 'setup' && <Setup />}
+        {activeTab === 'osc' && <OSCConfig />}
     </div>
   );
 };

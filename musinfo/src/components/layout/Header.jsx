@@ -1,8 +1,8 @@
 import React from 'react';
 import styles from './Header.module.css';
 
-// link to tabcontent
-const Header = () => {
+
+const Header = ({ activeTab, setActiveTab }) => {
   return (
     <header className={styles.header}>
       <div className={styles.logo}>
@@ -10,9 +10,9 @@ const Header = () => {
         <p>An interface for Harmonic Visuals</p>
       </div>
       <nav className={styles.nav}>
-        <button type="button">Performance</button>
-        <button type="button">Setup</button>
-        <button type="button">OSC config</button>
+        <button onClick={() => setActiveTab('performance')} >Performance</button>
+        <button onClick={() => setActiveTab('setup')} >Setup</button>
+        <button onClick={() => setActiveTab('osc')} >OSC config</button>
       </nav>
       <button className={styles.startButton}>Start</button>
     </header>
