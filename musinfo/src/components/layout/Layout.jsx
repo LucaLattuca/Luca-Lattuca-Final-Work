@@ -3,7 +3,7 @@ import Header from './Header';
 import Sidebar from './Sidebar';
 import Tabcontent from './Tabcontent';
 import style from './Layout.module.css';
-
+import OutputPanel from './OutputPanel';
 
 
 const Layout = () => {
@@ -14,6 +14,7 @@ const Layout = () => {
             <main className={style.main}>
                 <Sidebar/>
                 <Tabcontent  activeTab={activeTab}/>
+                <OutputPanel />
             </main>
         </>
     );
