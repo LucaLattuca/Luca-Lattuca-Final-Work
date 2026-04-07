@@ -1,6 +1,9 @@
 import React, { use } from 'react';
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import styles from './AudioDevices.module.css';
+import refreshIcon from '../../assets/refresh.svg';
+
 
 const AudioDevices = () => {
     const [devices, setDevices] = useState([]);
@@ -13,9 +16,11 @@ const AudioDevices = () => {
 
 
     return (
-    <div>
+    <div className={styles.audioDevices}>
       <h2>Audio Devices on this Device</h2>
-      <button onClick={() => setReload(!reload)}>Reload</button>
+      <button onClick={() => setReload(!reload)} className={styles.refreshButton}>
+        <img src={refreshIcon} alt="Reload" className={styles.refreshIcon}/>
+      </button>
       <ul>
         {devices.map((device, index) => (
             <li key={index}>{device.name}</li>
