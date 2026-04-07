@@ -1,4 +1,23 @@
 .outputPanel {
     border-left: 1px solid #333;
     width: 300px;
+    overflow-y: auto;
+    height: 100%;
+}
+
+.outputPanel::-webkit-scrollbar {
+    width: 8px;
+}
+
+.outputPanel::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.outputPanel::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 8px;
+}
+
+.outputPanel::-webkit-scrollbar-thumb:hover {
+    background: #666;
 }
