@@ -1,3 +1,5 @@
+use std::process::Command;
+
 /// Runs a Python script to query all available audio devices on the system.
 #[tauri::command]
 fn get_audio_devices() -> Vec<serde_json::Value> {
@@ -35,11 +37,28 @@ print(json.dumps(result))
     serde_json::from_str(stdout.trim()).unwrap_or_default()
 }
 
+// sends a command to the backend to start the audio capture process
+#[tauri::command]
+fn start_capture() -> Result<String, String> {
+    let script_path = "../backend/windows/capture.py";
+
+    let output = Command::new("python")
+        .arg(script_path)
+        .output()
+        .map_err(|e| format!("Failed to spawn capture.py: {}", e))?;
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![get_audio_devices])
+        .invoke_handler(tauri::generate_handler![get_audio_devices, start_capture])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
