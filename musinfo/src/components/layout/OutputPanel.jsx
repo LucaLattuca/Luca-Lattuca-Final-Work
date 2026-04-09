@@ -31,7 +31,7 @@ const OutputPanel = () => {
         ) : (
             messages.map(msg => (
                 <div key={msg.id} className={styles.message}>
-                    <span className={styles.timestamp}>{msg.time}</span>
+                    <span className={styles.timestamp}>{msg.timestamp}</span>
                     <span className={styles.text}>{msg.text}</span>
                 </div>
             ))

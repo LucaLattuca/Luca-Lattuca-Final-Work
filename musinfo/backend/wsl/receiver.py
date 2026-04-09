@@ -3,7 +3,10 @@
 
 
 import socket
+import struct
+import numpy as np
 from pythonosc.udp_client import SimpleUDPClient
+
 
 TCP_HOST = "0.0.0.0"  # Listen on all WSL network interfaces
 TCP_PORT = 5006
@@ -15,68 +18,75 @@ WINDOWS_HOST = "172.29.16.1"
 OSC_PORT = 9000  # Tauri will listen for OSC on this port
 
 
-def send_osc(address: str, value: str):
-    """
-    Sends an OSC message back to the Tauri app running on Windows.
-    address: OSC address pattern e.g. "/status"
-    value:   the string payload
-    """
+CHANNELS = 2
+SAMPLE_RATE = 48000
+
+def send_osc(address: str, value):
     client = SimpleUDPClient(WINDOWS_HOST, OSC_PORT)
     client.send_message(address, value)
-    print(f"[receiver.py] OSC sent → {address}: '{value}' to {WINDOWS_HOST}:{OSC_PORT}")
 
 
-
-
-def handle_message(message: str):
+def recv_exact(conn: socket.socket, n: int) -> bytes:
     """
-    Dispatch logic for incoming control messages.
-    Extend this as the pipeline grows (e.g. "stop", "set_instrument", etc.)
+    Reads exactly n bytes from the socket.
+    TCP can split data across multiple recv() calls, so we loop until we have it all.
     """
-    print(f"[receiver.py] Received message: '{message}'")
+    buf = b""
+    while len(buf) < n:
+        chunk = conn.recv(n - len(buf))
+        if not chunk:
+            raise ConnectionError("Connection closed by sender")
+        buf += chunk
+    return buf
 
-    if message == "activate":
-        on_activate()
-    else:
-        print(f"[receiver.py] Unknown message: '{message}'")
 
-
-def on_activate():
+def handle_audio_chunk(raw: bytes):
     """
-    Response: Called when the 'activate' command is received.
-    This is where audio processing will be triggered in later steps.
-    For now, just confirms the pipeline is working end-to-end.
+    Converts raw bytes back into a float32 numpy array and processes it.
+    Shape will be (CHUNK_SIZE, CHANNELS).
     """
-    print("[receiver.py] Pipeline activated — rdeady to process.")
-    # Send confirmation back to Tauri via OSC
-    send_osc("/status", "Pipeline activated successfully bruh.")
-    # TODO: start audio capture / analysis here
+    audio = np.frombuffer(raw, dtype=np.float32).reshape(-1, CHANNELS)
+
+    # RMS level per channel — confirms audio is flowing
+    rms_ch1 = float(np.sqrt(np.mean(audio[:, 0] ** 2)))
+    rms_ch2 = float(np.sqrt(np.mean(audio[:, 1] ** 2)))
+
+    print(f"[receiver.py] Ch1 RMS: {rms_ch1:.4f} | Ch2 RMS: {rms_ch2:.4f}")
+
+    # Send RMS back to OutputPanel via OSC
+    send_osc("/audio/rms/ch1", rms_ch1)
+    send_osc("/audio/rms/ch2", rms_ch2)
+
+    # TODO: plug Essentia analysis in here
+
+
 
 
 def start_server():
-    """
-    Starts a persistent TCP server that handles one connection at a time.
-    Runs in a loop so it stays alive between multiple Start button presses.
-    """
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
-        # Allows restarting the script without waiting for the OS to release the port
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
         server.bind((TCP_HOST, TCP_PORT))
-        server.listen(1)  # Queue of 1 — one sender (capture.py) at a time
+        server.listen(1)
 
         print(f"[receiver.py] Listening on {TCP_HOST}:{TCP_PORT} ...")
 
         while True:
             conn, addr = server.accept()
-            with conn:
-                print(f"[receiver.py] Connection from {addr}")
+            print(f"[receiver.py] Connection from {addr} — streaming started")
 
-                # Read up to 1024 bytes — enough for any control message
-                data = conn.recv(1024)
-                if data:
-                    message = data.decode("utf-8").strip()
-                    handle_message(message)
+            with conn:
+                try:
+                    while True:
+                        # Read the 4-byte length prefix first
+                        header = recv_exact(conn, 4)
+                        chunk_len = struct.unpack(">I", header)[0]
+
+                        # Then read exactly that many bytes of audio
+                        raw = recv_exact(conn, chunk_len)
+                        handle_audio_chunk(raw)
+
+                except ConnectionError:
+                    print("[receiver.py] Stream ended — waiting for next connection.")
 
 
 if __name__ == "__main__":
