@@ -74,23 +74,29 @@ fn start_capture() -> Result<String, String> {
 /// Spawns a background thread that listens for incoming OSC messages from WSL.
 /// When a message arrives, it emits a Tauri event that the frontend can subscribe to.
 fn start_osc_listener(app_handle: AppHandle) {
+    // spawns a trhead : move takes ownership of app_handle
     thread::spawn(move || {
+        // opens a UDP sucket on port 9000. 0.0.0.0 means listen on all network interfaces
         let socket =
             UdpSocket::bind("0.0.0.0:9000").expect("[OSC] Failed to bind UDP socket on port 9000");
 
         println!("[OSC] Listening for OSC messages on port 9000...");
 
+        // fixed-sixe buffer to hold incoming UDP packets. OSC messages should fit within this size
         let mut buf = [0u8; 1024];
 
         loop {
+            // waits until a udp packet arrives
             match socket.recv_from(&mut buf) {
                 Ok((size, addr)) => {
                     println!("[OSC] Packet received from {}", addr);
-
+                    // passes only the relevant slice of the buffer
                     match decode_udp(&buf[..size]) {
+                        // type of OSC packet : -> message or bundle
                         Ok((_, OscPacket::Message(msg))) => {
                             println!("[OSC] Address: {}, Args: {:?}", msg.addr, msg.args);
 
+                            // extract the string we're passing
                             let payload = msg
                                 .args
                                 .first()
@@ -103,6 +109,7 @@ fn start_osc_listener(app_handle: AppHandle) {
                                 })
                                 .unwrap_or_else(|| msg.addr.clone());
 
+                            //
                             app_handle
                                 .emit("osc-message", payload)
                                 .unwrap_or_else(|e| eprintln!("[OSC] Failed to emit event: {}", e));
