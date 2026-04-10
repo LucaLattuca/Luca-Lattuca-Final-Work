@@ -1,8 +1,25 @@
-import React from 'react';
+import React, {useState} from 'react';
 import styles from './Header.module.css';
+
+import { invoke } from '@tauri-apps/api/core';
 
 
 const Header = ({ activeTab, setActiveTab }) => {
+  const [isRunning, setIsRunning] = useState(false);
+
+  const handleStart = async () => {
+    try {
+      setIsRunning(true);
+      // start the capture process in Rust
+      const result = await invoke('start_capture');
+      console.log('[header] start_capture result:', result);
+    }
+    catch (error) {
+      console.log('[header] start_capture error:', error);
+      setIsRunning(false);
+    }
+  }
+
   return (
     <header className={styles.header}>
       <div className={styles.logo}>
@@ -14,7 +31,7 @@ const Header = ({ activeTab, setActiveTab }) => {
         <button onClick={() => setActiveTab('setup')} >Setup</button>
         <button onClick={() => setActiveTab('osc')} >OSC config</button>
       </nav>
-      <button className={styles.startButton}>Start</button>
+      <button onClick={handleStart} disabled={isRunning} className={styles.startButton}>{isRunning ? 'Running...' : 'Start'}</button>
     </header>
   );
 };
