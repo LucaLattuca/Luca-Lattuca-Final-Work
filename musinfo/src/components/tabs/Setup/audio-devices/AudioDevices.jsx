@@ -2,7 +2,7 @@ import React, { use } from 'react';
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import styles from './AudioDevices.module.css';
-import refreshIcon from '../../assets/refresh.svg';
+import refreshIcon from '../../../../assets/refresh.svg';
 
 
 const AudioDevices = () => {
@@ -21,7 +21,7 @@ const AudioDevices = () => {
       <button onClick={() => setReload(!reload)} className={styles.refreshButton}>
         <img src={refreshIcon} alt="Reload" className={styles.refreshIcon}/>
       </button>
-      <ul>
+      <ul className={styles.deviceList}>
         {devices.map((device, index) => (
             <li key={index}>{device.name}</li>
         ))}

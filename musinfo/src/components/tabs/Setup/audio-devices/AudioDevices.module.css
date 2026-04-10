@@ -26,16 +26,17 @@
     
 }
 
-
-ul {
+.deviceList {
     list-style-type: none;
     padding: 0;
 }
 
-ul li {
+.deviceList li {
     padding: 5px 5px 5px 5px;
     margin: 10px 0 10px 0;
     border: 1px solid gray;
     border-radius: 5px;
   
 }
+
+

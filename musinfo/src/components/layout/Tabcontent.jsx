@@ -1,8 +1,8 @@
 import React, { act } from 'react';
 import styles from './Tabcontent.module.css';
-import Performance from './tabs/Performance';
-import Setup from './tabs/Setup';
-import OSCConfig from './tabs/OSCConfig';
+import Performance from '../tabs/Performance/Performance';
+import Setup from '../tabs/Setup/Setup';
+import OSCConfig from '../tabs/OSCConfig/OSCConfig';
 
 const Tabcontent = ({ activeTab }) => {
   return (
