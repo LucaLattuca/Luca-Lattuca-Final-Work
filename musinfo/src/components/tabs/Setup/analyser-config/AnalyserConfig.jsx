@@ -22,10 +22,10 @@ const AnalyserConfig = () => {
           <label>
             <input
               type="checkbox"
-              checked={session.analysers.lyrics}
-              onChange={(e) => updateAnalyser("lyrics", e.target.checked)}
+              checked={session.analysers.pitch}
+              onChange={(e) => updateAnalyser("pitch", e.target.checked)}
             />
-            Lyrics Analyser
+            pitch Analyser
           </label>
         </li>
       </ul>

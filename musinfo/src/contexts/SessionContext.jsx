@@ -13,7 +13,7 @@ const DEFAULT_SESSION = {
     audioDevice: null,       // will be set once the user picks a device
     analysers: {
       genre: true,
-      lyrics: true,
+      pitch: true,
     },
 };
 
