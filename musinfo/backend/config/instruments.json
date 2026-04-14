@@ -5,20 +5,14 @@
       "audio_device" : "focusrite",
       "type" : "XLR",
       "channel": 0,
-      "models":{
-        "pitch": true,
-        "genre": false
-      }
+      "models": ["pitch"] 
     },
     "guitar": {
       "enabled": true,
       "audio_device" : "focusrite",
       "type" : "Line 1/4",
       "channel": 1,
-      "models":{
-        "pitch": false,
-        "genre": true
-      }
+      "models": ["genre"] 
     }
 
   }
