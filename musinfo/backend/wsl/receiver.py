@@ -6,12 +6,17 @@
 import socket
 import struct
 import json
+from musinfo.backend.wsl.analysers.genre_analyser import GenreAnalyser
 import numpy as np
 
 TCP_HOST = "0.0.0.0"
 TCP_PORT = 5006
 
 SAMPLE_RATE = 48000
+
+# ─── ANALYSERS ────────────────────────────────────────────────────────────────
+genre_analyser = None
+
 
 
 def recv_exact(conn, n):
@@ -66,7 +71,7 @@ def read_frame(conn):
 
     return instrument_info, audio
 
-
+# diagnostic display of which models are active for this instrument, for debugging
 def format_models(models):
     """
     Turns {"pitch": true, "genre": false} into "pitch=ON  genre=OFF"
@@ -76,8 +81,9 @@ def format_models(models):
         for name, active in models.items()
     )
 
-
-def handle_connection(conn, addr):
+# connects to the WSL receiver, retrying if it's not ready yet
+def handle_connection(conn, addr): 
+    global genre_analyser
     print(f"[receiver] broadcaster connected from {addr}")
 
     try:
@@ -85,7 +91,6 @@ def handle_connection(conn, addr):
             instrument_info, audio = read_frame(conn)
 
             if instrument_info is None:
-                # Connection closed cleanly
                 break
 
             name   = instrument_info.get("instrument", "unknown")
@@ -101,9 +106,14 @@ def handle_connection(conn, addr):
                 f"models: {format_models(models)}"
             )
 
-            # TODO: route audio to active models based on models dict
-            # e.g. if models.get("pitch"): pitch_analyser.process(audio)
-            #      if models.get("genre"): genre_analyser.process(audio)
+            # ── route to analysers ────────────────────────────────────────────
+            if models.get("genre"):
+                if genre_analyser is None:
+                    print("[receiver] Initialising genre analyser...")
+                    genre_analyser = GenreAnalyser()
+                genre_analyser.push(audio)
+
+            #TODO: add pitch analyser routing here when implemented
 
     except Exception as e:
         print(f"[receiver] Error: {e}")
@@ -111,7 +121,7 @@ def handle_connection(conn, addr):
         print(f"[receiver] broadcaster disconnected.")
         conn.close()
 
-
+# TCP server loop
 def start_server():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
