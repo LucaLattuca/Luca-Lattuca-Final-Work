@@ -4,6 +4,8 @@
 # Dependencies: pip install aubio sounddevice numpy
 
 
+# TODO : add audio routing from broadcaster + create Receiver for analysers running on windows environment
+
 import aubio
 import sounddevice as sd
 import numpy as np
