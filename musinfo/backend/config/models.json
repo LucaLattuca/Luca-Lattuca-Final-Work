@@ -1,0 +1,6 @@
+{
+    "models": {
+        "pitch":  { "target": "wsl", "description": "Pitch detection via Essentia YinFFT" },
+        "genre":  { "target": "wsl",     "description": "Genre classification via Discogs-EffNet" }
+    }
+}

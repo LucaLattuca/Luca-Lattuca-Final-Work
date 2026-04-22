@@ -1,117 +1,91 @@
-# Claude (sonnet 4.6) used to write capture.py
-# https://claude.ai/share/52e2944c-e51f-4af7-897c-736ca8b8c08e
-"""
-capture.py — Audio Capture + TCP Streamer (Windows side)
-
-Captures audio from a specified input device and streams raw PCM chunks
-to the WSL receiver over TCP. Runs continuously until killed by Tauri.
-
-Protocol:
-    Each chunk sent over TCP is framed as:
-    [4 bytes: chunk length as uint32] + [N bytes: raw float32 PCM data]
-    This lets the receiver know exactly how many bytes to read per chunk.
-"""
-
+# capture.py — Audio Capture + TCP Streamer (Windows side)
+# Captures both Focusrite channels separately and streams to broadcaster.py
+# which handles routing to WSL based on config.json
 
 import socket
 import struct
 import queue
+import threading
 import numpy as np
 import sounddevice as sd
 
 
-WSL_HOST = "172.29.28.224"
-WSL_PORT     = 5006
+BROADCASTER_HOST = "127.0.0.1"
+BROADCASTER_PORT = 5005
 
-# config for audio capture - matches the focusrite scarlett capabilities
-SAMPLE_RATE = 48000
-CHANNELS = 2        # Both Focusrite inputs (mic + instrument)
-CHUNK_SIZE = 2048   # Samples per chunk — balances latency vs CPU
-
-
-# The search term used to find the target device by name.
-# Change this to match whatever device you're using:
-#   "Scarlett" or "Focusrite" → Focusrite Scarlett Solo
-#   "Headset"                 → a headset mic
-#   "Microphone"              → default Windows mic
-#   None                      → uses system default input device
+SAMPLE_RATE      = 48000
+CHANNELS         = 2        # Both Focusrite inputs simultaneously
+CHUNK_SIZE       = 2048
 DEVICE_NAME_HINT = "Focusrite"
 
-# TODO: Make input device finder configurable from the Tauri UI, and persist it across sessions.
-def find_input_device(name_hint: str | None) -> int | None:
-    """
-    Searches WASAPI input devices for one whose name contains name_hint.
-    Returns the device index, or None to let sounddevice use the system default.
+# Must match the "channel" values in config.json
+CHANNEL_MIC   = 0           # ch1 XLR  — voice
+CHANNEL_PIANO = 1           # ch2 line — guitar/piano
 
-    Args:
-        name_hint: Partial device name to search for (case-insensitive).
-                   Pass None to use the system default input device.
-    """
+
+def find_input_device(name_hint):
     if name_hint is None:
-        print("[capture.py] No device hint — using system default input device.")
+        print("[capture.py] No device hint — using system default.")
         return None
 
-    devices = sd.query_devices()
+    devices   = sd.query_devices()
     host_apis = sd.query_hostapis()
 
     for i, d in enumerate(devices):
-        api_name = host_apis[d["hostapi"]]["name"]
-        if api_name != "Windows WASAPI":
+        if host_apis[d["hostapi"]]["name"] != "Windows WASAPI":
             continue
         if d["max_input_channels"] == 0:
             continue
         if name_hint.lower() in d["name"].lower():
-            print(f"[capture.py] Found device matching '{name_hint}': '{d['name']}' at index {i}")
+            print(f"[capture.py] Found '{d['name']}' at index {i}")
             return i
 
-    # List available devices to help with debugging
-    print(f"[capture.py] No device found matching '{name_hint}'. Available WASAPI input devices:")
+    print(f"[capture.py] No device matching '{name_hint}'. Available WASAPI inputs:")
     for i, d in enumerate(devices):
-        api_name = host_apis[d["hostapi"]]["name"]
-        if api_name == "Windows WASAPI" and d["max_input_channels"] > 0:
+        if host_apis[d["hostapi"]]["name"] == "Windows WASAPI" and d["max_input_channels"] > 0:
             print(f"  [{i}] {d['name']}")
 
-    raise RuntimeError(
-        f"[capture.py] No input device found matching '{name_hint}'. "
-        f"Check the device list above and update DEVICE_NAME_HINT."
-    )
+    raise RuntimeError(f"[capture.py] No input device found matching '{name_hint}'")
 
 
-
-def send_chunk(sock: socket.socket, audio_chunk: np.ndarray):
+def send_chunk(sock, channel_id, audio_chunk):
     """
-    Sends one audio chunk over TCP using length-prefix framing.
-    Converts float32 numpy array to raw bytes, prefixed with its length.
+    Frame format sent to broadcaster.py:
+      [1 byte : channel_id  (uint8) ]
+      [4 bytes: data length (uint32)]
+      [N bytes: raw float32 PCM    ]
     """
-    raw = audio_chunk.astype(np.float32).tobytes()
-    length_prefix = struct.pack(">I", len(raw))
-    sock.sendall(length_prefix + raw)
+    raw    = audio_chunk.astype(np.float32).tobytes()
+    header = struct.pack(">BI", channel_id, len(raw))
+    sock.sendall(header + raw)
 
 
-def stream_audio(device_index: int | None):
-    """
-    Opens a sounddevice InputStream on the given device and streams
-    audio chunks to the WSL receiver over TCP.
-
-    Args:
-        device_index: WASAPI device index, or None for system default.
-    """
-    print(f"[capture.py] Connecting to WSL at {WSL_HOST}:{WSL_PORT} ...")
+def stream_audio(device_index):
+    print(f"[capture.py] Connecting to broadcaster at {BROADCASTER_HOST}:{BROADCASTER_PORT}")
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect((WSL_HOST, WSL_PORT))
-        print(f"[capture.py] Connected. Streaming audio ({CHANNELS}ch, {SAMPLE_RATE}Hz) ...")
+        s.connect((BROADCASTER_HOST, BROADCASTER_PORT))
+        print("[capture.py] Connected. Streaming ch1 (mic) and ch2 (piano)...")
 
-        audio_queue = queue.Queue()
+        ch1_queue = queue.Queue()
+        ch2_queue = queue.Queue()
 
         def audio_callback(indata, frames, time, status):
-            """
-            Called by sounddevice on every chunk.
-            Runs on a dedicated audio thread — never block here.
-            """
             if status:
-                print(f"[capture.py] Stream status: {status}")
-            audio_queue.put(indata.copy())
+                print(f"[capture.py] Status: {status}")
+            ch1_queue.put(indata[:, 0].copy())  # XLR mic   → CHANNEL_MIC
+            ch2_queue.put(indata[:, 1].copy())  # line piano → CHANNEL_PIANO
+
+        def send_loop(q, channel_id):
+            while True:
+                chunk = q.get()
+                try:
+                    send_chunk(s, channel_id, chunk)
+                except OSError:
+                    break
+
+        threading.Thread(target=send_loop, args=(ch1_queue, CHANNEL_MIC),   daemon=True).start()
+        threading.Thread(target=send_loop, args=(ch2_queue, CHANNEL_PIANO), daemon=True).start()
 
         with sd.InputStream(
             device=device_index,
@@ -121,10 +95,8 @@ def stream_audio(device_index: int | None):
             dtype="float32",
             callback=audio_callback,
         ):
-            print("[capture.py] Stream open. Sending chunks to WSL...")
-            while True:
-                chunk = audio_queue.get()
-                send_chunk(s, chunk)
+            print("[capture.py] Stream open.")
+            threading.Event().wait()
 
 
 if __name__ == "__main__":
@@ -132,7 +104,7 @@ if __name__ == "__main__":
         device_index = find_input_device(DEVICE_NAME_HINT)
         stream_audio(device_index)
     except ConnectionRefusedError:
-        print(f"[capture.py] Connection refused — is receiver.py running on port {WSL_PORT}?")
+        print("[capture.py] Connection refused — is broadcaster.py running?")
     except RuntimeError as e:
         print(e)
     except KeyboardInterrupt:

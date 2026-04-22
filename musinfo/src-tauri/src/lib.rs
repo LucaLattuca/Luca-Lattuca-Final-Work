@@ -82,11 +82,6 @@ fn start_capture(
 
     println!("[Tauri] WSL script: {}", wsl_script);
 
-    // --- 2. Set up log file ---
-    let log_path = project_root_windows.join("backend/wsl/receiver.log");
-    let log_file =
-        File::create(&log_path).map_err(|e| format!("Failed to create log file: {}", e))?;
-
     // --- 3. Spawn receiver.py inside WSL (Ubuntu) ---
     let wsl_child = Command::new("wsl")
         .args(["-d", "Ubuntu", "/bin/bash", "-c", &bash_cmd])

@@ -1,0 +1,19 @@
+{
+  "instruments" : {
+    "voice": {
+      "enabled": true,
+      "audio_device" : "focusrite",
+      "type" : "XLR",
+      "channel": 0,
+      "models": ["pitch"] 
+    },
+    "guitar": {
+      "enabled": true,
+      "audio_device" : "focusrite",
+      "type" : "Line 1/4",
+      "channel": 1,
+      "models": ["genre"] 
+    }
+
+  }
+}
