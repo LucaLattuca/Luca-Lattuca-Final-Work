@@ -11,11 +11,11 @@ const Header = ({ activeTab, setActiveTab }) => {
     try {
       setIsRunning(true);
       // start the capture process in Rust
-      const result = await invoke('start_capture');
-      console.log('[header] start_capture result:', result);
+      const result = await invoke('start_pipeline');
+      console.log('[header] start_pipeline result:', result);
     }
     catch (error) {
-      console.log('[header] start_capture error:', error);
+      console.log('[header] start_pipeline error:', error);
       setIsRunning(false);
     }
   }
