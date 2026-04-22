@@ -1,20 +1,27 @@
 use rosc::decoder::decode_udp;
 use rosc::OscPacket;
 use serde_json::Value;
-use std::fs::File;
 use std::net::UdpSocket;
 use std::path::Path;
+use std::process::Stdio;
 use std::process::{Child, Command};
 use std::sync::Mutex;
 use std::thread;
 use tauri::{AppHandle, Emitter, State};
 
-// Holds the capture.py process handle so stop_capture can kill it later
+// holds the capture.py process handle so stop_pipeline can kill it
 struct CaptureProcess(Mutex<Option<Child>>);
-// start wsl process
+
+// holds the wsl_receiver.py process handle so stop_pipeline can kill it
 struct WslProcess(Mutex<Option<Child>>);
 
-/// Runs a Python script to query all available audio devices on the system.
+// holds the broadcaster.py process handle so stop_pipeline can kill it
+struct BroadcasterProcess(Mutex<Option<Child>>);
+
+// holds the windows_receiver.py process handle so stop_pipeline can kill it
+struct WindowsReceiverProcess(Mutex<Option<Child>>);
+
+// Runs a Python script to query all available audio devices on the system.
 #[tauri::command]
 fn get_audio_devices() -> Vec<Value> {
     let output = match Command::new("python")
@@ -55,66 +62,106 @@ print(json.dumps(result))
     serde_json::from_str(stdout.trim()).unwrap_or_default()
 }
 
-/// Spawns capture.py as a background process and stores the handle.
-/// Uses .spawn() instead of .output() so it returns immediately.
+// spawns the full audio pipeline in order: wsl_receiver → windows_receiver → broadcaster → capture
 #[tauri::command]
-fn start_capture(
+fn start_pipeline(
     capture_state: State<CaptureProcess>,
     wsl_state: State<WslProcess>,
+    broadcaster_state: State<BroadcasterProcess>,
+    windows_receiver_state: State<WindowsReceiverProcess>,
 ) -> Result<String, String> {
-    // --- 1. Build paths ---
     let project_root_windows = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .ok_or("Could not resolve project root")?;
 
-    // Convert Windows path → WSL path (C:\foo\bar → /mnt/c/foo/bar)
     let project_root_wsl = project_root_windows
         .to_string_lossy()
         .replace("C:\\", "/mnt/c/")
         .replace("\\", "/")
         .to_lowercase();
 
-    let wsl_script = format!("{}/backend/wsl/receiver.py", project_root_wsl);
+    // --- 1. Spawn wsl_receiver.py inside WSL ---
+    let wsl_script = format!("{}/backend/wsl/wsl_receiver.py", project_root_wsl);
     let bash_cmd = format!(
         "source {}/backend/wsl/.venv/bin/activate && python3 {}",
         project_root_wsl, wsl_script
     );
 
-    println!("[Tauri] WSL script: {}", wsl_script);
+    println!("[Tauri] Spawning wsl_receiver.py...");
 
-    // --- 3. Spawn receiver.py inside WSL (Ubuntu) ---
     let wsl_child = Command::new("wsl")
         .args(["-d", "Ubuntu", "/bin/bash", "-c", &bash_cmd])
-        .stdout(log_file.try_clone().unwrap())
-        .stderr(log_file)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .spawn()
-        .map_err(|e| format!("Failed to spawn receiver.py in WSL: {}", e))?;
+        .map_err(|e| format!("Failed to spawn wsl_receiver.py: {}", e))?;
 
     *wsl_state.0.lock().unwrap() = Some(wsl_child);
-    println!("[Tauri] receiver.py spawned in WSL.");
+    println!("[Tauri] wsl_receiver.py spawned.");
 
-    // Give receiver.py time to bind its socket before capture.py connects
     std::thread::sleep(std::time::Duration::from_millis(1500));
+
+    // --- 2. Spawn windows_receiver.py on Windows ---
+    let windows_receiver_script = project_root_windows.join("backend/windows/windows_receiver.py");
+
+    println!("[Tauri] Spawning windows_receiver.py...");
+
+    let windows_receiver_child = Command::new("python")
+        .arg(&windows_receiver_script)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn windows_receiver.py: {}", e))?;
+
+    *windows_receiver_state.0.lock().unwrap() = Some(windows_receiver_child);
+    println!("[Tauri] windows_receiver.py spawned.");
+
+    std::thread::sleep(std::time::Duration::from_millis(500));
+
+    // --- 3. Spawn broadcaster.py on Windows ---
+    let broadcaster_script = project_root_windows.join("backend/windows/broadcaster.py");
+
+    println!("[Tauri] Spawning broadcaster.py...");
+
+    let broadcaster_child = Command::new("python")
+        .arg(&broadcaster_script)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn broadcaster.py: {}", e))?;
+
+    *broadcaster_state.0.lock().unwrap() = Some(broadcaster_child);
+    println!("[Tauri] broadcaster.py spawned.");
+
+    std::thread::sleep(std::time::Duration::from_millis(500));
 
     // --- 4. Spawn capture.py on Windows ---
     let capture_script = project_root_windows.join("backend/windows/capture.py");
-    let child = Command::new("python")
+
+    println!("[Tauri] Spawning capture.py...");
+
+    let capture_child = Command::new("python")
         .arg(&capture_script)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .spawn()
         .map_err(|e| format!("Failed to spawn capture.py: {}", e))?;
 
-    *capture_state.0.lock().unwrap() = Some(child);
+    *capture_state.0.lock().unwrap() = Some(capture_child);
     println!("[Tauri] capture.py spawned.");
 
-    Ok("Capture started".to_string())
+    Ok("Pipeline started".to_string())
 }
 
-/// Kills the running capture.py process.
+// Kills the running processes.
 #[tauri::command]
-fn stop_capture(
+fn stop_pipeline(
     capture_state: State<CaptureProcess>,
     wsl_state: State<WslProcess>,
+    broadcaster_state: State<BroadcasterProcess>,
+    windows_receiver_state: State<WindowsReceiverProcess>,
 ) -> Result<String, String> {
+    // if capture.py is running, kill it
     if let Some(mut child) = capture_state.0.lock().unwrap().take() {
         child
             .kill()
@@ -122,14 +169,31 @@ fn stop_capture(
         println!("[Tauri] capture.py stopped.");
     }
 
+    // if broadcaster.py is running, kill it
+    if let Some(mut child) = broadcaster_state.0.lock().unwrap().take() {
+        child
+            .kill()
+            .map_err(|e| format!("Failed to kill broadcaster.py: {}", e))?;
+        println!("[Tauri] broadcaster.py stopped.");
+    }
+
+    // if windows_receiver.py is running, kill it
+    if let Some(mut child) = windows_receiver_state.0.lock().unwrap().take() {
+        child
+            .kill()
+            .map_err(|e| format!("Failed to kill windows_receiver.py: {}", e))?;
+        println!("[Tauri] windows_receiver.py stopped.");
+    }
+
+    // if wsl_receiver.py is running, kill it
     if let Some(mut child) = wsl_state.0.lock().unwrap().take() {
         child
             .kill()
-            .map_err(|e| format!("Failed to kill receiver.py: {}", e))?;
+            .map_err(|e| format!("Failed to kill wsl_receiver.py: {}", e))?;
         println!("[Tauri] receiver.py stopped.");
     }
 
-    Ok("Capture stopped".to_string())
+    Ok("Pipeline stopped".to_string())
 }
 
 /// Spawns a background thread that listens for incoming OSC messages from WSL.
@@ -182,15 +246,17 @@ fn start_osc_listener(app_handle: AppHandle) {
 pub fn run() {
     tauri::Builder::default()
         .manage(CaptureProcess(Mutex::new(None)))
-        .manage(WslProcess(Mutex::new(None))) // ← add this
+        .manage(WslProcess(Mutex::new(None)))
+        .manage(WindowsReceiverProcess(Mutex::new(None)))
+        .manage(BroadcasterProcess(Mutex::new(None)))
         .setup(|app| {
             start_osc_listener(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             get_audio_devices,
-            start_capture,
-            stop_capture
+            start_pipeline,
+            stop_pipeline
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
