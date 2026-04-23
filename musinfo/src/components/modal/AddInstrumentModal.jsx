@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import styles from './AddInstrumentModal.module.css';
 
+
 const STEP_LABELS = ['Choose input type', 'Select device', 'Configure', 'Test signal'];
 
 const INPUT_TYPES = [
@@ -8,19 +9,19 @@ const INPUT_TYPES = [
     id: "midi",
     label: "MIDI",
     description: "Keyboard, pad controllers, or any MIDI devices",
-    icon: "",
+    icon: "♪",
   },
   {
     id: "audio",
     label: "Audio",
     description: "Microphone, guitar, line-in via audio interface...",
-    icon: "",
+    icon: "♫",
   },
   {
     id: "virtual",
     label: "Virtual",
     description: "Software instruments or DAW outputs",
-    icon: "",
+    icon: "🌐",
   },
 ]
 
@@ -83,14 +84,14 @@ const AddInstrumentModal = ({ onClose, onSubmit }) => {
                 className={`${styles.card} ${formData.type === id ? styles.selectedCard : ''}`}
                 onClick={() => patch({ type: id })}
                 >
-                <span className={styles.cardIcon}>{icon}</span>
-                <span className={styles.cardLabel}>{label}</span>
-                <span className={styles.cardDesc}>{description}</span>
+                <p className={styles.cardIcon}>{icon}</p>
+                <h2 className={styles.cardLabel}>{label}</h2>
+                <p className={styles.cardDesc}>{description}</p>
 
                 </button>
               ))}
             </div>
-
+              {/* todo add description at bottom */}
           </div>
         )}
   
