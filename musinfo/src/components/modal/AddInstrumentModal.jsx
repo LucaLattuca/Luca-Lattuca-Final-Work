@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styles from './AddInstrumentModal.module.css';
+import { invoke } from '@tauri-apps/api/core';
+
 
 
 const STEP_LABELS = ['Choose input type', 'Select device', 'Configure', 'Test signal'];
@@ -27,6 +29,8 @@ const INPUT_TYPES = [
 
 
 
+
+
 const AddInstrumentModal = ({ onClose, onSubmit }) => {
   const [step, setStep] = useState(0);
   // instrument object to update instruments.json with
@@ -37,13 +41,45 @@ const AddInstrumentModal = ({ onClose, onSubmit }) => {
     models: [],
   });
 
+  // audio device state
+  const [devices, setDevices]     = useState([]);
+  const [loadingDevices, setLoadingDevices] = useState(false);
+  const [deviceError, setDeviceError]       = useState(null);
+  
+  
+
+
+  // invoke Rust command to fetch devices based on input type
+  const fetchDevices = async () => {
+    setLoadingDevices(true);
+    setDeviceError(null);
+    try {
+      if (formData.type === 'midi') {
+        const result = await invoke('get_midi_devices');
+        setDevices(result);
+      } else {
+        const result = await invoke('get_audio_devices', { deviceType: formData.type });
+        setDevices(result);
+      }
+    } catch (err) {
+      setDeviceError('Could not load devices. Is the interface connected?');
+      console.error('[Step2]', err);
+    } finally {
+      setLoadingDevices(false);
+    }
+  };
+
+  // fetch when in step 2
+  useEffect(() => { if (step === 1) fetchDevices(); }, [step]);
 
 
   // update fields
   const patch = (fields) => setFormData(prev => ({ ...prev, ...fields }));
   // prevent going to next step if required fields are not filled
-  const canContinue = step === 0 ? !!formData.type : true;
-
+  const canContinue = 
+    step === 0 ? !!formData.type :
+    step === 1 ? !!formData.selectedDevice :
+    true;
 
   return (
     <div className={styles.overlay}>
@@ -72,7 +108,7 @@ const AddInstrumentModal = ({ onClose, onSubmit }) => {
         </div>
 
         
-
+          
         {/* load step one : Input type */}
         {step === 0 &&(
           <div className={styles.stepContent}>
@@ -91,14 +127,70 @@ const AddInstrumentModal = ({ onClose, onSubmit }) => {
                 </button>
               ))}
             </div>
-              {/* todo add description at bottom */}
           </div>
         )}
   
+       
+
         {/* Step 2 */}
         {step === 1 &&(
           <div className={styles.stepContent}>
-            <p>Step 2 content goes here...</p>
+
+            <div className={styles.deviceListHeader}>
+                <p className={styles.stepHint}>Available devices</p>
+
+                <button className={styles.reloadBtn} onClick={fetchDevices} disabled={loadingDevices}>
+                  {loadingDevices ? '...' : '↻ Reload'}
+                </button>
+
+            </div>
+
+             {deviceError && (
+                <p>{deviceError}</p>
+              )}
+              
+              {!loadingDevices && !deviceError && devices.length === 0 && (
+                <p className={styles.hintText}>No devices found. Is the device connected?</p>
+              )}
+
+
+            <div className={styles.deviceList}>
+            
+              {loadingDevices && <p className={styles.hintText}>Scanning devices...</p>}
+
+              {!loadingDevices && devices.map((device, i) => {
+                const deviceKey = `${device.device_index ?? device.index}-ch${device.channel ?? 0}`;
+                const isSelected = formData.selectedDevice === deviceKey;
+                return (
+                  <div key={i} className={styles.deviceCard}>
+                  <button className={`${styles.deviceBtn} ${isSelected ? styles.selectedDevice : ''}`}
+                    onClick={() => patch({
+                      selectedDevice: deviceKey,
+                      audio_device: device.name,
+                      channel: device.channel ?? 0,
+                    })}
+                  >
+                    <div className={styles.deviceInfo}>
+
+                      <h4 className={styles.deviceName}>{device.name}</h4>
+
+                      <div className={styles.deviceDetails}>
+                        <p>{device.host_api}</p>
+                        <p>Ch.{device.channel}</p>
+                        <p>{device.sample_rate}Hz</p>
+                        <p>{device.latency}ms</p>
+                      </div>
+                      
+                    </div>
+                    <div className={styles.deviceStatus}>
+                      <p>in use</p>
+                    </div>
+                  </button>
+                </div>
+            )
+            })}
+            
+            </div>
           </div>
         )}
 
