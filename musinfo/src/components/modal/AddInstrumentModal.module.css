@@ -1,0 +1,132 @@
+.overlay {
+    border: 1px solid red;
+    position: fixed;
+    inset: 0;
+    background: rgba(21, 21, 21, 0.429);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.modal {
+    background: rgb(33, 33, 33);
+    border: 1px solid black;
+    border-radius: 15px;
+    padding: 0;
+    width: 600px;
+    height: 500px;
+    position: relative;
+    flex-direction: column;
+}
+
+
+/* Header */
+.modalHeader{
+    border-bottom: 1px solid gray;
+    margin:0;
+    padding: 10px 10px 10px 20px;
+}
+
+
+
+.closeButton {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 30px;
+    height: 30px;
+    border-radius: 30px;
+    cursor: pointer;
+}
+
+/* Step indicator */
+
+.stepIndicator {
+    display: flex;
+    justify-content: space-around;
+    padding: 20px;
+    border-bottom: 1px solid gray;
+}
+
+.stepDot{
+    width:  25px;
+    height: 25px;
+    border: 1px solid gray;
+    border-radius: 15px;
+    /* border: 1px solid red; */   
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.stepDot.active{
+    border: 1px solid green;
+    border-radius: 20px;
+}
+
+.stepDot.done{
+    background-color: green;
+    border-radius: 20px;
+}
+
+.stepLine{
+    /* border: 1px solid red; */
+}
+
+
+/* STEPS */
+
+.stepContent{
+    padding: 20px;
+    height: 240px; 
+    /* change height */
+}
+
+/* step 1 */
+
+.deviceType {
+    display: flex;
+    justify-content: space-around;
+    
+}
+
+.deviceOption {
+    width: 160px;
+    height: 170px;
+    border: 1px solid gray;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+
+
+/* Navigation */
+
+.navigation {
+    border: 1px solid red;
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 20px 10px 20px;
+    align-items: center;
+}
+
+.navText {
+    padding: 0;
+    margin: 0;
+    font-size: small;
+}
+
+.backButton {
+    width: 100px;
+    height: 40px;
+   cursor: pointer;
+}
+
+.nextBtn {
+    
+    width: 100px;
+    height: 40px;
+    cursor: pointer;
+    
+}
