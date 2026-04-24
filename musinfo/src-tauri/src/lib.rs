@@ -54,10 +54,11 @@ for i, d in enumerate(devices):
             "name": d["name"],
             "channel": ch,
             "host_api": api_name,
+            "max_input_channels": d["max_input_channels"],
             "sample_rate": int(d["default_samplerate"]),
             "latency": round(d["default_low_input_latency"] * 1000, 2),
         }})
-
+        
 print(json.dumps(result))
 "#
     );

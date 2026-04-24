@@ -38,10 +38,18 @@ const AddInstrumentModal = ({ onClose, onSubmit }) => {
   const [step, setStep] = useState(0);
   // instrument object to update instruments.json with
   const [formData, setFormData] = useState({
-    name: '',
-    audio_device: '',
-    channel: 0,
-    models: [],
+   name: '',
+   enabled: true,
+   type: '',
+   audio_device: {
+     name: '',
+     device_id: null,
+     host_api: '',
+     max_input_channels: 0,
+     channel: 0,
+     sample_rate: 0,
+   },
+   models: [],
   });
   
   // audio device state
@@ -83,7 +91,7 @@ const AddInstrumentModal = ({ onClose, onSubmit }) => {
   // prevent going to next step if required fields are not filled
   const canContinue = 
     step === 0 ? !!formData.type :
-    step === 1 ? !!formData.selectedDevice :
+    step === 1 ? !!formData.audio_device.name :
     step === 2 ? formData.models.length > 0 && !!formData.name :
     true;
 
@@ -139,7 +147,7 @@ const AddInstrumentModal = ({ onClose, onSubmit }) => {
   
        
 
-        {/* Step 2 */}
+        {/* Step 2 : device selection */}
         {step === 1 &&(
           <div className={styles.stepContent}>
 
@@ -166,16 +174,28 @@ const AddInstrumentModal = ({ onClose, onSubmit }) => {
               {loadingDevices && <p className={styles.hintText}>Scanning devices...</p>}
 
               {!loadingDevices && devices.map((device, i) => {
+                
                 const deviceKey = `${device.device_index ?? device.index}-ch${device.channel ?? 0}`;
-                const isSelected = formData.selectedDevice === deviceKey;
+                const isSelected = 
+                    formData.audio_device.device_id === (device.device_index ?? device.index) &&
+                    formData.audio_device.channel === (device.channel ?? 0);
+                    
                 return (
                   <div key={i} className={styles.deviceCard}>
                   <button className={`${styles.deviceBtn} ${isSelected ? styles.selectedDevice : ''}`}
+
+                    // on click, set selected device in form data with all relevant info to save in config later
                     onClick={() => patch({
-                      selectedDevice: deviceKey,
-                      audio_device: device.name,
-                      channel: device.channel ?? 0,
+                      audio_device: {
+                        name: device.name,
+                        device_id: device.device_index ?? device.index,
+                        host_api: device.host_api,
+                        max_input_channels: device.max_input_channels,
+                        channel: device.channel ?? 0,
+                        sample_rate: device.sample_rate,
+                      }
                     })}
+                  
                   >
                     <div className={styles.deviceInfo}>
 
