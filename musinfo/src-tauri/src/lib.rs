@@ -126,10 +126,10 @@ fn test_device_audio(
 import sounddevice as sd
 import numpy as np
 
-# query the device's actual default sample rate
+# query the device's default sample rate
 device_info = sd.query_devices({device_id}, 'input')
 RATE = int(device_info['default_samplerate'])
-CHUNK = int(RATE * 0.05)  # 50ms worth of frames at whatever the rate is
+CHUNK = int(RATE * 0.05) # 50ms buffer
 
 def callback(indata, frames, time, status):
     channel_data = indata[:, {channel}]
@@ -383,7 +383,9 @@ pub fn run() {
             get_audio_devices,
             get_midi_devices,
             start_pipeline,
-            stop_pipeline
+            stop_pipeline,
+            test_device_audio,
+            stop_device_test
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
