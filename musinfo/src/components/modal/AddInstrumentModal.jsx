@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from './AddInstrumentModal.module.css';
 import { invoke } from '@tauri-apps/api/core';
-
+import modelsConfig  from '../../../backend/config/models.json';
 
 
 const STEP_LABELS = ['Choose input type', 'Select device', 'Configure', 'Test signal'];
@@ -28,7 +28,10 @@ const INPUT_TYPES = [
 ]
 
 
-
+const AVAILABLE_MODELS = Object.entries(modelsConfig.models).map(([id, data]) => ({
+  id,
+  ...data,
+}));
 
 
 const AddInstrumentModal = ({ onClose, onSubmit }) => {
@@ -40,13 +43,17 @@ const AddInstrumentModal = ({ onClose, onSubmit }) => {
     channel: 0,
     models: [],
   });
-
+  
   // audio device state
   const [devices, setDevices]     = useState([]);
   const [loadingDevices, setLoadingDevices] = useState(false);
   const [deviceError, setDeviceError]       = useState(null);
+
+  // hover state for model cards to show description
+  const [hoveredModel, setHoveredModel] = useState(null);
   
-  
+  // fetch audio devices when in step 2
+  useEffect(() => { if (step === 1) fetchDevices(); }, [step]);
 
 
   // invoke Rust command to fetch devices based on input type
@@ -69,8 +76,6 @@ const AddInstrumentModal = ({ onClose, onSubmit }) => {
     }
   };
 
-  // fetch when in step 2
-  useEffect(() => { if (step === 1) fetchDevices(); }, [step]);
 
 
   // update fields
@@ -79,6 +84,7 @@ const AddInstrumentModal = ({ onClose, onSubmit }) => {
   const canContinue = 
     step === 0 ? !!formData.type :
     step === 1 ? !!formData.selectedDevice :
+    step === 2 ? formData.models.length > 0 && !!formData.name :
     true;
 
   return (
@@ -129,6 +135,7 @@ const AddInstrumentModal = ({ onClose, onSubmit }) => {
             </div>
           </div>
         )}
+        
   
        
 
@@ -194,17 +201,70 @@ const AddInstrumentModal = ({ onClose, onSubmit }) => {
           </div>
         )}
 
+
         {/* Step 3 */}
         {step === 2 &&(
+
           <div className={styles.stepContent}>
-            <p>Step 3 content goes here...</p>
+            <div className={styles.instrumentNameInput}>
+              <label>Instrument name</label>
+              <input 
+                type="text" 
+                placeholder='vocals, guitar, piano, synthesizer'
+                maxLength={24}
+                value={formData.name}
+                onChange={e => {
+                // replace spaces with underscores, lowercase, strip special chars
+                const cleaned = e.target.value
+                  .toLowerCase()
+                  .replace(/\s+/g, '_')
+                  .replace(/[^a-z0-9_]/g, '');
+                patch({ name: cleaned });
+                }}
+              /> 
+            </div>
+
+            <div className={styles.modelSelection}>
+              <label>
+                Select analysers
+              </label>
+              <div className={styles.modelCards}>
+
+              {AVAILABLE_MODELS.map((model) => {
+                const isSelected = formData.models.includes(model.id);
+                return (
+                  <button
+                  key={model.id}
+                  className={`${styles.modelCard} ${isSelected ? styles.selectedCard : ''}`}
+                  onClick={() => patch({
+                    models: isSelected
+                    ? formData.models.filter(m => m !== model.id)
+                    : [...formData.models, model.id]
+                  })}
+                  onMouseEnter={() => setHoveredModel(model)}
+                  onMouseLeave={() => setHoveredModel(null)}
+                  >
+                    <span className={styles.modelName}>{model.id}</span>
+                  </button>
+                );
+              })}
+              </div>
+              <div className={styles.modelDescription}>
+                {hoveredModel && (
+                  <p>{hoveredModel.explenation}</p>
+                )}
+              </div>
+              
+            </div>
+                        
           </div>
         )}
 
-        {/* Step 2 */}
+
+        {/* Step 4 */}
         {step === 3 &&(
           <div className={styles.stepContent}>
-            <p>Step 4 content goes here...</p>
+            <p>Step 3 content goes here...</p>
           </div>
         )}
 
@@ -222,7 +282,7 @@ const AddInstrumentModal = ({ onClose, onSubmit }) => {
         
           <p className={styles.navText}>Step {step + 1} of {STEP_LABELS.length}</p>
           <button className={styles.nextBtn}
-            onClick={() => step < STEP_LABELS.length - 1 ? setStep(s => s + 1) : onSubmit(formData)}
+            onClick={() =>  {console.log('[FormData]', formData); step < STEP_LABELS.length - 1 ? setStep(s => s + 1) : onSubmit(formData)}}
             disabled={!canContinue}
           >
             {step < STEP_LABELS.length - 1 ? 'Continue →' : 'Add instrument'}
