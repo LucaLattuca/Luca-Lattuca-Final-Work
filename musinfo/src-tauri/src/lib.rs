@@ -9,6 +9,9 @@ use std::sync::Mutex;
 use std::thread;
 use tauri::{AppHandle, Emitter, State};
 
+// holds the test audio state
+struct TestProcess(Mutex<Option<Child>>);
+
 // holds the capture.py process handle so stop_pipeline can kill it
 struct CaptureProcess(Mutex<Option<Child>>);
 
@@ -20,6 +23,8 @@ struct BroadcasterProcess(Mutex<Option<Child>>);
 
 // holds the windows_receiver.py process handle so stop_pipeline can kill it
 struct WindowsReceiverProcess(Mutex<Option<Child>>);
+
+// AUDIO DEVICES
 
 // Runs a Python script to query all available audio devices on the system and filter them by type.
 #[tauri::command]
@@ -101,6 +106,86 @@ print(json.dumps(result))
     let stdout = String::from_utf8_lossy(&output.stdout);
     serde_json::from_str(stdout.trim()).unwrap_or_default()
 }
+
+// TEST AUDIO
+
+#[tauri::command]
+fn test_device_audio(
+    device_id: usize,
+    channel: usize,
+    app: AppHandle,
+    test_state: State<TestProcess>,
+) -> Result<String, String> {
+    // kill any existing test stream first
+    if let Some(mut child) = test_state.0.lock().unwrap().take() {
+        let _ = child.kill();
+    }
+
+    let script = format!(
+        r#"
+import sounddevice as sd
+import numpy as np
+
+# query the device's actual default sample rate
+device_info = sd.query_devices({device_id}, 'input')
+RATE = int(device_info['default_samplerate'])
+CHUNK = int(RATE * 0.05)  # 50ms worth of frames at whatever the rate is
+
+def callback(indata, frames, time, status):
+    channel_data = indata[:, {channel}]
+    rms = float(np.sqrt(np.mean(channel_data ** 2)))
+    normalized = min(rms * 20, 1.0)
+    print(normalized, flush=True)
+
+with sd.InputStream(
+    device={device_id},
+    channels={channel} + 1,
+    samplerate=RATE,
+    blocksize=CHUNK,
+    callback=callback
+):
+    while True:
+        sd.sleep(50)
+"#
+    );
+
+    let mut child = Command::new("python")
+        .args(["-c", &script])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn test stream: {}", e))?;
+
+    // take stdout before moving child into state
+    let stdout = child.stdout.take().ok_or("No stdout")?;
+    *test_state.0.lock().unwrap() = Some(child);
+
+    // read stdout in background thread, emit each RMS value as an event
+    thread::spawn(move || {
+        let reader = std::io::BufReader::new(stdout);
+        for line in std::io::BufRead::lines(reader) {
+            if let Ok(line) = line {
+                if let Ok(level) = line.trim().parse::<f32>() {
+                    let _ = app.emit("test-audio-level", level);
+                }
+            }
+        }
+    });
+
+    Ok("Test stream started".to_string())
+}
+
+#[tauri::command]
+fn stop_device_test(test_state: State<TestProcess>) -> Result<String, String> {
+    if let Some(mut child) = test_state.0.lock().unwrap().take() {
+        child
+            .kill()
+            .map_err(|e| format!("Failed to stop test: {}", e))?;
+    }
+    Ok("Test stream stopped".to_string())
+}
+
+// AUDIO PIPELINE
 
 // spawns the full audio pipeline in order: wsl_receiver → windows_receiver → broadcaster → capture
 #[tauri::command]
@@ -286,6 +371,7 @@ fn start_osc_listener(app_handle: AppHandle) {
 pub fn run() {
     tauri::Builder::default()
         .manage(CaptureProcess(Mutex::new(None)))
+        .manage(TestProcess(Mutex::new(None)))
         .manage(WslProcess(Mutex::new(None)))
         .manage(WindowsReceiverProcess(Mutex::new(None)))
         .manage(BroadcasterProcess(Mutex::new(None)))
