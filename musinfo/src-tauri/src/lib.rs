@@ -152,13 +152,24 @@ with sd.InputStream(
     let mut child = Command::new("python")
         .args(["-c", &script])
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
+        .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("Failed to spawn test stream: {}", e))?;
 
     // take stdout before moving child into state
     let stdout = child.stdout.take().ok_or("No stdout")?;
+    let stderr = child.stderr.take().ok_or("No stderr")?;
     *test_state.0.lock().unwrap() = Some(child);
+
+    // log stderr in a separate thread so you can see Python errors
+    thread::spawn(move || {
+        let reader = std::io::BufReader::new(stderr);
+        for line in std::io::BufRead::lines(reader) {
+            if let Ok(line) = line {
+                eprintln!("[test_device_audio stderr] {}", line);
+            }
+        }
+    });
 
     // read stdout in background thread, emit each RMS value as an event
     thread::spawn(move || {

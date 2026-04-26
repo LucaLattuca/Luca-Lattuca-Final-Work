@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import styles from './AddInstrumentModal.module.css';
 import { invoke } from '@tauri-apps/api/core';
 import modelsConfig  from '../../../backend/config/models.json';
-
+import { listen } from '@tauri-apps/api/event';
 
 const STEP_LABELS = ['Choose input type', 'Select device', 'Configure', 'Test signal'];
 
@@ -64,7 +64,7 @@ const AddInstrumentModal = ({ onClose, onSubmit }) => {
   useEffect(() => { if (step === 1) fetchDevices(); }, [step]);
 
 
-  // invoke Rust command to fetch devices based on input type
+   // invoke Rust command to fetch devices based on input type
   const fetchDevices = async () => {
     setLoadingDevices(true);
     setDeviceError(null);
@@ -84,6 +84,51 @@ const AddInstrumentModal = ({ onClose, onSubmit }) => {
     }
   };
 
+  // audio test state
+  const [isTesting, setIsTesting] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
+  const [peak, setPeak] = useState(0);
+
+  // invoke Rust command to start audio testing in step 4
+  useEffect(() => {
+    if (step !== 3) return;
+
+    let unlisten;
+
+    const startListening = async () => {
+      unlisten = await listen('test-audio-level', (event) => {
+        const level = event.payload;
+        setAudioLevel(level);
+        setPeak(prev => Math.max(prev, level));
+      });
+    };
+
+    startListening();
+
+    // stop stream and unlisten when leaving step 4
+    return () => {
+      invoke('stop_device_test').catch(console.error);
+      setIsTesting(false);
+      setAudioLevel(0);
+      setPeak(0);
+      if (unlisten) unlisten();
+    };
+  }, [step]);
+
+  // Test / stop audio test handler
+  const handleTestToggle = async () => {
+  if (isTesting) {
+    await invoke('stop_device_test');
+    setIsTesting(false);
+  } else {
+    await invoke('test_device_audio', {
+      deviceId: formData.audio_device.device_id,
+      channel: formData.audio_device.channel,
+    });
+    setIsTesting(true);
+    setPeak(0);
+  }
+};
 
 
   // update fields
@@ -179,7 +224,7 @@ const AddInstrumentModal = ({ onClose, onSubmit }) => {
                 const isSelected = 
                     formData.audio_device.device_id === (device.device_index ?? device.index) &&
                     formData.audio_device.channel === (device.channel ?? 0);
-                    
+
                 return (
                   <div key={i} className={styles.deviceCard}>
                   <button className={`${styles.deviceBtn} ${isSelected ? styles.selectedDevice : ''}`}
@@ -282,9 +327,42 @@ const AddInstrumentModal = ({ onClose, onSubmit }) => {
 
 
         {/* Step 4 */}
-        {step === 3 &&(
+        {step === 3 && (
           <div className={styles.stepContent}>
-            <p>Step 3 content goes here...</p>
+          
+            <div className={styles.testDevice}>
+              <div className={styles.testControls}>
+                <p>Live signal</p>
+                <button
+                  className={`${styles.testBtn} ${isTesting ? styles.testBtnActive : ''}`}
+                  onClick={handleTestToggle}
+                >
+                  {isTesting ? 'Stop test' : 'Start test'}
+                </button>
+              </div>
+
+              <div className={styles.testResult}>
+                <div
+                  className={`${styles.levelBar} ${audioLevel > 0.01 ? styles.levelBarActive : ''}`}
+                  style={{ width: `${audioLevel * 100}%` }}
+                />
+              </div>
+              
+              <p className={styles.testMetrics}>
+                RMS: {audioLevel.toFixed(3)} &nbsp;|&nbsp; Peak: {peak.toFixed(3)}
+              </p>
+            </div>
+            <p>Final check</p>
+            <div className={styles.finalConfig}>
+              <p><span>Name</span>{formData.name}</p>
+              <p><span>Type</span>{formData.type}</p>
+              <p><span>Device</span>{formData.audio_device.name}</p>
+              <p><span>Channel</span>{formData.audio_device.channel}</p>
+              <p><span>Host API</span>{formData.audio_device.host_api}</p>
+              <p><span>Sample rate</span>{formData.audio_device.sample_rate} Hz</p>
+              <p><span>Analysers</span>{formData.models.join(', ')}</p>
+            </div>
+
           </div>
         )}
 
