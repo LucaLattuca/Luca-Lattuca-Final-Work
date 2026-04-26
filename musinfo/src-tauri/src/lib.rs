@@ -1,6 +1,7 @@
 use rosc::decoder::decode_udp;
 use rosc::OscPacket;
 use serde_json::Value;
+use std::fs;
 use std::net::UdpSocket;
 use std::path::Path;
 use std::process::Stdio;
@@ -378,6 +379,53 @@ fn start_osc_listener(app_handle: AppHandle) {
     });
 }
 
+//  Save instrument configuration to instruments.json.
+#[tauri::command]
+fn save_instrument(app: AppHandle, instrument: Value) -> Result<String, String> {
+    // resolve path to instruments.json relative to the project root
+    let project_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .ok_or("Could not resolve project root")?;
+
+    let config_path = project_root.join("backend/config/instruments.json");
+
+    // read existing file
+    let raw = fs::read_to_string(&config_path)
+        .map_err(|e| format!("Failed to read instruments.json: {}", e))?;
+
+    let mut config: serde_json::Map<String, Value> = serde_json::from_str(&raw)
+        .map_err(|e| format!("Failed to parse instruments.json: {}", e))?;
+
+    // extract name from instrument, use it as the key
+    let name = instrument["name"]
+        .as_str()
+        .ok_or("Instrument has no name")?
+        .to_string();
+
+    // build the entry without the name field (name is the key, not a field)
+    let mut entry = instrument.clone();
+    if let Some(obj) = entry.as_object_mut() {
+        obj.remove("name");
+    }
+
+    // insert into instruments map
+    let instruments = config
+        .get_mut("instruments")
+        .and_then(|v| v.as_object_mut())
+        .ok_or("instruments.json has no 'instruments' key")?;
+
+    instruments.insert(name, entry);
+
+    // write back with pretty formatting
+    let output =
+        serde_json::to_string_pretty(&config).map_err(|e| format!("Failed to serialize: {}", e))?;
+
+    fs::write(&config_path, output)
+        .map_err(|e| format!("Failed to write instruments.json: {}", e))?;
+
+    Ok("Instrument saved".to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -396,7 +444,8 @@ pub fn run() {
             start_pipeline,
             stop_pipeline,
             test_device_audio,
-            stop_device_test
+            stop_device_test,
+            save_instrument
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
