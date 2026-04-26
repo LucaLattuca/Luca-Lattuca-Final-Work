@@ -352,15 +352,28 @@ const AddInstrumentModal = ({ onClose, onSubmit }) => {
                 RMS: {audioLevel.toFixed(3)} &nbsp;|&nbsp; Peak: {peak.toFixed(3)}
               </p>
             </div>
-            <p>Final check</p>
-            <div className={styles.finalConfig}>
-              <p><span>Name</span>{formData.name}</p>
-              <p><span>Type</span>{formData.type}</p>
-              <p><span>Device</span>{formData.audio_device.name}</p>
-              <p><span>Channel</span>{formData.audio_device.channel}</p>
-              <p><span>Host API</span>{formData.audio_device.host_api}</p>
-              <p><span>Sample rate</span>{formData.audio_device.sample_rate} Hz</p>
-              <p><span>Analysers</span>{formData.models.join(', ')}</p>
+            <div className={styles.finalConfigSection}>
+
+              <div className={styles.signalPathSection}>
+                <p className={styles.signalPathTitle}>Signal Path</p>
+                <div className={styles.signalPath}>
+                  <p>{formData.name} </p>&rarr;
+                  <p>{formData.audio_device.name} </p>&rarr;
+                  <p>{formData.audio_device.host_api} </p>&rarr;
+                  <p>{formData.models.join(', ')} </p>&rarr;
+                  <p>OSC output</p>            
+                </div>
+              </div>
+              <p>Final check</p>
+              <div className={styles.finalConfig}>
+                <p><span>Name</span>{formData.name}</p>
+                <p><span>Type</span>{formData.type}</p>
+                <p><span>Device</span>{formData.audio_device.name}</p>
+                <p><span>Channel</span>{formData.audio_device.channel}</p>
+                <p><span>Host API</span>{formData.audio_device.host_api}</p>
+                <p><span>Sample rate</span>{formData.audio_device.sample_rate} Hz</p>
+                <p><span>Analysers</span>{formData.models.join(', ')}</p>
+              </div>
             </div>
 
           </div>

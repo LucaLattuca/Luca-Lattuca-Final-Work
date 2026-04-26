@@ -308,17 +308,61 @@
 
 }
 
+.finalConfigSection {
+    /* border: 1px solid red; */
+     display: flex;
+     flex-direction: column;
+  
+    overflow-y: scroll;
+    scrollbar-color: rgb(93, 92, 92) transparent;
+}
+
+.signalPathSection .signalPathTitle {
+    margin: 0;
+    font-size:medium;
+    margin-bottom: 10px;
+}
+.signalPath {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+
+}
+.signalPath p {
+    margin: 0;
+    padding: 0;
+    width: fit-content;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 2px outset rgb(111, 204, 111);
+    border-radius: 20px;
+    padding: 4px;
+    height: 15px;
+    border-radius: 15px;
+}
+
 .finalConfig {
     display: flex;
     flex-direction: column;
     gap: 10px;
     justify-content: space-between;
+    border: 2px outset grey;
+    border-radius: 15px;
+    padding: 10px;
 }
+
 
 .finalConfig p {
     margin: 0;
-    padding: 0;
+    padding: 3px;
+    display: flex;
+    justify-content: space-between;
+    border: 1px solid rgb(111, 204, 111);
+    border-radius: 15px;
 }
+
 
 /* Navigation */
 
