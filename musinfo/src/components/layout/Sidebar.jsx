@@ -4,7 +4,7 @@ import styles from './Sidebar.module.css';
 let instruments = [];
 
 
-const Sidebar = () => {
+const Sidebar = ({ onAddInstrument }) => {
   return (
     <div className={styles.sidebar}>
       <p>No instruments added.</p>
@@ -27,7 +27,7 @@ const Sidebar = () => {
         <br />
       </div>
       <div className={styles.addInstrument}>
-        <button id={styles.addInstrumentButton}>Add Instruments</button>
+        <button onClick={onAddInstrument} id={styles.addInstrumentButton}>Add Instruments</button>
       </div>
     </div>
   );
