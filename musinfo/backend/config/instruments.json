@@ -45,6 +45,36 @@
         "pitch"
       ],
       "type": "XLR"
+    },
+    "voice2": {
+      "audio_device": {
+        "channel": 0,
+        "device_id": 34,
+        "host_api": "ASIO",
+        "max_input_channels": 2,
+        "name": "Focusrite USB ASIO",
+        "sample_rate": 44100
+      },
+      "enabled": true,
+      "models": [
+        "pitch"
+      ],
+      "type": "XLR"
+    },
+    "voice1": {
+      "audio_device": {
+        "channel": 0,
+        "device_id": 34,
+        "host_api": "ASIO",
+        "max_input_channels": 2,
+        "name": "Focusrite USB ASIO",
+        "sample_rate": 44100
+      },
+      "enabled": true,
+      "models": [
+        "pitch"
+      ],
+      "type": "XLR"
     }
   }
 }
