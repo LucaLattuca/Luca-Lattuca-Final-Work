@@ -1,33 +1,34 @@
 import React from 'react';
 import styles from './Sidebar.module.css';
-
-let instruments = [];
+import instruments from '../../../backend/config/instruments.json';
+let instrument_list = instruments;
 
 
 const Sidebar = ({ onAddInstrument }) => {
   return (
     <div className={styles.sidebar}>
-      <p>No instruments added.</p>
-      {/* TODO : Conditional Rendering based on instrument configuration*/}
+      {/* <p>No instruments added.</p> */}
       <div className={styles.instrumentList}>
-        <p>Instruments</p>
-        <br />
-        <ul>
-          <div className={styles.instrument}>
-          {/* TODO : while in setup, change settings per instrument */}
-          </div>
-          <div className={styles.instrument}>
-
-          </div>
-        </ul>
-      </div>
-      <br />
-      <div className={styles.mix}>
-        <p>Mix</p>
-        <br />
+        <p className={styles.sidebarTitle}>Instruments</p>
+      
+          {Object.entries(instrument_list.instruments).map(([name, instrument]) => (
+              <div className={styles.instrumentcard} key={name}>
+                
+                <h3>{name}</h3>
+                <p>{instrument.audio_device.name} - Ch.{instrument.audio_device.channel + 1}</p>
+                
+              </div>
+          ))}
+        
+        <p className={styles.sidebarTitle}>Mix</p>
+        <div className={styles.mix}>
+          {/* ADD Instrument role */}
+        </div>
       </div>
       <div className={styles.addInstrument}>
-        <button onClick={onAddInstrument} id={styles.addInstrumentButton}>Add Instruments</button>
+        <button onClick={onAddInstrument} className={styles.addInstrumentButton}>
+          Add Instruments
+        </button>
       </div>
     </div>
   );

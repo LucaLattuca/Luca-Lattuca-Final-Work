@@ -1,23 +1,64 @@
 .sidebar {
     border-right: 1px solid #333;
     width: 300px;
-    overflow-y: auto;
     height: 100%;
+    background: #525252;
+    background: linear-gradient(172deg,rgba(82, 82, 82, 1) 0%, rgba(59, 59, 59, 1) 50%, rgba(33, 30, 30, 1) 100%);
 }
 
-.sidebar::-webkit-scrollbar {
-    width: 8px;
+
+
+.sidebarTitle{
+    font-size: 16px;
+    font-weight: bold;
+    margin-left: 20px;
+    text-align: center;
 }
 
-.sidebar::-webkit-scrollbar-track {
-    background: transparent;
+.instrumentList {
+    display: flex;
+    flex-direction: column;
+    height: 85%;
+  
+    overflow-y: auto;
+    scrollbar-color: rgb(115, 115, 115) transparent;
+    scrollbar-width: thin;
 }
 
-.sidebar::-webkit-scrollbar-thumb {
-    background: #444;
-    border-radius: 8px;
+.instrumentcard {
+    background-color: #444;
+    border-top: 2px solid rgb(38, 38, 38);
+    /* border-bottom: 2px solid rgb(60, 60, 60); */
+    color: #fff;
+    padding: 10px;
+}
+.instrumentcard p {
+    margin: 2px;
+    font-style: bold;
+    
 }
 
-.sidebar::-webkit-scrollbar-thumb:hover {
-    background: #666;
+.instrumentcard h3 {
+    margin: 0;
+
+    
 }
+.instrumentcard:hover {
+    cursor: pointer;
+    background-color: #333333;
+}
+.addInstrument {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 40px;
+
+}
+
+.addInstrumentButton {
+    height: 35px;
+    width: 150px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
