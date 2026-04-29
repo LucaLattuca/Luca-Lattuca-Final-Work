@@ -1,21 +1,24 @@
 import React from 'react';
 import styles from './Sidebar.module.css';
 import instruments from '../../../backend/config/instruments.json';
-let instrument_list = instruments;
 
 
-const Sidebar = ({ onAddInstrument }) => {
+const Sidebar = ({ onAddInstrument, onSelectInstrument, selectedInstrument}) => {
   return (
     <div className={styles.sidebar}>
       {/* <p>No instruments added.</p> */}
       <div className={styles.instrumentList}>
         <p className={styles.sidebarTitle}>Instruments</p>
       
-          {Object.entries(instrument_list.instruments).map(([name, instrument]) => (
-              <div className={styles.instrumentcard} key={name}>
+          {Object.entries(instruments.instruments).map(([name, data]) => (
+              <div  
+                className={`${styles.instrumentcard} ${selectedInstrument?.name === name ? styles.selectedInstrument : ''}`}
+                key={name} 
+                onClick={() => onSelectInstrument(name, data)}
+              >
                 
                 <h3>{name}</h3>
-                <p>{instrument.audio_device.name} - Ch.{instrument.audio_device.channel + 1}</p>
+                <p>{data.audio_device.name} - Ch.{data.audio_device.channel + 1}</p>
                 
               </div>
           ))}
