@@ -32,6 +32,10 @@
     color: #fff;
     padding: 10px;
 }
+
+.selectedInstrument{
+    background-color: #2d2d2d;
+}
 .instrumentcard p {
     margin: 2px;
     font-style: bold;
@@ -45,7 +49,7 @@
 }
 .instrumentcard:hover {
     cursor: pointer;
-    background-color: #333333;
+    background-color: #2d2d2d;
 }
 .addInstrument {
     display: flex;

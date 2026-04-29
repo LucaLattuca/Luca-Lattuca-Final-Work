@@ -16,6 +16,21 @@
       ],
       "type": "Line 1/4"
     },
+    "stereo_mix": {
+      "audio_device": {
+        "channel": 0,
+        "device_id": 33,
+        "host_api": "Windows WASAPI",
+        "max_input_channels": 2,
+        "name": "Stereo Mix (Realtek(R) Audio)",
+        "sample_rate": 48000
+      },
+      "enabled": true,
+      "models": [
+        "genre"
+      ],
+      "type": "audio"
+    },
     "vocals": {
       "audio_device": {
         "channel": 0,
@@ -46,7 +61,7 @@
       ],
       "type": "XLR"
     },
-    "voice2": {
+    "voice1": {
       "audio_device": {
         "channel": 0,
         "device_id": 34,
@@ -61,7 +76,7 @@
       ],
       "type": "XLR"
     },
-    "voice1": {
+    "voice2": {
       "audio_device": {
         "channel": 0,
         "device_id": 34,
