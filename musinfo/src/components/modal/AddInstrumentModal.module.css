@@ -83,56 +83,8 @@
 
 }
 
-/* step 1 */
 
 
-
-
-/* step 2 */
-
-
-/* Step 3 */
-
-
-
-/* border: 3px outset rgb(58, 151, 58); */
-
-
-/* Step 3 */
-
-
-
-/* step 4 */
-
-.testControls {
-    display: flex;
-    justify-content: space-between;
-}
-
-
-.testResult {
-   
-    display: flex;
-    /* justify-content: center; */
-    align-items: center;
-    border-radius: 15px;
-    border: 1px solid gray;
-}
-
-.levelBar {
-    
-    border-radius: 15px;
-    width: 300px;
-    height: 15px;
-}
-
-.levelBarActive {
-    background-color: green;
-}
-
-.testMetrics {
-
-}
 
 .finalConfigSection {
     /* border: 1px solid red; */

@@ -1,0 +1,29 @@
+.testControls {
+    display: flex;
+    justify-content: space-between;
+}
+
+
+.testResult {
+   
+    display: flex;
+    /* justify-content: center; */
+    align-items: center;
+    border-radius: 15px;
+    border: 1px solid gray;
+}
+
+.levelBar {
+    
+    border-radius: 15px;
+    width: 300px;
+    height: 15px;
+}
+
+.levelBarActive {
+    background-color: green;
+}
+
+.testMetrics {
+
+}

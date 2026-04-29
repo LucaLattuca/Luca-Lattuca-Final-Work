@@ -9,12 +9,14 @@ import InstrumentConfig   from '../shared/InstrumentConfig/InstrumentConfig';
 import AudioDevicesConfig from '../shared/AudioDevicesConfig/AudioDevicesConfig';
 import AnalyserConfig     from '../shared/AnalyserConfig/AnalyserConfig';
 import SignalPath         from '../shared/SignalPath/SignalPath';
+import TestAudio          from '../shared/TestAudio/TestAudio';
 
 
 const STEP_LABELS = ['Choose input type', 'Select device', 'Configure', 'Test signal'];
 
 
 const AddInstrumentModal = ({ onClose, onSubmit }) => {
+
   const [step, setStep] = useState(0);
   // instrument object to update instruments.json with
   const [formData, setFormData] = useState({
@@ -33,54 +35,6 @@ const AddInstrumentModal = ({ onClose, onSubmit }) => {
   });
   
 
-
-  // audio test state
-  const [isTesting, setIsTesting] = useState(false);
-  const [audioLevel, setAudioLevel] = useState(0);
-  const [peak, setPeak] = useState(0);
-
-  // invoke Rust command to start audio testing in step 4
-  useEffect(() => {
-    if (step !== 3) return;
-
-    let unlisten;
-
-    const startListening = async () => {
-      unlisten = await listen('test-audio-level', (event) => {
-        const level = event.payload;
-        setAudioLevel(level);
-        setPeak(prev => Math.max(prev, level));
-      });
-    };
-
-    startListening();
-
-    // stop stream and unlisten when leaving step 4
-    return () => {
-      invoke('stop_device_test').catch(console.error);
-      setIsTesting(false);
-      setAudioLevel(0);
-      setPeak(0);
-      if (unlisten) unlisten();
-    };
-  }, [step]);
-
-  // Test / stop audio test handler
-  const handleTestToggle = async () => {
-  if (isTesting) {
-    await invoke('stop_device_test');
-    setIsTesting(false);
-  } else {
-    await invoke('test_device_audio', {
-      deviceId: formData.audio_device.device_id,
-      channel: formData.audio_device.channel,
-    });
-    setIsTesting(true);
-    setPeak(0);
-  }
-};
-
-
   // update fields
   const patch = (fields) => setFormData(prev => ({ ...prev, ...fields }));
   // prevent going to next step if required fields are not filled
@@ -89,6 +43,7 @@ const AddInstrumentModal = ({ onClose, onSubmit }) => {
     step === 1 ? !!formData.audio_device.name :
     step === 2 ? formData.models.length > 0 && !!formData.name :
     true;
+    
 
   return (
     <div className={styles.overlay}>
@@ -164,28 +119,11 @@ const AddInstrumentModal = ({ onClose, onSubmit }) => {
         {step === 3 && (
           <div className={styles.stepContent}>
           
-            <div className={styles.testDevice}>
-              <div className={styles.testControls}>
-                <p>Live signal</p>
-                <button
-                  className={`${styles.testBtn} ${isTesting ? styles.testBtnActive : ''}`}
-                  onClick={handleTestToggle}
-                >
-                  {isTesting ? 'Stop test' : 'Start test'}
-                </button>
-              </div>
-
-              <div className={styles.testResult}>
-                <div
-                  className={`${styles.levelBar} ${audioLevel > 0.01 ? styles.levelBarActive : ''}`}
-                  style={{ width: `${audioLevel * 100}%` }}
-                />
-              </div>
-              
-              <p className={styles.testMetrics}>
-                RMS: {audioLevel.toFixed(3)} &nbsp;|&nbsp; Peak: {peak.toFixed(3)}
-              </p>
-            </div>
+            <TestAudio
+              deviceId={formData.audio_device.device_id}
+              channel={formData.audio_device.channel}
+            />
+            
             <div className={styles.finalConfigSection}>
 
               <SignalPath
