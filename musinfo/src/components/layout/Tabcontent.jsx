@@ -4,11 +4,12 @@ import Performance from '../tabs/Performance/Performance';
 import Setup from '../tabs/Setup/Setup';
 import OSCConfig from '../tabs/OSCConfig/OSCConfig';
 
-const Tabcontent = ({ activeTab }) => {
+
+const Tabcontent = ({ activeTab, selectedInstrument }) => {
   return (
     <div className={styles.tabcontent}>
         {activeTab === 'performance' && <Performance />}
-        {activeTab === 'setup' && <Setup />}
+        {activeTab === 'setup' && <Setup selectedInstrument={selectedInstrument} />}
         {activeTab === 'osc' && <OSCConfig />}
     </div>
   );
