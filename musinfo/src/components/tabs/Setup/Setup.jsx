@@ -14,7 +14,7 @@ const Setup = ({ selectedInstrument }) => {
     if (!selectedInstrument) {
         return (
             <div className={styles.setup}>
-                <p className={styles.hint}>Select an instrument from the sidebar.</p>
+                <p className={styles.hint}>Add an instrument to continue.</p>
             </div>
         );
     }
