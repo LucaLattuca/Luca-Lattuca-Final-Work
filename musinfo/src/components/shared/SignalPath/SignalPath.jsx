@@ -1,9 +1,17 @@
 import React from 'react';
+import styles from './SignalPath.module.css';
 
-const SignalPath = () => {
+const SignalPath = ({ name, audioDevice, models }) => {
   return (
-    <div>
-      SignalPath
+    <div className={styles.signalPathSection}>
+      <p className={styles.signalPathTitle}>Signal Path</p>
+      <div className={styles.signalPath}>
+        <p>{name}</p>          &rarr;
+        <p>{audioDevice?.name}</p>     &rarr;
+        <p>{audioDevice?.host_api}</p> &rarr;
+        <p>{models?.join(', ')}</p>    &rarr;
+        <p>OSC output</p>
+      </div>
     </div>
   );
 };

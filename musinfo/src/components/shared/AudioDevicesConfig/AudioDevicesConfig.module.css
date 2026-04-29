@@ -1,0 +1,81 @@
+
+.deviceListHeader {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    width: 100%;
+    
+}
+
+.reloadBtn {
+    background: transparent;
+    border: 1px solid gray;
+    border-radius: 7px;
+    width: 80px;
+    height: 30px;
+    cursor: pointer;
+    color: white;
+}
+
+
+.hintText {
+    font-size: medium;
+}
+
+
+.deviceList {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: scroll;
+    scrollbar-color: rgb(93, 92, 92) transparent;
+}
+
+.deviceBtn {
+    background: transparent;
+    border: 1px solid gray;
+    border-radius: 7px;
+    width: 99%;
+    height: 50px;
+    display: flex;
+    justify-content: space-between;
+    cursor: pointer;
+    color: white;
+}
+
+.selectedDevice {
+    border: 2px outset rgb(58, 151, 58);
+}
+
+.deviceInfo {
+    width: 70%;
+    /* border: 1px solid red; */
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding-left: 20px;
+}
+.deviceName{
+    margin: 0;
+    padding: 0;
+}
+
+.deviceDetails {
+    font-size:small;
+    display: flex;
+    margin: 5px 0 0 0;
+    gap: 20px;
+    width: 100%;
+}
+
+.deviceDetails p {
+    margin: 0;
+    padding: 0;
+}
+
+.deviceStatus {
+
+}

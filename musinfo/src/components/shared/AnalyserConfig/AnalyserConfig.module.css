@@ -1,0 +1,53 @@
+
+.modelSelection {
+    margin-top: 10px;
+    font-size: small;
+    /* border: 1px solid red; */
+}
+
+.modelCards {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    /* border: 1px solid red; */
+    height: 100px;
+    overflow-y: auto;
+    scrollbar-color: rgb(93, 92, 92) transparent;
+    scrollbar-width: thin;
+}
+.modelCards button.selectedCard  {
+    border: 3px outset rgb(58, 151, 58);
+}
+
+.modelCards button {
+    width: 140px;
+    height: 35px;
+    border: 2px outset gray;
+    border-radius: 7px;
+    background: transparent;
+    color: white;
+    cursor: pointer;
+}
+
+.modelCards button:hover {
+    border: 2px outset rgb(108, 108, 108);
+}
+
+.modelCards button.selectedCard:hover {
+    border: 3px outset rgb(54, 139, 54);
+}
+
+.modelDescription {
+
+    display: flex;
+    justify-content: center;
+    text-align: center;
+
+    margin-top: 10px;
+    /* height: 50px; */
+    /* border: 1px solid red;   */
+    font-size: small;
+}
