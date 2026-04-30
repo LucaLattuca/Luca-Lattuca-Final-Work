@@ -77,9 +77,11 @@ const AddInstrumentModal = ({ onClose, onSubmit }) => {
         {step === 0 &&(
            <div className={styles.stepContent}>
             <InstrumentConfig
+              variant="modal"
               type={formData.type}
               onTypeChange={(t) => patch({ type: t })}
               showName={false}
+              
             />
           </div>
         )}

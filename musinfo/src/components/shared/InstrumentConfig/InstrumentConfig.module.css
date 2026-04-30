@@ -1,3 +1,4 @@
+
 .instrumentNameInput {
     display: flex;
     flex-direction: column;
@@ -14,8 +15,48 @@
     padding: 0 10px 0 10px;
 }
 
+.setup {
+    width: fit-content;
+}
 
-.InputCards {
+.setup .InputCards {
+    display: flex;
+    flex-direction: row;
+    width: fit-content;
+
+    margin-top: 20px;
+    gap: 20px;
+}
+
+.setup .card {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100px;
+    height: 40px;
+
+    background: transparent;
+    border: 2px outset gray;
+    border-radius: 10px;
+    
+    font-size: small;
+    color: white;
+    
+    cursor: pointer;
+}
+.setup .selectedCard {
+    border: 3px outset rgb(58, 151, 58);
+}
+
+.setup .typeDescription {
+    color: white;
+    width: fit-content;
+    height: 50px;
+    font-size: 14px;
+}
+
+
+.modal .InputCards {
     display: flex;
     flex-direction: row;
     justify-content: space-around;
@@ -24,7 +65,7 @@
 }
 
 
-.card {
+.modal .card {
     cursor: pointer;
     background: transparent;
     border: 2px outset gray;
@@ -34,11 +75,11 @@
     height: 150px;
 }
 
-.selectedCard {
+.modal .selectedCard {
     border: 3px outset rgb(58, 151, 58);
 }
 
-.cardDesc {
+.modal .cardDesc {
     font-size: smaller;
 }
 
