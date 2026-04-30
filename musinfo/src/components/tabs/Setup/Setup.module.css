@@ -3,3 +3,8 @@
     margin: 20px 0 20px 0;
 }
 
+.instrumentControls {
+    display: flex;
+    border: 1px solid red;
+    justify-content: space-between;
+}

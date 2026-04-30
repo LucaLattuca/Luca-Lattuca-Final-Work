@@ -24,7 +24,7 @@ const Setup = ({ selectedInstrument }) => {
 
     return (
         <div className={styles.setup}>
-        <div>
+        <div className={styles.instrumentControls}>
            <InstrumentConfig
                 name={formData.name}
                 type={formData.type}

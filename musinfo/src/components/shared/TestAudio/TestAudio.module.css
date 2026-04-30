@@ -1,8 +1,18 @@
+
+.testDevice {
+    border: 1px solid red;
+}
+
 .testControls {
     display: flex;
     justify-content: space-between;
+    
+    border: 1px solid red;
 }
 
+.testDeviceTitle{
+    width: 300px;
+}
 
 .testResult {
    

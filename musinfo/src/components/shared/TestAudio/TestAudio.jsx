@@ -54,7 +54,7 @@ const TestAudio = ({ deviceId, channel }) => {
   return (
     <div className={styles.testDevice}>
       <div className={styles.testControls}>
-        <p>Live signal</p>
+        <p className={styles.testDeviceTitle}>Live signal</p>
         <button
           className={`${styles.testBtn} ${isTesting ? styles.testBtnActive : ''}`}
           onClick={handleTestToggle}
