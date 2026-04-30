@@ -38,11 +38,7 @@ const InstrumentConfig = ({
 
   const displayedType = hoveredType ?? selectedInputType;
 
-  useEffect(() => {
-        if (selectedInstrument) setFormData({ ...selectedInstrument });
-    }, [selectedInstrument]);
 
-    
   return (
     <div className={`${styles[variant]}`}>
       {showName && (
