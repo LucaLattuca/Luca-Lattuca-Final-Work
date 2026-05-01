@@ -10,24 +10,20 @@ const TestAudio = ({ deviceId, channel }) => {
 
   // unlisten + stop stream on unmount or when device changes
   useEffect(() => {
-    let unlisten;
+    let unlisten = null;
 
-    const startListening = async () => {
-      unlisten = await listen('test-audio-level', (event) => {
-        const level = event.payload;
-        setAudioLevel(level);
-        setPeak(prev => Math.max(prev, level));
-      });
-    };
-
-    startListening();
+    listen('test-audio-level', (event) => {
+      const level = event.payload;
+      setAudioLevel(level);
+      setPeak(prev => Math.max(prev, level));
+    }).then(fn => { unlisten = fn; });
 
     return () => {
+      if (unlisten) unlisten();
       invoke('stop_device_test').catch(console.error);
       setIsTesting(false);
       setAudioLevel(0);
       setPeak(0);
-      if (unlisten) unlisten();
     };
   }, []);
 
