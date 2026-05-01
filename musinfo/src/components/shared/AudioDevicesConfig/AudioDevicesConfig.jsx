@@ -17,13 +17,31 @@ const AudioDevicesConfig = ({ inputType, selectedDevice, onSelectDevice }) => {
     setLoading(true);
     setError(null);
     try {
-      if (inputType === 'midi') {
-        const result = await invoke('get_midi_devices');
-        setDevices(result);
-      } else {
-        const result = await invoke('get_audio_devices', { deviceType: inputType });
-        setDevices(result);
+      const result = inputType === 'midi'
+        ? await invoke('get_midi_devices')
+        : await invoke('get_audio_devices', { deviceType: inputType });
+    
+      setDevices(result);
+    
+      // auto-select: find matching device by name + channel
+      // device_id can change between sessions so we match by name
+      if (selectedDevice?.name) {
+        const match = result.find(d =>
+          d.name === selectedDevice.name &&
+          (d.channel ?? 0) === (selectedDevice.channel ?? 0)
+        );
+        if (match) {
+          onSelectDevice({
+            name:               match.name,
+            device_id:          match.device_index ?? match.index,
+            host_api:           match.host_api,
+            max_input_channels: match.max_input_channels,
+            channel:            match.channel ?? 0,
+            sample_rate:        match.sample_rate,
+          });
+        }
       }
+    
     } catch (err) {
       setError('Could not load devices. Is the interface connected?');
       console.error('[AudioDevicesConfig]', err);
