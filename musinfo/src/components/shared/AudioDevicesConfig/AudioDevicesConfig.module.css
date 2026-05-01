@@ -4,7 +4,7 @@
     justify-content: space-between;
     margin-bottom: 10px;
     width: 100%;
-    
+
 }
 
 .reloadBtn {
@@ -24,7 +24,8 @@
 
 
 .deviceList {
-    width: 100%;
+    width: 430px;
+    height: 200px;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -74,8 +75,4 @@
 .deviceDetails p {
     margin: 0;
     padding: 0;
-}
-
-.deviceStatus {
-
 }

@@ -110,6 +110,7 @@ const AddInstrumentModal = ({ onClose, onSubmit }) => {
               showType={false}
             />
             <AnalyserConfig
+              variant="modal"
               selectedModels={formData.models}
               onModelsChange={(models) => patch({ models })}
             />

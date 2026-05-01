@@ -39,9 +39,9 @@ const Setup = ({ selectedInstrument }) => {
                 channel={formData.audio_device.channel}
                 />
 
-            </div>
+        </div>
 
-            <div>
+        <div className={styles.audioControls}>
 
             <AudioDevicesConfig
                 inputType={formData.type}
@@ -53,14 +53,17 @@ const Setup = ({ selectedInstrument }) => {
                 selectedModels={formData.models}
                 onModelsChange={() => {}}
                 />
-            </div>
+        </div>
+
+        <div className={styles.signalPath}>
 
             <SignalPath
                 name={formData.name}
                 audioDevice={formData.audio_device}
                 models={formData.models}
-            />
+                />
 
+        </div>
       
         </div>
     );

@@ -6,4 +6,20 @@
 .instrumentControls {
     display: flex;
     justify-content: space-between;
+    border-bottom: 1px solid gray;
+    padding: 5px;
 }
+
+
+.audioControls {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    border-bottom: 1px solid gray;
+    padding: 5px;
+}
+
+.signalPath {
+    padding-top: 15px;
+}
+

@@ -33,7 +33,7 @@ const AudioDevicesConfig = ({ inputType, selectedDevice, onSelectDevice }) => {
   };
 
   return (
-    <div>
+    <div className={styles.AudioDevicesConfig}>
       <div className={styles.deviceListHeader}>
         <p className={styles.stepHint}>Available devices</p>
         <button className={styles.reloadBtn} onClick={fetchDevices} disabled={loading}>
@@ -41,6 +41,7 @@ const AudioDevicesConfig = ({ inputType, selectedDevice, onSelectDevice }) => {
         </button>
       </div>
 
+    {/* TODO: make device show up even if not connected + custom border styling for activated device or not  */}
 
       {error && <p>{error}</p>}
 
