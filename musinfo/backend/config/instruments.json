@@ -1,23 +1,22 @@
 {
   "instruments": {
-    "guitar": {
+    "piano": {
       "audio_device": {
         "channel": 1,
         "connected": true,
-        "device_id": 38,
+        "device_id": 39,
         "host_api": "Windows WASAPI",
         "max_input_channels": 2,
-        "name": "Stereo Mix (Realtek(R) Audio)",
+        "name": "Analogue 1 + 2 (Focusrite USB Audio)",
         "sample_rate": 48000
       },
-      "channel": 1,
       "enabled": true,
       "models": [
-        "genre"
+        "pitch"
       ],
-      "type": "Line 1/4"
+      "type": "audio"
     },
-    "stereo_mix": {
+    "track": {
       "audio_device": {
         "channel": 0,
         "connected": true,
@@ -33,9 +32,9 @@
       ],
       "type": "audio"
     },
-    "vocals": {
+    "wwww": {
       "audio_device": {
-        "channel": 0,
+        "channel": 1,
         "connected": true,
         "device_id": 38,
         "host_api": "Windows WASAPI",
@@ -45,57 +44,10 @@
       },
       "enabled": true,
       "models": [
-        "pitch"
+        "pitch",
+        "genre"
       ],
       "type": "audio"
-    },
-    "voice": {
-      "audio_device": {
-        "channel": 0,
-        "connected": true,
-        "device_id": 39,
-        "host_api": "Windows WASAPI",
-        "max_input_channels": 2,
-        "name": "Analogue 1 + 2 (Focusrite USB Audio)",
-        "sample_rate": 48000
-      },
-      "enabled": true,
-      "models": [
-        "pitch"
-      ],
-      "type": "XLR"
-    },
-    "voice1": {
-      "audio_device": {
-        "channel": 1,
-        "connected": true,
-        "device_id": 39,
-        "host_api": "Windows WASAPI",
-        "max_input_channels": 2,
-        "name": "Analogue 1 + 2 (Focusrite USB Audio)",
-        "sample_rate": 48000
-      },
-      "enabled": true,
-      "models": [
-        "pitch"
-      ],
-      "type": "XLR"
-    },
-    "voice2": {
-      "audio_device": {
-        "channel": 0,
-        "connected": true,
-        "device_id": 40,
-        "host_api": "Windows WASAPI",
-        "max_input_channels": 2,
-        "name": "Microphone Array (Realtek(R) Audio)",
-        "sample_rate": 48000
-      },
-      "enabled": true,
-      "models": [
-        "pitch"
-      ],
-      "type": "XLR"
     }
   }
 }
