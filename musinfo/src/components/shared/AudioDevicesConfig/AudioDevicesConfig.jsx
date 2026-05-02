@@ -3,15 +3,39 @@ import { invoke } from '@tauri-apps/api/core';
 import styles from './AudioDevicesConfig.module.css';
 
 
+const AudioDevicesConfig = ({ 
+  inputType,
+  selectedDevice,
+  onSelectDevice,
+  onSwapDevice,
+  currentInstrumentName,
+  allInstruments, 
+ }) => {
 
-const AudioDevicesConfig = ({ inputType, selectedDevice, onSelectDevice }) => {
-  const [devices, setDevices]   = useState([]);
-  const [loading, setLoading]   = useState(false);
-  const [error,   setError]     = useState(null);
+  const [devices,     setDevices]     = useState([]);
+  const [loading,     setLoading]     = useState(false);
+  const [error,       setError]       = useState(null);
 
+  const [usedDevices, setUsedDevices] = useState([]);
+  const [swapPrompt,  setSwapPrompt]  = useState(null);
+
+  // Re-fetch the device list whenever the input type changes (audio / midi / virtual).
+  useEffect(() => { fetchDevices(); }, [inputType]); 
+
+
+  // Recompute what decives are in use, runs when instruments gets updated
   useEffect(() => {
-    fetchDevices();
-  }, [inputType]);
+    const instruments = allInstruments ?? {};
+    const used = Object.entries(instruments)
+      .filter(([name]) => name !== currentInstrumentName)
+      .map(([name, inst]) => ({
+        instrumentName: name,
+        name:           inst.audio_device?.name,
+        channel:        inst.audio_device?.channel,
+      }));
+    setUsedDevices(used);
+  }, [allInstruments, currentInstrumentName]);
+
 
   const fetchDevices = async () => {
     setLoading(true);
@@ -20,34 +44,51 @@ const AudioDevicesConfig = ({ inputType, selectedDevice, onSelectDevice }) => {
       const result = inputType === 'midi'
         ? await invoke('get_midi_devices')
         : await invoke('get_audio_devices', { deviceType: inputType });
-    
       setDevices(result);
-    
-      // auto-select: find matching device by name + channel
-      // device_id can change between sessions so we match by name
-      if (selectedDevice?.name) {
-        const match = result.find(d =>
-          d.name === selectedDevice.name &&
-          (d.channel ?? 0) === (selectedDevice.channel ?? 0)
-        );
-        if (match) {
-          onSelectDevice({
-            name:               match.name,
-            device_id:          match.device_index ?? match.index,
-            host_api:           match.host_api,
-            max_input_channels: match.max_input_channels,
-            channel:            match.channel ?? 0,
-            sample_rate:        match.sample_rate,
-          });
-        }
-      }
-    
     } catch (err) {
       setError('Could not load devices. Is the interface connected?');
       console.error('[AudioDevicesConfig]', err);
     } finally {
       setLoading(false);
     }
+  };
+
+
+  const handleDeviceClick = (device) => {
+    const usedEntry = usedDevices.find(u =>
+      u.name    === device.name &&
+      u.channel === (device.channel ?? 0)
+    );
+
+    if (usedEntry) {
+      // Setup context: open swap prompt.
+      // Modal context (no onSwapDevice): click is blocked via disabled attr.
+      if (onSwapDevice) setSwapPrompt({ otherName: usedEntry.instrumentName, device });
+      return;
+    }
+
+    onSelectDevice({
+      name:               device.name,
+      device_id:          device.device_index ?? device.index,
+      host_api:           device.host_api,
+      max_input_channels: device.max_input_channels,
+      channel:            device.channel ?? 0,
+      sample_rate:        device.sample_rate,
+    });
+  };
+
+  // confirmation propmpt for swapping audio devices
+  const confirmSwap = () => {
+    if (!swapPrompt) return;
+    onSwapDevice(swapPrompt.otherName, {
+      name:               swapPrompt.device.name,
+      device_id:          swapPrompt.device.device_index ?? swapPrompt.device.index,
+      host_api:           swapPrompt.device.host_api,
+      max_input_channels: swapPrompt.device.max_input_channels,
+      channel:            swapPrompt.device.channel ?? 0,
+      sample_rate:        swapPrompt.device.sample_rate,
+    });
+    setSwapPrompt(null);
   };
 
   return (
@@ -71,22 +112,36 @@ const AudioDevicesConfig = ({ inputType, selectedDevice, onSelectDevice }) => {
         {loading && <p className={styles.hintText}>Scanning devices...</p>}
 
         {!loading && devices.map((device, i) => {
+          // Selected device
           const isSelected =
             selectedDevice?.device_id === (device.device_index ?? device.index) &&
             selectedDevice?.channel   === (device.channel ?? 0);
+          // Devices in use
+          const isInUse = usedDevices.some(u =>
+            u.name    === device.name &&
+            u.channel === (device.channel ?? 0)
+          );
 
           return (
             <div key={i} className={styles.deviceCard}>
               <button
-                className={`${styles.deviceBtn} ${isSelected ? styles.selectedDevice : ''}`}
-                onClick={() => onSelectDevice({
+                className={`
+                  ${styles.deviceBtn} 
+                  ${isSelected ? styles.selectedDevice : ''}
+                  ${isInUse    ? styles.inUseDevice    : ''}
+                  `}
+                onClick={() => {
+                  if (isInUse) return;
+                  onSelectDevice({
                   name:               device.name,
                   device_id:          device.device_index ?? device.index,
                   host_api:           device.host_api,
                   max_input_channels: device.max_input_channels,
                   channel:            device.channel ?? 0,
                   sample_rate:        device.sample_rate,
-                })}
+                });
+              }}
+              disabled={isInUse}
               >
                 <div className={styles.deviceInfo}>
                   <h4 className={styles.deviceName}>{device.name}</h4>
@@ -98,7 +153,7 @@ const AudioDevicesConfig = ({ inputType, selectedDevice, onSelectDevice }) => {
                   </div>
                 </div>
                 <div className={styles.deviceStatus}>
-                  <p>in use</p>
+                  <p>{isInUse ? 'in use' : ''}</p>
                 </div>
               </button>
             </div>
