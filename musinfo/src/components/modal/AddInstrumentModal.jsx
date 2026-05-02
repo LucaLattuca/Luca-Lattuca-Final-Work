@@ -15,7 +15,7 @@ import TestAudio          from '../shared/TestAudio/TestAudio';
 const STEP_LABELS = ['Choose input type', 'Select device', 'Configure', 'Test signal'];
 
 
-const AddInstrumentModal = ({ onClose, onSubmit }) => {
+const AddInstrumentModal = ({ onClose, onSubmit, instruments  }) => {
 
   const [step, setStep] = useState(0);
   // instrument object to update instruments.json with
@@ -96,6 +96,8 @@ const AddInstrumentModal = ({ onClose, onSubmit }) => {
               inputType={formData.type}
               selectedDevice={formData.audio_device}
               onSelectDevice={(device) => patch({ audio_device: device })}
+              currentInstrumentName=""
+              allInstruments={instruments}
             />
           </div>
         )}
