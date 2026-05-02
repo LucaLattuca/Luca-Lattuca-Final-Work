@@ -49,6 +49,15 @@ function App() {
   const [modalOpen, setModalOpen] = useState(false);
 
 
+  // handle instrument reconcile
+  const handleReconcile = (updatedInstruments) => {
+    setInstruments(updatedInstruments);
+    setSelectedInstrument(prev => {
+      const updated = updatedInstruments[prev?.name];
+      return updated ? { name: prev.name, ...updated } : prev;
+    });
+  };
+
   // Called when the user clicks an instrument in the sidebar.
   const handleSelectInstrument = (name, data) => {
     setSelectedInstrument({ name, ...data });
@@ -131,6 +140,7 @@ function App() {
         onSelectInstrument={handleSelectInstrument}
         onUpdateInstrument={handleUpdateInstrument}
         onSwapDevices={handleSwapDevices}
+        onReconcile={handleReconcile}
       />
       {modalOpen && (
         <AddInstrumentModal

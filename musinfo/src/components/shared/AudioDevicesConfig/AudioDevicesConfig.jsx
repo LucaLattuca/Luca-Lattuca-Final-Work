@@ -10,6 +10,7 @@ const AudioDevicesConfig = ({
   onSwapDevice,
   currentInstrumentName,
   allInstruments, 
+  onReconcile,
  }) => {
 
   const [devices,     setDevices]     = useState([]);
@@ -45,6 +46,12 @@ const AudioDevicesConfig = ({
         ? await invoke('get_midi_devices')
         : await invoke('get_audio_devices', { deviceType: inputType });
       setDevices(result);
+
+      if (onReconcile) {
+        const updated = await invoke('reconcile_devices');
+        onReconcile(updated.instruments);
+      }
+
     } catch (err) {
       setError('Could not load devices. Is the interface connected?');
       console.error('[AudioDevicesConfig]', err);

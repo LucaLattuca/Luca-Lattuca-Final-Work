@@ -15,6 +15,7 @@ const Setup = ({
     instruments,
     onUpdateInstrument,
     onSwapDevices,
+    onReconcile,
 }) => {
 
     const [formData, setFormData] = useState(null);
@@ -83,6 +84,7 @@ const Setup = ({
                 onSwapDevice={handleSwapDevice}
                 currentInstrumentName={formData.name}
                 allInstruments={instruments}
+                onReconcile={onReconcile} 
               />
               <AnalyserConfig
                 selectedModels={formData.models}
