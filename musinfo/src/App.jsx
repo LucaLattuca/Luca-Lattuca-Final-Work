@@ -15,6 +15,28 @@ function App() {
   const [switchInstrument, setSwitchInstrument] = useState(0);
   
 
+
+  // On launch, re-match device_ids by name + channel since hardware
+  // indices can change between sessions. Marks devices as connected/disconnected.
+  useEffect(() => {
+      const reconcile = async () => {
+          try {
+              const updated = await invoke('reconcile_devices');
+              const updatedInstruments = updated.instruments;
+              setInstruments(updatedInstruments);
+              // re-select the first instrument with the reconciled data
+              const entries = Object.entries(updatedInstruments);
+              if (entries.length > 0) {
+                  const [name, data] = entries[0];
+                  setSelectedInstrument({ name, ...data });
+              }
+          } catch (err) {
+              console.error('[App] Failed to reconcile devices:', err);
+          }
+      };
+      reconcile();
+  }, []);
+
   // The instrument currently shown in the Setup tab.
   const [selectedInstrument, setSelectedInstrument] = useState(() => {
     const entries = Object.entries(instrumentsConfig.instruments);

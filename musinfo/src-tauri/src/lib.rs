@@ -113,6 +113,87 @@ fn delete_instrument(_app: AppHandle, name: String) -> Result<String, String> {
 
 // AUDIO DEVICES
 
+// rematches device id with name and channel, since device_id can change
+#[tauri::command]
+fn reconcile_devices(_app: AppHandle) -> Result<Value, String> {
+    let path = instruments_path()?;
+    let mut config = read_config(&path)?;
+
+    // query all WASAPI input devices regardless of virtual/audio type
+    let script = r#"
+import json, sounddevice as sd
+devices = sd.query_devices()
+host_apis = sd.query_hostapis()
+result = []
+for i, d in enumerate(devices):
+    if d["max_input_channels"] == 0:
+        continue
+    if host_apis[d["hostapi"]]["name"] != "Windows WASAPI":
+        continue
+    for ch in range(d["max_input_channels"]):
+        result.append({
+            "device_index": i,
+            "name": d["name"],
+            "channel": ch,
+        })
+print(json.dumps(result))
+"#;
+
+    let output = Command::new("python")
+        .args(["-c", script])
+        .output()
+        .map_err(|e| format!("Failed to query devices: {}", e))?;
+
+    let live_devices: Vec<Value> =
+        serde_json::from_str(String::from_utf8_lossy(&output.stdout).trim()).unwrap_or_default();
+
+    let instruments = config
+        .get_mut("instruments")
+        .and_then(|v| v.as_object_mut())
+        .ok_or("instruments.json has no 'instruments' key")?;
+
+    for (_, inst) in instruments.iter_mut() {
+        let audio_device = match inst.get_mut("audio_device").and_then(|v| v.as_object_mut()) {
+            Some(d) => d,
+            None => continue,
+        };
+
+        let stored_name = audio_device
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let stored_channel = audio_device
+            .get("channel")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
+
+        // find the live device matching by name + channel
+        let matched = live_devices.iter().find(|d| {
+            d["name"].as_str().unwrap_or("") == stored_name
+                && d["channel"].as_i64().unwrap_or(0) == stored_channel
+        });
+
+        match matched {
+            Some(live) => {
+                // update device_id to the current hardware index
+                if let Some(id) = live["device_index"].as_i64() {
+                    audio_device.insert("device_id".to_string(), Value::Number(id.into()));
+                }
+                audio_device.insert("connected".to_string(), Value::Bool(true));
+            }
+            None => {
+                audio_device.insert("connected".to_string(), Value::Bool(false));
+            }
+        }
+    }
+
+    // write updated device_ids back to disk
+    write_config(&path, &config)?;
+
+    Ok(Value::Object(config))
+}
+
 // Runs a Python script to query all available audio devices on the system and filter them by type.
 #[tauri::command]
 fn get_audio_devices(device_type: String) -> Vec<Value> {
@@ -485,7 +566,8 @@ pub fn run() {
             test_device_audio,
             stop_device_test,
             save_instrument,
-            delete_instrument
+            delete_instrument,
+            reconcile_devices
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
