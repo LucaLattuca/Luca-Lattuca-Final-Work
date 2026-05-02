@@ -1,1 +1,3 @@
 .vscode/settings.json
+musinfo/backend/config/instruments.json
+musinfo/src-tauri/Cargo.toml
