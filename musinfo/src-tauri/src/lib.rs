@@ -209,7 +209,7 @@ for i, d in enumerate(devices):
     api_name = host_apis[d["hostapi"]]["name"]
     if d["max_input_channels"] == 0:
         continue
-    if api_name != "Windows WASAPI":
+    if api_name not in ["Windows WASAPI", "Windows WDM-KS", "MME"]:
         continue
 
     name_lower = d["name"].lower()
@@ -220,8 +220,11 @@ for i, d in enumerate(devices):
     if "{device_type}" == "audio" and is_virtual:
         continue
     
+    # Limit virtual devices to 4 channels, show all channels for real devices
+    max_channels_to_show = 4 if is_virtual else d["max_input_channels"]
+
     # one entry per input channel
-    for ch in range(d["max_input_channels"]):
+    for ch in range(min(max_channels_to_show, d["max_input_channels"])):
         result.append({{
             "device_index": i,
             "name": d["name"],
