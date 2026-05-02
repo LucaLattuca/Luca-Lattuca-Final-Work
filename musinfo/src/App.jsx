@@ -1,5 +1,5 @@
 import reactLogo from "./assets/react.svg";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 import "./App.css";
