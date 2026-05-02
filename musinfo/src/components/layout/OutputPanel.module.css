@@ -3,6 +3,7 @@
     width: 300px;
     overflow-y: auto;
     height: 100%;
+    
 }
 
 .outputPanel::-webkit-scrollbar {
@@ -20,4 +21,31 @@
 
 .outputPanel::-webkit-scrollbar-thumb:hover {
     background: #666;
+}
+
+.instrument {
+    gap: 10px;
+    border-bottom: 1px solid gray;
+    padding: 10px;
+}
+.instrumentName {
+    font-size: larger;
+    
+}
+.analyserList {
+    font-size: medium;
+    padding-top: 10px;
+}
+
+.analyserRow {
+    display: flex;
+    gap: 10px;
+}
+
+.analyserName {
+
+}
+
+.analyserValue {
+
 }

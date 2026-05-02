@@ -3,8 +3,12 @@ import { listen } from '@tauri-apps/api/event';
 import styles from './OutputPanel.module.css';
 
 
-const OutputPanel = () => {
+const OutputPanel = ({
+    instruments = []
+}) => {
     const [messages, setMessages] = useState([]);
+    
+    const output = Object.entries(instruments);
 
     useEffect(()=> {
 
@@ -26,16 +30,24 @@ const OutputPanel = () => {
 
     return (
     <div className={styles.outputPanel}>
-        {messages.length === 0 ? (
-            <p>Waiting for Output...</p>
-        ) : (
-            messages.map(msg => (
-                <div key={msg.id} className={styles.message}>
-                    <span className={styles.timestamp}>{msg.timestamp}</span>
-                    <span className={styles.text}>{msg.text}</span>
-                </div>
-            ))
-        )}
+        {output.length === 0 && (
+                    <p className={styles.empty}>No instruments configured.</p>
+                )}
+
+                {output.map(([name, config]) => (
+                    <div key={name} className={styles.instrument}>
+                        <div className={styles.instrumentName}>{name}</div>
+
+                        <div className={styles.analyserList}>
+                            {(config.models ?? []).map(model => (
+                                <div key={model} className={styles.analyserRow}>
+                                    <span className={styles.analyserName}>{model}:</span>
+                                    <span className={styles.analyserValue}>—</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
     </div>
   );
 };

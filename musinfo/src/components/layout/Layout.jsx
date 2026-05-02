@@ -40,7 +40,9 @@ const Layout = ({
               onReconcile={onReconcile}
               onDeleteInstrument={onDeleteInstrument}
             />
-            <OutputPanel />
+            <OutputPanel
+              instruments={instruments}
+            />
           </main>
         </>
     );
