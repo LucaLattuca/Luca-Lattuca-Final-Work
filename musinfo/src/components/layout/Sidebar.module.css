@@ -66,3 +66,15 @@
     cursor: pointer;
 }
 
+/* Device not found */
+
+.disconnectedInstrument {
+    opacity: 0.5;
+}
+
+.deviceNotFound {
+    color: rgb(200, 80, 80);
+    font-size: small;
+    margin: 0;
+}
+

@@ -8,16 +8,22 @@ const Sidebar = ({ onAddInstrument, onSelectInstrument, selectedInstrument, inst
       <div className={styles.instrumentList}>
         <p className={styles.sidebarTitle}>Instruments</p>
       
-        {Object.entries(instruments).map(([name, data]) => (
-          <div
-            key={name}
-            className={`${styles.instrumentcard} ${selectedInstrument?.name === name ? styles.selectedInstrument : ''}`}
-            onClick={() => onSelectInstrument(name, data)}
-          >
-            <h3>{name}</h3>
-            <p>{data.audio_device.name} — Ch.{data.audio_device.channel + 1}</p>
-          </div>
-        ))}
+        {Object.entries(instruments).map(([name, data]) => {
+            const disconnected = data.audio_device?.connected === false;
+            return (
+                <div
+                    key={name}
+                    className={`${styles.instrumentcard} ${selectedInstrument?.name === name ? styles.selectedInstrument : ''} ${disconnected ? styles.disconnectedInstrument : ''}`}
+                    onClick={() => onSelectInstrument(name, data)}
+                >
+                    <h3>{name}</h3>
+                    {disconnected
+                        ? <p className={styles.deviceNotFound}>device not found</p>
+                        : <p>{data.audio_device.name} — Ch.{data.audio_device.channel + 1}</p>
+                    }
+                </div>
+            );
+        })}
         
         <p className={styles.sidebarTitle}>Mix</p>
         <div className={styles.mix}>
