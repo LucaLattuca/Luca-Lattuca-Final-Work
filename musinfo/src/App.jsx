@@ -9,35 +9,112 @@ import instrumentsConfig from "../backend/config/instruments.json";
 
 function App() {
 
+  const [instruments, setInstruments] = useState(instrumentsConfig.instruments);
+  
+  // Switch instrument state
+  const [switchInstrument, setSwitchInstrument] = useState(0);
+  
+
+  // The instrument currently shown in the Setup tab.
+  const [selectedInstrument, setSelectedInstrument] = useState(() => {
+    const entries = Object.entries(instrumentsConfig.instruments);
+    if (entries.length === 0) return null;
+    const [name, data] = entries[0];
+    return { name, ...data };
+  });
+
+  // Modal state
   const [modalOpen, setModalOpen] = useState(false);
 
-  const [instruments, setInstruments] = useState(instrumentsConfig.instruments);
+
+  // Called when the user clicks an instrument in the sidebar.
+  const handleSelectInstrument = (name, data) => {
+    setSelectedInstrument({ name, ...data });
+    setSwitchInstrument(k => k + 1);
+  };
+
 
   // Submit modal form handler
   const handleSubmit = async (formData) => {
     try {
       await invoke('save_instrument', { instrument: formData });
-      console.log('[App] Instrument saved:', formData.name);
-      setInstruments(prev => ({
-                ...prev,
-                [formData.name]: formData,
-            }));
+      setInstruments(prev => ({ ...prev, [formData.name]: { ...formData } }));
+      // auto-select the newly added instrument
+      setSelectedInstrument({ ...formData });
+      setSwitchInstrument(k => k + 1);
       setModalOpen(false);
     } catch (err) {
       console.error('[App] Failed to save instrument:', err);
     }
   };
 
+
+  // Update instrument in setup tab
+  const handleUpdateInstrument = async (originalName, formData) => {
+    if (!formData.name) return; // don't persist an empty name
+
+    const isRename = originalName !== formData.name;
+    try {
+      await invoke('save_instrument', { instrument: formData });
+      if (isRename) await invoke('delete_instrument', { name: originalName });
+
+      setInstruments(prev => {
+        const next = { ...prev };
+        if (isRename) delete next[originalName];
+        next[formData.name] = { ...formData };
+        return next;
+      });
+
+      // keep selectedInstrument in sync without triggering a switchKey bump
+      // (a switchKey bump would reset Setup's local draft mid-edit)
+      setSelectedInstrument({ ...formData });
+    } catch (err) {
+      console.error('[App] Failed to update instrument:', err);
+    }
+  };
+
+
+  // Swap instruments in setup tab
+  const handleSwapDevices = async (nameA, newDeviceA, nameB, newDeviceB) => {
+    try {
+      const instrA = { name: nameA, ...instruments[nameA], audio_device: newDeviceA };
+      const instrB = { name: nameB, ...instruments[nameB], audio_device: newDeviceB };
+      await invoke('save_instrument', { instrument: instrA });
+      await invoke('save_instrument', { instrument: instrB });
+
+      setInstruments(prev => ({
+        ...prev,
+        [nameA]: { ...prev[nameA], audio_device: newDeviceA },
+        [nameB]: { ...prev[nameB], audio_device: newDeviceB },
+      }));
+
+      // reflect the swap on whichever instrument is currently open in Setup
+      setSelectedInstrument(prev => {
+        if (prev?.name === nameA) return { ...prev, audio_device: newDeviceA };
+        if (prev?.name === nameB) return { ...prev, audio_device: newDeviceB };
+        return prev;
+      });
+    } catch (err) {
+      console.error('[App] Failed to swap devices:', err);
+    }
+  };
+
   return (
-    <>  
-      <Layout 
-        onAddInstrument={() => setModalOpen(true)} 
-        instruments={instruments}  
+     <>
+      <Layout
+        onAddInstrument={() => setModalOpen(true)}
+        instruments={instruments}
+        selectedInstrument={selectedInstrument}
+        switchInstrument={switchInstrument}
+        onSelectInstrument={handleSelectInstrument}
+        onUpdateInstrument={handleUpdateInstrument}
+        onSwapDevices={handleSwapDevices}
       />
       {modalOpen && (
         <AddInstrumentModal
           onClose={() => setModalOpen(false)}
           onSubmit={handleSubmit}
+          instruments={instruments}
         />
       )}
     </>
