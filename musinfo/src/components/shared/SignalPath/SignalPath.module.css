@@ -3,13 +3,14 @@
     margin: 0;
     font-size:medium;
     margin-bottom: 10px;
+    
 }
 .signalPath {
     display: flex;
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
-
+    margin-bottom: 20px;
 }
 .signalPath p {
     margin: 0;

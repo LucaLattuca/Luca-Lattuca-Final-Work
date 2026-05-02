@@ -2,33 +2,46 @@ import React from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import Tabcontent from './Tabcontent';
-import style from './Layout.module.css';
 import OutputPanel from './OutputPanel';
+import style from './Layout.module.css';
 
 
-const Layout = ({ onAddInstrument }) => {
+const Layout = ({ 
+    onAddInstrument,
+    instruments,
+    selectedInstrument,
+    switchInstrument,
+    onSelectInstrument,
+    onUpdateInstrument,
+    onSwapDevices,
+    onReconcile,
+    onDeleteInstrument,
+}) => {
     const [activeTab, setActiveTab] = React.useState('performance');
-    const [selectedInstrument, setSelectedInstrument] = React.useState(null);
 
-
-    const handleSelectInstrument = (name, data) => {
-        const instrument = { name, ...data };
-        setSelectedInstrument(instrument);
-        console.log('[Layout] Selected instrument:', instrument);
-    };
 
     return (
         <>
-            <Header activeTab={activeTab} setActiveTab={setActiveTab} />
-            <main className={style.main}>
-                <Sidebar 
-                    onAddInstrument={onAddInstrument}
-                    onSelectInstrument={handleSelectInstrument}
-                    selectedInstrument={selectedInstrument}
-                />
-                <Tabcontent  activeTab={activeTab} selectedInstrument={selectedInstrument}/>
-                <OutputPanel />
-            </main>
+          <Header activeTab={activeTab} setActiveTab={setActiveTab} />
+          <main className={style.main}>
+            <Sidebar
+              onAddInstrument={onAddInstrument}
+              onSelectInstrument={onSelectInstrument}
+              selectedInstrument={selectedInstrument}
+              instruments={instruments}
+            />
+            <Tabcontent
+              activeTab={activeTab}
+              selectedInstrument={selectedInstrument}
+              switchInstrument={switchInstrument}
+              instruments={instruments}
+              onUpdateInstrument={onUpdateInstrument}
+              onSwapDevices={onSwapDevices}
+              onReconcile={onReconcile}
+              onDeleteInstrument={onDeleteInstrument}
+            />
+            <OutputPanel />
+          </main>
         </>
     );
 };

@@ -1,10 +1,14 @@
 
+.AudioDevicesConfig {
+    position: relative;
+}
+
 .deviceListHeader {
     display: flex;
     justify-content: space-between;
     margin-bottom: 10px;
     width: 100%;
-    
+
 }
 
 .reloadBtn {
@@ -24,7 +28,8 @@
 
 
 .deviceList {
-    width: 100%;
+    width: 430px;
+    height: 200px;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -46,6 +51,11 @@
 
 .selectedDevice {
     border: 2px outset rgb(58, 151, 58);
+}
+
+.inUseDevice {
+    border: 2px outset rgb(175, 108, 26);
+
 }
 
 .deviceInfo {
@@ -76,6 +86,65 @@
     padding: 0;
 }
 
-.deviceStatus {
+/* Comfirmation prompt */
 
+.swapOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  z-index: 10;
+}
+
+.swapModal {
+  background: #1e1e1e;
+  border: 1px solid #444;
+  border-radius: 10px;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 260px;
+}
+
+.swapTitle {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.swapDetail {
+  margin: 0;
+  font-size: small;
+  color: #aaa;
+}
+
+.swapActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.swapCancel,
+.swapConfirm {
+  border-radius: 6px;
+  height: 32px;
+  padding: 0 16px;
+  cursor: pointer;
+  font-size: small;
+}
+
+.swapCancel {
+  background: transparent;
+  border: 1px solid #555;
+  color: #ccc;
+}
+
+.swapConfirm {
+  background: rgb(58, 151, 58);
+  border: none;
+  color: white;
 }

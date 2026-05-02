@@ -1,25 +1,26 @@
 {
   "instruments": {
-    "guitar": {
+    "piano": {
       "audio_device": {
         "channel": 1,
-        "device_id": 34,
-        "host_api": "ASIO",
+        "connected": true,
+        "device_id": 39,
+        "host_api": "Windows WASAPI",
         "max_input_channels": 2,
-        "name": "Focusrite USB ASIO",
-        "sample_rate": 44100
+        "name": "Analogue 1 + 2 (Focusrite USB Audio)",
+        "sample_rate": 48000
       },
-      "channel": 1,
       "enabled": true,
       "models": [
-        "genre"
+        "pitch"
       ],
-      "type": "Line 1/4"
+      "type": "audio"
     },
-    "stereo_mix": {
+    "track": {
       "audio_device": {
         "channel": 0,
-        "device_id": 33,
+        "connected": true,
+        "device_id": 38,
         "host_api": "Windows WASAPI",
         "max_input_channels": 2,
         "name": "Stereo Mix (Realtek(R) Audio)",
@@ -31,10 +32,11 @@
       ],
       "type": "audio"
     },
-    "vocals": {
+    "wwww": {
       "audio_device": {
-        "channel": 0,
-        "device_id": 33,
+        "channel": 1,
+        "connected": true,
+        "device_id": 38,
         "host_api": "Windows WASAPI",
         "max_input_channels": 2,
         "name": "Stereo Mix (Realtek(R) Audio)",
@@ -42,54 +44,10 @@
       },
       "enabled": true,
       "models": [
-        "pitch"
+        "pitch",
+        "genre"
       ],
       "type": "audio"
-    },
-    "voice": {
-      "audio_device": {
-        "channel": 0,
-        "device_id": 34,
-        "host_api": "ASIO",
-        "max_input_channels": 2,
-        "name": "Focusrite USB ASIO",
-        "sample_rate": 44100
-      },
-      "enabled": true,
-      "models": [
-        "pitch"
-      ],
-      "type": "XLR"
-    },
-    "voice1": {
-      "audio_device": {
-        "channel": 0,
-        "device_id": 34,
-        "host_api": "ASIO",
-        "max_input_channels": 2,
-        "name": "Focusrite USB ASIO",
-        "sample_rate": 44100
-      },
-      "enabled": true,
-      "models": [
-        "pitch"
-      ],
-      "type": "XLR"
-    },
-    "voice2": {
-      "audio_device": {
-        "channel": 0,
-        "device_id": 34,
-        "host_api": "ASIO",
-        "max_input_channels": 2,
-        "name": "Focusrite USB ASIO",
-        "sample_rate": 44100
-      },
-      "enabled": true,
-      "models": [
-        "pitch"
-      ],
-      "type": "XLR"
     }
   }
 }

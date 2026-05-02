@@ -1,13 +1,33 @@
+
+
+
+.testBtn {
+    border: 2px outset green;
+    border-radius: 5px;
+    
+    background-color: transparent;
+    color: white;
+    height: 30px;
+}
+
+.testBtnActive {
+    border: 2px outset red;
+}
+
+
 .testControls {
     display: flex;
     justify-content: space-between;
+    
 }
 
+.testDeviceTitle{
+    width: 300px;
+}
 
 .testResult {
    
     display: flex;
-    /* justify-content: center; */
     align-items: center;
     border-radius: 15px;
     border: 1px solid gray;
@@ -24,6 +44,7 @@
     background-color: green;
 }
 
-.testMetrics {
-
+.noSignalWarning
+    {
+        color: orange;
 }

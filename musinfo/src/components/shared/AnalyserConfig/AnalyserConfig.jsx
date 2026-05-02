@@ -9,7 +9,11 @@ const AVAILABLE_MODELS = Object.entries(modelsConfig.models).map(([id, data]) =>
   ...data,
 }));
 
-const AnalyserConfig = ({ selectedModels, onModelsChange }) => {
+const AnalyserConfig = ({ 
+  selectedModels, 
+  onModelsChange,
+  variant     = 'setup' //setup | modal
+  }) => {
   const [hoveredModel, setHoveredModel] = useState(null);
 
   // toggle analysers
@@ -22,9 +26,9 @@ const AnalyserConfig = ({ selectedModels, onModelsChange }) => {
   };
 
   return (
-    <div className={styles.modelSelection}>
+    <div className={`${styles.modelSelection} ${styles[variant]}`}>
       <label>Select analysers</label>
-      <div className={styles.modelCards}>
+      <div className={`${styles.modelCards} ${styles[variant]}`}>
         {AVAILABLE_MODELS.map((model) => {
           const isSelected = selectedModels.includes(model.id);
           return (
