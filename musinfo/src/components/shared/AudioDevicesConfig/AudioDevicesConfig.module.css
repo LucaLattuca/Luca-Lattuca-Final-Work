@@ -1,4 +1,8 @@
 
+.AudioDevicesConfig {
+    position: relative;
+}
+
 .deviceListHeader {
     display: flex;
     justify-content: space-between;

@@ -93,6 +93,30 @@ const AudioDevicesConfig = ({
 
   return (
     <div className={styles.AudioDevicesConfig}>
+
+      {/* swap confirmation — only reachable from Setup, not the modal */}
+      {swapPrompt && (
+        <div className={styles.swapOverlay}>
+          <div className={styles.swapModal}>
+            <p className={styles.swapTitle}>
+              Swap with <strong>{swapPrompt.otherName}</strong>?
+            </p>
+            <p className={styles.swapDetail}>
+              {swapPrompt.device.name} — Ch.{(swapPrompt.device.channel ?? 0) + 1}
+            </p>
+            <div className={styles.swapActions}>
+              <button className={styles.swapCancel} onClick={() => setSwapPrompt(null)}>
+                Cancel
+              </button>
+              <button className={styles.swapConfirm} onClick={confirmSwap}>
+                Swap
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* header */}
       <div className={styles.deviceListHeader}>
         <p className={styles.stepHint}>Available devices</p>
         <button className={styles.reloadBtn} onClick={fetchDevices} disabled={loading}>
@@ -100,66 +124,60 @@ const AudioDevicesConfig = ({
         </button>
       </div>
 
-    {/* TODO: make device show up even if not connected + custom border styling for activated device or not  */}
-
       {error && <p>{error}</p>}
 
       {!loading && !error && devices.length === 0 && (
         <p className={styles.hintText}>No devices found. Is the device connected?</p>
       )}
 
-         <div className={styles.deviceList}>
+      {/* device list */}
+      <div className={styles.deviceList}>
         {loading && <p className={styles.hintText}>Scanning devices...</p>}
 
         {!loading && devices.map((device, i) => {
-          // Selected device
+          // Compare by name + channel rather than device_id — the id is a hardware
+          // index that can change between sessions, name + channel is stable.
           const isSelected =
-            selectedDevice?.device_id === (device.device_index ?? device.index) &&
-            selectedDevice?.channel   === (device.channel ?? 0);
-          // Devices in use
-          const isInUse = usedDevices.some(u =>
+            selectedDevice?.name    === device.name &&
+            selectedDevice?.channel === (device.channel ?? 0);
+
+          const usedEntry = usedDevices.find(u =>
             u.name    === device.name &&
             u.channel === (device.channel ?? 0)
           );
+          const isInUse = !!usedEntry;
 
           return (
             <div key={i} className={styles.deviceCard}>
               <button
                 className={`
-                  ${styles.deviceBtn} 
+                  ${styles.deviceBtn}
                   ${isSelected ? styles.selectedDevice : ''}
-                  ${isInUse    ? styles.inUseDevice    : ''}
-                  `}
-                onClick={() => {
-                  if (isInUse) return;
-                  onSelectDevice({
-                  name:               device.name,
-                  device_id:          device.device_index ?? device.index,
-                  host_api:           device.host_api,
-                  max_input_channels: device.max_input_channels,
-                  channel:            device.channel ?? 0,
-                  sample_rate:        device.sample_rate,
-                });
-              }}
-              disabled={isInUse}
+                  ${isInUse   ? styles.inUseDevice    : ''}
+                `}
+                onClick={() => handleDeviceClick(device)}
+                // in modal context: block in-use devices entirely
+                // in Setup context: allow click to trigger swap prompt
+                disabled={isInUse && !onSwapDevice}
               >
                 <div className={styles.deviceInfo}>
                   <h4 className={styles.deviceName}>{device.name}</h4>
                   <div className={styles.deviceDetails}>
                     <p>{device.host_api}</p>
-                    <p>Ch.{device.channel}</p>
+                    <p>Ch.{(device.channel ?? 0) + 1}</p>
                     <p>{device.sample_rate}Hz</p>
                     <p>{device.latency}ms</p>
                   </div>
                 </div>
                 <div className={styles.deviceStatus}>
-                  <p>{isInUse ? 'in use' : ''}</p>
+                  {isInUse && <p>in use by {usedEntry.instrumentName}</p>}
                 </div>
               </button>
             </div>
           );
         })}
       </div>
+
     </div>
   );
 };
