@@ -104,6 +104,31 @@ function App() {
     }
   };
 
+  const handleDeleteInstrument = async (name) => {
+    try {
+      await invoke('delete_instrument', { name });
+      setInstruments(prev => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+      // select the first remaining instrument, or null if none left
+      setInstruments(prev => {
+        const entries = Object.entries(prev);
+        if (entries.length > 0) {
+          const [nextName, nextData] = entries[0];
+          setSelectedInstrument({ name: nextName, ...nextData });
+          setSwitchInstrument(k => k + 1);
+        } else {
+          setSelectedInstrument(null);
+        }
+        return prev;
+      });
+    } catch (err) {
+      console.error('[App] Failed to delete instrument:', err);
+    }
+  };
+
 
   // Swap instruments in setup tab
   const handleSwapDevices = async (nameA, newDeviceA, nameB, newDeviceB) => {
@@ -141,6 +166,7 @@ function App() {
         onUpdateInstrument={handleUpdateInstrument}
         onSwapDevices={handleSwapDevices}
         onReconcile={handleReconcile}
+        onDeleteInstrument={handleDeleteInstrument}
       />
       {modalOpen && (
         <AddInstrumentModal

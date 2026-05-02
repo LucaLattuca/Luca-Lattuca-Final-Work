@@ -1,6 +1,7 @@
 
 .setup > * {
     margin: 20px 0 20px 0;
+    position: relative;
 }
 
 .instrumentControls {
@@ -22,4 +23,76 @@
 .signalPath {
     padding-top: 15px;
 }
+.removeInstrument button {
 
+    height: 40px;
+    width: 80px;
+    background-color: rgb(101, 2, 2);
+    color: white;
+    border-radius: 5px;
+    border: 2px outset rgb(156, 1, 1);
+    cursor: pointer;
+}
+
+.removeInstrument button:hover {
+    background-color: rgb(83, 1, 1);
+    border: 2px outset rgb(131, 1, 1);
+}
+.setupFooter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Delete instrument prompt */
+
+.deleteOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.deleteModal {
+  background: #1e1e1e;
+  border: 1px solid #444;
+  border-radius: 10px;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 260px;
+}
+
+.deleteTitle { margin: 0; font-size: 1rem; }
+.deleteDetail { margin: 0; font-size: small; color: #aaa; }
+
+.deleteActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.deleteCancel, .deleteConfirm {
+  border-radius: 6px;
+  height: 32px;
+  padding: 0 16px;
+  cursor: pointer;
+  font-size: small;
+}
+
+.deleteCancel {
+  background: transparent;
+  border: 1px solid #555;
+  color: #ccc;
+}
+
+.deleteConfirm {
+  background: rgb(180, 60, 60);
+  border: none;
+  color: white;
+}

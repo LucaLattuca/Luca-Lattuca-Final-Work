@@ -13,6 +13,7 @@ const Tabcontent = ({
   onUpdateInstrument,
   onSwapDevices,
   onReconcile,
+  onDeleteInstrument,
 }) => {
   return (
     <div className={styles.tabcontent}>
@@ -25,6 +26,7 @@ const Tabcontent = ({
           onUpdateInstrument={onUpdateInstrument}
           onSwapDevices={onSwapDevices}
           onReconcile={onReconcile}
+          onDeleteInstrument={onDeleteInstrument}
         />
       )}
       {activeTab === 'osc' && <OSCConfig />}

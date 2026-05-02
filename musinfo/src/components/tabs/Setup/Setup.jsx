@@ -16,9 +16,18 @@ const Setup = ({
     onUpdateInstrument,
     onSwapDevices,
     onReconcile,
+    onDeleteInstrument,
 }) => {
 
     const [formData, setFormData] = useState(null);
+    const [deleteInstrumentPrompt,  setDeleteInstrumentPrompt]  = useState(null);
+
+
+    const confirmDelete = () => {
+      if (!deleteInstrumentPrompt) return;
+      onDeleteInstrument(formData.name);
+      setDeleteInstrumentPrompt(null);
+    };
 
     // Tracks current instrument in instruments.json
     const [savedInstrumentKey, setSavedInstrumentKey] = useState(null);
@@ -59,7 +68,27 @@ const Setup = ({
 
 
     return (
+
+        
         <div className={styles.setup}>
+          
+
+            {deleteInstrumentPrompt && (
+              <div className={styles.deleteOverlay}>
+                <div className={styles.deleteModal}>
+                  <p className={styles.deleteTitle}>Delete <strong>{formData.name}</strong>?</p>
+                  <p className={styles.deleteDetail}>This cannot be undone.</p>
+                  <div className={styles.deleteActions}>
+                    <button className={styles.deleteCancel} onClick={() => setDeleteInstrumentPrompt(null)}>
+                      Cancel
+                    </button>
+                    <button className={styles.deleteConfirm} onClick={confirmDelete}>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className={styles.instrumentControls}>
               <InstrumentConfig
@@ -92,13 +121,20 @@ const Setup = ({
               />
             </div>
 
-            <div className={styles.signalPath}>
-              <SignalPath
-                name={formData.name}
-                audioDevice={formData.audio_device}
-                models={formData.models}
-              />
+            <div className={styles.setupFooter}>
+
+              <div className={styles.signalPath}>
+                <SignalPath
+                  name={formData.name}
+                  audioDevice={formData.audio_device}
+                  models={formData.models}
+                  />
+              </div>
+              <div className={styles.removeInstrument}>
+                <button onClick={() => setDeleteInstrumentPrompt(true)}>Delete instrument</button>
+              </div>
             </div>
+
 
         </div>
     );

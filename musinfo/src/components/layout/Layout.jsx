@@ -15,6 +15,7 @@ const Layout = ({
     onUpdateInstrument,
     onSwapDevices,
     onReconcile,
+    onDeleteInstrument,
 }) => {
     const [activeTab, setActiveTab] = React.useState('performance');
 
@@ -37,6 +38,7 @@ const Layout = ({
               onUpdateInstrument={onUpdateInstrument}
               onSwapDevices={onSwapDevices}
               onReconcile={onReconcile}
+              onDeleteInstrument={onDeleteInstrument}
             />
             <OutputPanel />
           </main>
