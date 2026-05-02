@@ -25,6 +25,92 @@ struct BroadcasterProcess(Mutex<Option<Child>>);
 // holds the windows_receiver.py process handle so stop_pipeline can kill it
 struct WindowsReceiverProcess(Mutex<Option<Child>>);
 
+// HELPER FUNCTIONS
+
+// Resolves the path to instruments.json relative to the project root.
+fn instruments_path() -> Result<std::path::PathBuf, String> {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .ok_or("Could not resolve project root")?;
+    Ok(root.join("backend/config/instruments.json"))
+}
+
+// Reads and parses instruments.json into a mutable JSON map.
+fn read_config(path: &Path) -> Result<serde_json::Map<String, Value>, String> {
+    let raw = fs::read_to_string(path).map_err(|e| format!("Failed to read: {}", e))?;
+    serde_json::from_str(&raw).map_err(|e| format!("Failed to parse: {}", e))
+}
+
+// Serializes the config map and writes it back to disk with pretty formatting.
+fn write_config(path: &Path, config: &serde_json::Map<String, Value>) -> Result<(), String> {
+    let out =
+        serde_json::to_string_pretty(config).map_err(|e| format!("Serialize error: {}", e))?;
+    fs::write(path, out).map_err(|e| format!("Write error: {}", e))
+}
+
+// INSTRUMENTS
+
+//  Save instrument configuration to instruments.json.
+#[tauri::command]
+fn save_instrument(app: AppHandle, instrument: Value) -> Result<String, String> {
+    // resolve path to instruments.json relative to the project root
+    let project_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .ok_or("Could not resolve project root")?;
+
+    let config_path = project_root.join("backend/config/instruments.json");
+
+    // read existing file
+    let raw = fs::read_to_string(&config_path)
+        .map_err(|e| format!("Failed to read instruments.json: {}", e))?;
+
+    let mut config: serde_json::Map<String, Value> = serde_json::from_str(&raw)
+        .map_err(|e| format!("Failed to parse instruments.json: {}", e))?;
+
+    // extract name from instrument, use it as the key
+    let name = instrument["name"]
+        .as_str()
+        .ok_or("Instrument has no name")?
+        .to_string();
+
+    // build the entry without the name field (name is the key, not a field)
+    let mut entry = instrument.clone();
+    if let Some(obj) = entry.as_object_mut() {
+        obj.remove("name");
+    }
+
+    // insert into instruments map
+    let instruments = config
+        .get_mut("instruments")
+        .and_then(|v| v.as_object_mut())
+        .ok_or("instruments.json has no 'instruments' key")?;
+
+    instruments.insert(name, entry);
+
+    // write back with pretty formatting
+    let output =
+        serde_json::to_string_pretty(&config).map_err(|e| format!("Failed to serialize: {}", e))?;
+
+    fs::write(&config_path, output)
+        .map_err(|e| format!("Failed to write instruments.json: {}", e))?;
+
+    Ok("Instrument saved".to_string())
+}
+
+// Removes an instrument entry by key
+#[tauri::command]
+fn delete_instrument(_app: AppHandle, name: String) -> Result<String, String> {
+    let path = instruments_path()?;
+    let mut config = read_config(&path)?;
+    config
+        .get_mut("instruments")
+        .and_then(|v| v.as_object_mut())
+        .ok_or("instruments.json has no 'instruments' key")?
+        .remove(&name);
+    write_config(&path, &config)?;
+    Ok("Instrument deleted".to_string())
+}
+
 // AUDIO DEVICES
 
 // Runs a Python script to query all available audio devices on the system and filter them by type.
@@ -379,53 +465,6 @@ fn start_osc_listener(app_handle: AppHandle) {
     });
 }
 
-//  Save instrument configuration to instruments.json.
-#[tauri::command]
-fn save_instrument(app: AppHandle, instrument: Value) -> Result<String, String> {
-    // resolve path to instruments.json relative to the project root
-    let project_root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .ok_or("Could not resolve project root")?;
-
-    let config_path = project_root.join("backend/config/instruments.json");
-
-    // read existing file
-    let raw = fs::read_to_string(&config_path)
-        .map_err(|e| format!("Failed to read instruments.json: {}", e))?;
-
-    let mut config: serde_json::Map<String, Value> = serde_json::from_str(&raw)
-        .map_err(|e| format!("Failed to parse instruments.json: {}", e))?;
-
-    // extract name from instrument, use it as the key
-    let name = instrument["name"]
-        .as_str()
-        .ok_or("Instrument has no name")?
-        .to_string();
-
-    // build the entry without the name field (name is the key, not a field)
-    let mut entry = instrument.clone();
-    if let Some(obj) = entry.as_object_mut() {
-        obj.remove("name");
-    }
-
-    // insert into instruments map
-    let instruments = config
-        .get_mut("instruments")
-        .and_then(|v| v.as_object_mut())
-        .ok_or("instruments.json has no 'instruments' key")?;
-
-    instruments.insert(name, entry);
-
-    // write back with pretty formatting
-    let output =
-        serde_json::to_string_pretty(&config).map_err(|e| format!("Failed to serialize: {}", e))?;
-
-    fs::write(&config_path, output)
-        .map_err(|e| format!("Failed to write instruments.json: {}", e))?;
-
-    Ok("Instrument saved".to_string())
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -445,7 +484,8 @@ pub fn run() {
             stop_pipeline,
             test_device_audio,
             stop_device_test,
-            save_instrument
+            save_instrument,
+            delete_instrument
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
