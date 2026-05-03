@@ -215,10 +215,12 @@ for i, d in enumerate(devices):
     name_lower = d["name"].lower()
     is_virtual = any(k in name_lower for k in VIRTUAL_KEYWORDS)
 
-    if "{device_type}" == "virtual" and not is_virtual:
-        continue
-    if "{device_type}" == "audio" and is_virtual:
-        continue
+    # Filter by device type (unless "all")
+    if "{device_type}" != "all":
+        if "{device_type}" == "virtual" and not is_virtual:
+            continue
+        if "{device_type}" == "audio" and is_virtual:
+            continue
     
     # Limit virtual devices to 4 channels, show all channels for real devices
     max_channels_to_show = 4 if is_virtual else d["max_input_channels"]
