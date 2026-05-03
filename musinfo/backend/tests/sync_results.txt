@@ -1,0 +1,14 @@
+SYNC TEST RESULTS
+================================================================================
+
+Channel 0:
+  Chunks: 1354
+  Data: 10832.00 KB
+
+Channel 2:
+  Chunks: 1354
+  Data: 10832.00 KB
+
+
+Drift: 0 chunks
+Result: PERFECT SYNC
