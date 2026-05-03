@@ -10,13 +10,23 @@ const Header = ({ activeTab, setActiveTab }) => {
   const handleStart = async () => {
     try {
       setIsRunning(true);
-      // start the capture process in Rust
       const result = await invoke('start_pipeline');
       console.log('[header] start_pipeline result:', result);
     }
     catch (error) {
       console.log('[header] start_pipeline error:', error);
       setIsRunning(false);
+    }
+  }
+
+  const handleStop = async () => {
+    try {
+      const result = await invoke('stop_pipeline');
+      console.log('[header] stop_pipeline result:', result);
+      setIsRunning(false);
+    }
+    catch (error) {
+      console.log('[header] stop_pipeline error:', error);
     }
   }
 
@@ -31,7 +41,14 @@ const Header = ({ activeTab, setActiveTab }) => {
         <button onClick={() => setActiveTab('setup')} >Setup</button>
         <button onClick={() => setActiveTab('osc')} >OSC config</button>
       </nav>
-      <button onClick={handleStart} disabled={isRunning} className={styles.startButton}>{isRunning ? 'Running...' : 'Start'}</button>
+      <div className={styles.controls}>
+        <button onClick={handleStart} disabled={isRunning} className={styles.startButton}>
+          {isRunning ? 'Running...' : 'Start'}
+        </button>
+        <button onClick={handleStop} disabled={!isRunning} className={styles.stopButton}>
+          Stop
+        </button>
+      </div>
     </header>
   );
 };

@@ -67,12 +67,13 @@ def initialise_analyser(instrument, analyser):
         cls = AVAILABLE_ANALYSERS.get(analyser)
         if cls:
             print(f"[receiver] Starting {analyser} analyser for {instrument}")
-            analyser_registry[instrument][analyser] = cls()
+            # Pass instrument name to analyser constructor
+            analyser_registry[instrument][analyser] = cls(instrument_name=instrument)
 
 # prints instrument/analyser combination 
 def log_routing(name, analysers):
     analysers = ", ".join(analysers) if analysers else "none"
-    print(f"[receiver] {name:<16} → {analysers}")
+    print(f"[receiver] {name:<16} -> {analysers}")
 
 
 
@@ -100,9 +101,9 @@ def handle_connection(conn, addr):
 
             # route audio to each active analyser for this instrument
             for analyser in analysers:
-                analyser = analyser_registry.get(name, {}).get(analyser)
-                if analyser:
-                    analyser.push(audio)
+                analyser_instance = analyser_registry.get(name, {}).get(analyser)
+                if analyser_instance:
+                    analyser_instance.push(audio)
 
     except Exception as e:
         print(f"[receiver] Error: {e}")
