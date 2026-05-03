@@ -125,10 +125,14 @@ class GenreAnalyser:
             self._handle_results(results)
 
     def _handle_results(self, results):
-        top_genre, top_confidence = results[0]
         self._display(results)
         
-        message = f"{top_genre} ({top_confidence*100:.1f}%)"
+        # Send top 3 genres as JSON
+        top_3 = [
+            {"genre": genre, "confidence": round(conf * 100, 1)}
+            for genre, conf in results[:3]
+        ]
+        message = json.dumps(top_3)
         self.osc_client.send_message(f"/genre/{self.instrument_name}", message)
 
     def _display(self, results):
@@ -138,4 +142,4 @@ class GenreAnalyser:
             bar = "█" * int(confidence * 30) + "░" * (30 - int(confidence * 30))
             print(f"  {genre[:28]:<28} {confidence*100:5.1f}%  {bar}")
         print("──────────────────────────────────────────────")
-        sys.stdout.flush() 
+        sys.stdout.flush()
