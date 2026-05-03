@@ -1,7 +1,7 @@
 # receiver_wsl.py — WSL Audio Receiver
 # Opens a TCP socket for broadcaster to connect to.
-# On first connection, reads instrument/model config and initialises
-# one analyser instance per instrument per active model.
+# On first connection, reads instrument/analyser config and initialises
+# one analyser instance per instrument per active analyser.
 # Then routes incoming audio chunks to the correct analyser instance.
 
 import socket
@@ -59,19 +59,19 @@ def read_frame(conn):
     return instrument_info, audio
 
 
-# creates one analyser instance per instrument+model combination
-def initialise_analyser(instrument, model):
+# creates one analyser instance per instrument+analyser combination
+def initialise_analyser(instrument, analyser):
     if instrument not in analyser_registry:
         analyser_registry[instrument] = {}
-    if model not in analyser_registry[instrument]:
-        cls = AVAILABLE_ANALYSERS.get(model)
+    if analyser not in analyser_registry[instrument]:
+        cls = AVAILABLE_ANALYSERS.get(analyser)
         if cls:
-            print(f"[receiver] Starting {model} analyser for {instrument}")
-            analyser_registry[instrument][model] = cls()
+            print(f"[receiver] Starting {analyser} analyser for {instrument}")
+            analyser_registry[instrument][analyser] = cls()
 
-# prints instrument/model combination 
-def log_routing(name, models):
-    analysers = ", ".join(models) if models else "none"
+# prints instrument/analyser combination 
+def log_routing(name, analysers):
+    analysers = ", ".join(analysers) if analysers else "none"
     print(f"[receiver] {name:<16} → {analysers}")
 
 
@@ -89,18 +89,18 @@ def handle_connection(conn, addr):
                 break
 
             name   = instrument_info.get("instrument", "unknown")
-            models = instrument_info.get("models", [])
+            analysers = instrument_info.get("analysers", [])
 
             # initialise and log each instrument once per connection
             if name not in logged_instruments:
                 logged_instruments.add(name)
-                log_routing(name, models)
-                for model in models:
-                    initialise_analyser(name, model)
+                log_routing(name, analysers)
+                for analyser in analysers:
+                    initialise_analyser(name, analyser)
 
             # route audio to each active analyser for this instrument
-            for model in models:
-                analyser = analyser_registry.get(name, {}).get(model)
+            for analyser in analysers:
+                analyser = analyser_registry.get(name, {}).get(analyser)
                 if analyser:
                     analyser.push(audio)
 

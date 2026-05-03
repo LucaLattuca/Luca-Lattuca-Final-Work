@@ -1,6 +1,6 @@
 # broadcaster.py Audio Router 
-# Reads instruments.json and models.json to route per-channel audio from capture.py
-# to either WSL receiver or Windows analysers based on each model's target.
+# Reads instruments.json and analysers.json to route per-channel audio from capture.py
+# to either WSL receiver or Windows analysers based on each analyser's target.
 
 
 import socket
@@ -27,32 +27,32 @@ CONFIG_POLL_INTERVAL = 2.0
 def load_config():
     base_dir         = os.path.dirname(os.path.dirname(__file__))
     instruments_path = os.path.join(base_dir, "config", "instruments.json")
-    models_path      = os.path.join(base_dir, "config", "models.json")
+    analysers_path      = os.path.join(base_dir, "config", "analysers.json")
 
 
     try:
         with open(instruments_path) as f:
             instruments = json.load(f)
-        with open(models_path) as f:
-            models = json.load(f)
+        with open(analysers_path) as f:
+            analysers = json.load(f)
         print(f"[broadcaster] Config loaded.")
         return {
             "instruments": instruments.get("instruments", {}),
-            "models":      models.get("models", {})
+            "analysers":      analysers.get("analysers", {})
         }
     except FileNotFoundError as e:
         print(f"[broadcaster] Config file not found: {e} — no instruments active")
-        return {"instruments": {}, "models": {}}
+        return {"instruments": {}, "analysers": {}}
     except json.JSONDecodeError as e:
         print(f"[broadcaster] Config malformed: {e} — no instruments active")
-        return {"instruments": {}, "models": {}}
+        return {"instruments": {}, "analysers": {}}
 
 
-# builds a lookup table mapping channel_id → instrument name and models split by target
+# builds a lookup table mapping channel_id → instrument name and analysers split by target
 # so broadcaster can instantly look up routing info for each incoming chunk
 def build_channel_map(config):
     channel_map  = {}
-    models_config = config.get("models", {})
+    analysers_config = config.get("analysers", {})
 
     for name, instrument in config.get("instruments", {}).items():
         if not instrument.get("enabled", False):
@@ -61,14 +61,14 @@ def build_channel_map(config):
         if channel_id is None:
             continue
 
-        active_models = instrument.get("models", [])
+        active_analysers = instrument.get("analysers", [])
 
         channel_map[channel_id] = {
             "name":            name,
-            "wsl_models":     [m for m in active_models if models_config.get(m, {}).get("target") == "wsl"],
-            "windows_models": [m for m in active_models if models_config.get(m, {}).get("target") == "windows"],
+            "wsl_analysers":     [m for m in active_analysers if analysers_config.get(m, {}).get("target") == "wsl"],
+            "windows_analysers": [m for m in active_analysers if analysers_config.get(m, {}).get("target") == "windows"],
         }
-        print(f"[broadcaster] Channel {channel_id} → '{name}' | wsl: {channel_map[channel_id]['wsl_models']} | windows: {channel_map[channel_id]['windows_models']}")
+        print(f"[broadcaster] Channel {channel_id} → '{name}' | wsl: {channel_map[channel_id]['wsl_analysers']} | windows: {channel_map[channel_id]['windows_analysers']}")
 
     return channel_map
 
@@ -109,8 +109,8 @@ def recv_exact(sock, n):
     return buf
 
 
-# packs instrument name + models list + raw PCM into a framed TCP message and sends to a receiver
-def send_framed_chunk(sock, instrument_name, models, audio_bytes):
+# packs instrument name + analysers list + raw PCM into a framed TCP message and sends to a receiver
+def send_framed_chunk(sock, instrument_name, analysers, audio_bytes):
     """
     Frame format:
       [4 bytes: header length  (uint32 big-endian)]
@@ -121,7 +121,7 @@ def send_framed_chunk(sock, instrument_name, models, audio_bytes):
     """
     header = json.dumps({
         "instrument": instrument_name,
-        "models":     models,
+        "analysers":     analysers,
     }).encode("utf-8")
 
     frame = (
@@ -158,17 +158,17 @@ def handle_capture_connection(conn, config_holder):
                 continue
 
             # route to Windows receiver
-            if instrument_info["windows_models"]:
+            if instrument_info["windows_analysers"]:
                 try:
-                    send_framed_chunk(windows_sock, instrument_info["name"], instrument_info["windows_models"], audio_bytes)
+                    send_framed_chunk(windows_sock, instrument_info["name"], instrument_info["windows_analysers"], audio_bytes)
                 except OSError:
                     print("[broadcaster] Lost Windows connection — reconnecting")
                     windows_sock = connect_to_windows()
 
             # route to WSL receiver
-            if instrument_info["wsl_models"]:
+            if instrument_info["wsl_analysers"]:
                 try:
-                    send_framed_chunk(wsl_sock, instrument_info["name"], instrument_info["wsl_models"], audio_bytes)
+                    send_framed_chunk(wsl_sock, instrument_info["name"], instrument_info["wsl_analysers"], audio_bytes)
                 except OSError:
                     print("[broadcaster] Lost WSL connection — reconnecting")
                     wsl_sock = connect_to_wsl()

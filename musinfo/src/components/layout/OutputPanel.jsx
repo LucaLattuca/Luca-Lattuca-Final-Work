@@ -39,9 +39,9 @@ const OutputPanel = ({
                         <div className={styles.instrumentName}>{name}</div>
 
                         <div className={styles.analyserList}>
-                            {(config.models ?? []).map(model => (
-                                <div key={model} className={styles.analyserRow}>
-                                    <span className={styles.analyserName}>{model}:</span>
+                            {(config.analysers ?? []).map(analyser => (
+                                <div key={analyser} className={styles.analyserRow}>
+                                    <span className={styles.analyserName}>{analyser}:</span>
                                     <span className={styles.analyserValue}>—</span>
                                 </div>
                             ))}

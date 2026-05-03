@@ -31,7 +31,7 @@ const AddInstrumentModal = ({ onClose, onSubmit, instruments  }) => {
      channel: 0,
      sample_rate: 0,
    },
-   models: [],
+   analysers: [],
   });
   
 
@@ -41,7 +41,7 @@ const AddInstrumentModal = ({ onClose, onSubmit, instruments  }) => {
   const canContinue = 
     step === 0 ? !!formData.type :
     step === 1 ? !!formData.audio_device.name :
-    step === 2 ? formData.models.length > 0 && !!formData.name :
+    step === 2 ? formData.analysers.length > 0 && !!formData.name :
     true;
     
 
@@ -113,8 +113,8 @@ const AddInstrumentModal = ({ onClose, onSubmit, instruments  }) => {
             />
             <AnalyserConfig
               variant="modal"
-              selectedModels={formData.models}
-              onModelsChange={(models) => patch({ models })}
+              selectedAnalysers={formData.analysers}
+              onAnalysersChange={(analysers) => patch({ analysers })}
             />
           </div>
         )}
@@ -134,7 +134,7 @@ const AddInstrumentModal = ({ onClose, onSubmit, instruments  }) => {
               <SignalPath
                 name={formData.name}
                 audioDevice={formData.audio_device}
-                models={formData.models}
+                analysers={formData.analysers}
               />
 
               <p>Final check</p>
@@ -145,7 +145,7 @@ const AddInstrumentModal = ({ onClose, onSubmit, instruments  }) => {
                 <p><span>Channel</span>{formData.audio_device.channel}</p>
                 <p><span>Host API</span>{formData.audio_device.host_api}</p>
                 <p><span>Sample rate</span>{formData.audio_device.sample_rate} Hz</p>
-                <p><span>Analysers</span>{formData.models.join(', ')}</p>
+                <p><span>Analysers</span>{formData.analysers.join(', ')}</p>
               </div>
             </div>
 

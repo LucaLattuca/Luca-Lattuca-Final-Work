@@ -116,8 +116,8 @@ const Setup = ({
                 onReconcile={onReconcile} 
               />
               <AnalyserConfig
-                selectedModels={formData.models}
-                onModelsChange={(models) => save({ models })} // instant save
+                selectedAnalysers={formData.analysers}
+                onAnalysersChange={(analysers) => save({ analysers })} // instant save
               />
             </div>
 
@@ -127,7 +127,7 @@ const Setup = ({
                 <SignalPath
                   name={formData.name}
                   audioDevice={formData.audio_device}
-                  models={formData.models}
+                  analysers={formData.analysers}
                   />
               </div>
               <div className={styles.removeInstrument}>
