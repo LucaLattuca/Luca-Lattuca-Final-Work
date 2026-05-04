@@ -49,6 +49,15 @@
     color: white;
 }
 
+.deviceBtn:disabled {
+    cursor: not-allowed;
+    opacity: 0.75;
+}
+
+.inUseDevice:disabled {
+    opacity: 1;
+}
+
 .selectedDevice {
     border: 2px outset rgb(58, 151, 58);
 }

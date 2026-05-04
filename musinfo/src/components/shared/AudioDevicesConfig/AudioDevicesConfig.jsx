@@ -31,8 +31,9 @@ const AudioDevicesConfig = ({
       .filter(([name]) => name !== currentInstrumentName)
       .map(([name, inst]) => ({
         instrumentName: name,
-        name:           inst.audio_device?.name,
-        channel:        inst.audio_device?.channel,
+        name:    inst.type === 'midi' ? inst.midi_device?.name : inst.audio_device?.name,
+        channel: inst.audio_device?.channel,
+        isMidi:  inst.type === 'midi',
       }));
     setUsedDevices(used);
   }, [allInstruments, currentInstrumentName]);
@@ -46,26 +47,29 @@ const AudioDevicesConfig = ({
         ? await invoke('get_midi_devices')
         : await invoke('get_audio_devices', { deviceType: inputType });
       setDevices(result);
-
-      if (onReconcile) {
-        const updated = await invoke('reconcile_devices');
-        onReconcile(updated.instruments);
-      }
-
+      // reconcile removed from here
     } catch (err) {
       setError('Could not load devices. Is the interface connected?');
-      console.error('[AudioDevicesConfig]', err);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleReload = async () => {
+    await fetchDevices();
+    if (onReconcile) {
+      const updated = await invoke('reconcile_devices');
+      onReconcile(updated.instruments);
+    }
+  };
+
 
   const handleDeviceClick = (device) => {
-    const usedEntry = usedDevices.find(u =>
-      u.name    === device.name &&
-      u.channel === (device.channel ?? 0)
-    );
+  const usedEntry = usedDevices.find(u =>
+    inputType === 'midi'
+      ? u.name === device.name && u.isMidi
+      : u.name === device.name && u.channel === (device.channel ?? 0) && !u.isMidi
+  );
 
     if (usedEntry) {
       // Setup context: open swap prompt.
@@ -126,7 +130,7 @@ const AudioDevicesConfig = ({
       {/* header */}
       <div className={styles.deviceListHeader}>
         <p className={styles.stepHint}>Available devices</p>
-        <button className={styles.reloadBtn} onClick={fetchDevices} disabled={loading}>
+        <button className={styles.reloadBtn} onClick={handleReload} disabled={loading}>
           {loading ? '...' : '↻ Reload'}
         </button>
       </div>
@@ -152,8 +156,9 @@ const AudioDevicesConfig = ({
               selectedDevice?.host_api === device.host_api;
 
           const usedEntry = usedDevices.find(u =>
-            u.name    === device.name &&
-            u.channel === (device.channel ?? 0)
+            inputType === 'midi'
+              ? u.name === device.name && u.isMidi
+              : u.name === device.name && u.channel === (device.channel ?? 0) && !u.isMidi
           );
           const isInUse = !!usedEntry;
 
@@ -168,7 +173,7 @@ const AudioDevicesConfig = ({
                 onClick={() => handleDeviceClick(device)}
                 // in modal context: block in-use devices entirely
                 // in Setup context: allow click to trigger swap prompt
-                disabled={isInUse && !onSwapDevice}
+                disabled={isInUse && (inputType === 'midi' || !onSwapDevice)}
               >
                 <div className={styles.deviceInfo}>
                   <h4 className={styles.deviceName}>{device.name}</h4>

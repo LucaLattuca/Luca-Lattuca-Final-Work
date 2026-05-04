@@ -210,9 +210,11 @@ const Setup = ({
                 selectedDevice={formData.type === 'midi' ? formData.midi_device : formData.audio_device}
                 onSelectDevice={(device) => {
                   if (formData.type === 'midi') {
-                    save({ midi_device: { name: device.name, device_id: device.index, port: 'input', connected: true } });
+                    const midiDevice = { name: device.name, device_id: device.index, port: 'input', connected: true };
+                    patch({ midi_device: midiDevice, audio_device: undefined });
+                    save({ midi_device: midiDevice, audio_device: undefined });
                   } else {
-                    save({ audio_device: device });
+                    save({ audio_device: device, midi_device: undefined });
                   }
                 }}
                 onSwapDevice={formData.type === 'midi' ? null : handleSwapDevice}

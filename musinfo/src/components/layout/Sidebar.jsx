@@ -23,7 +23,11 @@ const Sidebar = ({ onAddInstrument, onSelectInstrument, selectedInstrument, inst
         
 
         {Object.entries(regularInstruments).map(([name, data]) => {
-            const disconnected = data.audio_device?.connected === false;
+            const isMidi = data.type === 'midi';
+            const disconnected = isMidi
+                ? data.midi_device?.connected === false
+                : data.audio_device?.connected === false;
+        
             return (
                 <div
                     key={name}
@@ -33,7 +37,9 @@ const Sidebar = ({ onAddInstrument, onSelectInstrument, selectedInstrument, inst
                     <h3>{name}</h3>
                     {disconnected
                         ? <p className={styles.deviceNotFound}>device not found</p>
-                        : <p>{data.audio_device.name} — Ch.{data.audio_device.channel + 1}</p>
+                        : isMidi
+                            ? <p>{data.midi_device?.name ?? 'No MIDI device'}</p>
+                            : <p>{data.audio_device?.name} — Ch.{(data.audio_device?.channel ?? 0) + 1}</p>
                     }
                 </div>
             );

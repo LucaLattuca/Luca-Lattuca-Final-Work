@@ -90,11 +90,11 @@ const AddInstrumentModal = ({ onClose, onSubmit, instruments  }) => {
        
 
         {/* Step 2 : device selection */}
-        {step === 1 &&(
+        {step === 1 && (
           <div className={styles.stepContent}>
             <AudioDevicesConfig
               inputType={formData.type}
-              selectedDevice={formData.audio_device}
+              selectedDevice={formData.type === 'midi' ? formData.midi_device : formData.audio_device}
               onSelectDevice={(device) => {
                 if (formData.type === 'midi') {
                   patch({ midi_device: { name: device.name, device_id: device.index, port: 'input', connected: true } });
@@ -110,7 +110,7 @@ const AddInstrumentModal = ({ onClose, onSubmit, instruments  }) => {
 
 
         {/* Step 3 */}
-        {step === 2 &&(
+        {step === 2 && (
           <div className={styles.stepContent}>
             <InstrumentConfig
               name={formData.name}
@@ -136,14 +136,14 @@ const AddInstrumentModal = ({ onClose, onSubmit, instruments  }) => {
                 channel={formData.audio_device.channel}
               />
             )}
-        
+
             <div className={styles.finalConfigSection}>
               <SignalPath
                 name={formData.name}
                 audioDevice={formData.type !== 'midi' ? formData.audio_device : null}
                 analysers={formData.analysers}
               />
-        
+
               <p>Final check</p>
               <div className={styles.finalConfig}>
                 <p><span>Name</span>{formData.name}</p>
