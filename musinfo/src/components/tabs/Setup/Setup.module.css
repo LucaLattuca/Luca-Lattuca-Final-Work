@@ -96,3 +96,63 @@
   border: none;
   color: white;
 }
+
+/* Mix config styling */
+
+
+.mixDescription {
+  margin: 0;
+}
+
+.sourceSelector {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sourceSelector label {
+  font-size: large;
+}
+
+.sourceOptions {
+  display: flex;
+  gap: 20px;
+}
+
+.sourceOption {
+  border: 2px outset gray;
+  border-radius: 5px;
+  background: transparent;
+  color: white;
+  font-size: large;
+  height: 40px;
+  width: 120px;
+  cursor: pointer;
+}
+
+.sourceOption:hover {
+
+  border: 2px outset rgb(98, 98, 98);
+}
+
+.sourceOption.selected {
+  border: 2px outset lightblue;
+}
+
+.sourceOption.selected:hover {
+  border: 2px outset rgb(139, 174, 185);
+}
+
+.sourceDetail {
+}
+
+.deviceSelector {
+}
+
+.analyserSelector {
+  width: 100%;
+}
+
+.disabledWarning {
+  color: orange;
+}

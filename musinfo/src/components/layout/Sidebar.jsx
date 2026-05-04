@@ -3,12 +3,26 @@ import styles from './Sidebar.module.css';
 
 
 const Sidebar = ({ onAddInstrument, onSelectInstrument, selectedInstrument, instruments}) => {
+  
+  
+  const mixInstruments = {};
+  const regularInstruments = {};
+  
+  Object.entries(instruments).forEach(([name, data]) => {
+    if (data.type === 'mix') {
+      mixInstruments[name] = data;
+    } else {
+      regularInstruments[name] = data;
+    }
+  });
+
   return (
     <div className={styles.sidebar}>
       <div className={styles.instrumentList}>
         <p className={styles.sidebarTitle}>Instruments</p>
-      
-        {Object.entries(instruments).map(([name, data]) => {
+        
+
+        {Object.entries(regularInstruments).map(([name, data]) => {
             const disconnected = data.audio_device?.connected === false;
             return (
                 <div
@@ -26,9 +40,29 @@ const Sidebar = ({ onAddInstrument, onSelectInstrument, selectedInstrument, inst
         })}
         
         <p className={styles.sidebarTitle}>Mix</p>
-        <div className={styles.mix}>
-          {/* ADD Instrument role */}
+        <div className={styles.mixSection}>
+          {Object.entries(mixInstruments).map(([name, data]) => {
+            // Check if internal mix or external mix
+            const isInternalMix = data.mix_source === 'internal';
+
+            // Show different info based on source
+            const sourceDisplay = isInternalMix
+              ? 'internal mix' 
+              : `${data.audio_device?.name || 'Unknown'} — Ch.${(data.audio_device?.channel || 0) + 1}`;
+
+            return (
+              <div
+                key={name}
+                className={`${styles.instrumentcard} ${styles.mixCard} ${selectedInstrument?.name === name ? styles.selectedInstrument : ''}`}
+                onClick={() => onSelectInstrument(name, data)}
+              >
+                <h3>{name}</h3>
+                <p>{sourceDisplay}</p>
+              </div>
+            );
+          })}
         </div>
+
       </div>
 
       

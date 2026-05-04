@@ -1,15 +1,15 @@
 
-.modelSelection {
+.analyserSelection {
     margin-top: 10px;
     font-size: small;
 }
 
-.modelSelection.setup {
+.analyserSelection.setup {
     padding-top: 20px;
-    width: 320px;
+    width: 100%;
 }
 
-.modelCards {
+.analyserCards {
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
@@ -24,16 +24,16 @@
 }
 
 
-.modelCards.setup {
+.analyserCards.setup {
     height: 100px;
 }
 
 
-.modelCards button.selectedCard  {
+.analyserCards button.selectedCard  {
     border: 3px outset rgb(58, 151, 58);
 }
 
-.modelCards button {
+.analyserCards button {
     width: 140px;
     height: 35px;
     border: 2px outset gray;
@@ -43,15 +43,15 @@
     cursor: pointer;
 }
 
-.modelCards button:hover {
+.analyserCards button:hover {
     border: 2px outset rgb(108, 108, 108);
 }
 
-.modelCards button.selectedCard:hover {
+.analyserCards button.selectedCard:hover {
     border: 3px outset rgb(54, 139, 54);
 }
 
-.modelDescription {
+.analyserDescription {
 
     display: flex;
     justify-content: center;
@@ -59,4 +59,5 @@
 
     margin-top: 10px;
     font-size: small;
+    height: 90px;
 }

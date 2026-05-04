@@ -1,6 +1,6 @@
 .outputPanel {
     border-left: 1px solid #333;
-    width: 300px;
+    width: 20vw;
     overflow-y: auto;
     height: 100%;
     
@@ -40,12 +40,4 @@
 .analyserRow {
     display: flex;
     gap: 10px;
-}
-
-.analyserName {
-
-}
-
-.analyserValue {
-
 }

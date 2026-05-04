@@ -1,51 +1,51 @@
 import React, { useState } from 'react';
-import modelsConfig from '../../../../backend/config/models.json';
+import analysersConfig from '../../../../backend/config/analysers.json';
 import styles from './AnalyserConfig.module.css';
 
-// TODO refactor models -> analysers : clearer language
+// TODO refactor analysers -> analysers : clearer language
 
-const AVAILABLE_MODELS = Object.entries(modelsConfig.models).map(([id, data]) => ({
+const AVAILABLE_ANALYSERS = Object.entries(analysersConfig.analysers).map(([id, data]) => ({
   id,
   ...data,
 }));
 
 const AnalyserConfig = ({ 
-  selectedModels, 
-  onModelsChange,
+  selectedAnalysers, 
+  onAnalysersChange,
   variant     = 'setup' //setup | modal
   }) => {
-  const [hoveredModel, setHoveredModel] = useState(null);
+  const [hoveredAnalyser, setHoveredAnalyser] = useState(null);
 
   // toggle analysers
   const toggle = (id) => {
-    onModelsChange(
-      selectedModels.includes(id)
-        ? selectedModels.filter(m => m !== id)
-        : [...selectedModels, id]
+    onAnalysersChange(
+      selectedAnalysers.includes(id)
+        ? selectedAnalysers.filter(m => m !== id)
+        : [...selectedAnalysers, id]
     );
   };
 
   return (
-    <div className={`${styles.modelSelection} ${styles[variant]}`}>
+    <div className={`${styles.analyserSelection} ${styles[variant]}`}>
       <label>Select analysers</label>
-      <div className={`${styles.modelCards} ${styles[variant]}`}>
-        {AVAILABLE_MODELS.map((model) => {
-          const isSelected = selectedModels.includes(model.id);
+      <div className={`${styles.analyserCards} ${styles[variant]}`}>
+        {AVAILABLE_ANALYSERS.map((analyser) => {
+          const isSelected = selectedAnalysers.includes(analyser.id);
           return (
             <button
-              key={model.id}
-              className={`${styles.modelCard} ${isSelected ? styles.selectedCard : ''}`}
-              onClick={() => toggle(model.id)}
-              onMouseEnter={() => setHoveredModel(model)}
-              onMouseLeave={() => setHoveredModel(null)}
+              key={analyser.id}
+              className={`${styles.analyserCard} ${isSelected ? styles.selectedCard : ''}`}
+              onClick={() => toggle(analyser.id)}
+              onMouseEnter={() => setHoveredAnalyser(analyser)}
+              onMouseLeave={() => setHoveredAnalyser(null)}
             >
-              <span className={styles.modelName}>{model.id}</span>
+              <span className={styles.analyserName}>{analyser.id}</span>
             </button>
           );
         })}
       </div>
-      <div className={styles.modelDescription}>
-        {hoveredModel && <p>{hoveredModel.explenation}</p>}
+      <div className={styles.analyserDescription}>
+        {hoveredAnalyser && <p>{hoveredAnalyser.explenation}</p>}
       </div>
     </div>
   );

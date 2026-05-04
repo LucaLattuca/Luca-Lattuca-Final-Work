@@ -1,0 +1,6 @@
+{
+    "analysers": {
+        "pitch":  { "target": "windows", "description": "Pitch detection via Essentia YinFFT" , "explenation": "Best for melodic instruments like voice or guitar. Detects the current note and melody contour in real time."},
+        "genre":  { "target": "wsl",     "description": "Genre classification via Discogs-EffNet" , "explenation": "Best for full mixes or rhythm-heavy sources. Classifies the overall musical style of the audio"}
+    }
+}

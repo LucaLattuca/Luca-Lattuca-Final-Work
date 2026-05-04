@@ -209,19 +209,24 @@ for i, d in enumerate(devices):
     api_name = host_apis[d["hostapi"]]["name"]
     if d["max_input_channels"] == 0:
         continue
-    if api_name != "Windows WASAPI":
+    if api_name not in ["Windows WASAPI", "Windows WDM-KS", "MME"]:
         continue
 
     name_lower = d["name"].lower()
     is_virtual = any(k in name_lower for k in VIRTUAL_KEYWORDS)
 
-    if "{device_type}" == "virtual" and not is_virtual:
-        continue
-    if "{device_type}" == "audio" and is_virtual:
-        continue
+    # Filter by device type (unless "all")
+    if "{device_type}" != "all":
+        if "{device_type}" == "virtual" and not is_virtual:
+            continue
+        if "{device_type}" == "audio" and is_virtual:
+            continue
     
+    # Limit virtual devices to 4 channels, show all channels for real devices
+    max_channels_to_show = 4 if is_virtual else d["max_input_channels"]
+
     # one entry per input channel
-    for ch in range(d["max_input_channels"]):
+    for ch in range(min(max_channels_to_show, d["max_input_channels"])):
         result.append({{
             "device_index": i,
             "name": d["name"],
@@ -366,7 +371,7 @@ fn stop_device_test(test_state: State<TestProcess>) -> Result<String, String> {
 
 // AUDIO PIPELINE
 
-// spawns the full audio pipeline in order: wsl_receiver → windows_receiver → broadcaster → capture
+// spawns the full audio pipeline in order: wsl_receiver -> windows_receiver -> broadcaster -> capture
 #[tauri::command]
 fn start_pipeline(
     capture_state: State<CaptureProcess>,
@@ -395,8 +400,8 @@ fn start_pipeline(
 
     let wsl_child = Command::new("wsl")
         .args(["-d", "Ubuntu", "/bin/bash", "-c", &bash_cmd])
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        // REMOVED: .stdout(Stdio::null())
+        // REMOVED: .stderr(Stdio::null())
         .spawn()
         .map_err(|e| format!("Failed to spawn wsl_receiver.py: {}", e))?;
 
@@ -412,8 +417,8 @@ fn start_pipeline(
 
     let windows_receiver_child = Command::new("python")
         .arg(&windows_receiver_script)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        // REMOVED: .stdout(Stdio::null())
+        // REMOVED: .stderr(Stdio::null())
         .spawn()
         .map_err(|e| format!("Failed to spawn windows_receiver.py: {}", e))?;
 
@@ -429,8 +434,8 @@ fn start_pipeline(
 
     let broadcaster_child = Command::new("python")
         .arg(&broadcaster_script)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        // REMOVED: .stdout(Stdio::null())
+        // REMOVED: .stderr(Stdio::null())
         .spawn()
         .map_err(|e| format!("Failed to spawn broadcaster.py: {}", e))?;
 
@@ -446,8 +451,8 @@ fn start_pipeline(
 
     let capture_child = Command::new("python")
         .arg(&capture_script)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        // REMOVED: .stdout(Stdio::null())
+        // REMOVED: .stderr(Stdio::null())
         .spawn()
         .map_err(|e| format!("Failed to spawn capture.py: {}", e))?;
 
@@ -457,7 +462,7 @@ fn start_pipeline(
     Ok("Pipeline started".to_string())
 }
 
-// kills all pipeline processes in reverse order: capture → broadcaster → windows_receiver → wsl_receiver
+// kills all pipeline processes in reverse order: capture -> broadcaster -> windows_receiver -> wsl_receiver
 #[tauri::command]
 fn stop_pipeline(
     capture_state: State<CaptureProcess>,
@@ -514,12 +519,13 @@ fn start_osc_listener(app_handle: AppHandle) {
         loop {
             match socket.recv_from(&mut buf) {
                 Ok((size, addr)) => {
-                    println!("[OSC] Packet received from {}", addr);
+                    println!("[OSC] Packet received from {} ({} bytes)", addr, size);
 
                     match decode_udp(&buf[..size]) {
                         Ok((_, OscPacket::Message(msg))) => {
                             println!("[OSC] Address: {}, Args: {:?}", msg.addr, msg.args);
 
+                            // Extract the message payload
                             let payload = msg
                                 .args
                                 .first()
@@ -530,10 +536,16 @@ fn start_osc_listener(app_handle: AppHandle) {
                                         None
                                     }
                                 })
-                                .unwrap_or_else(|| msg.addr.clone());
+                                .unwrap_or_default();
+
+                            // Send BOTH address and payload as JSON
+                            let osc_data = serde_json::json!({
+                                "address": msg.addr,
+                                "payload": payload
+                            });
 
                             app_handle
-                                .emit("osc-message", payload)
+                                .emit("osc-message", osc_data)
                                 .unwrap_or_else(|e| eprintln!("[OSC] Failed to emit event: {}", e));
                         }
                         Ok(_) => println!("[OSC] Received OSC bundle (ignored for now)"),
