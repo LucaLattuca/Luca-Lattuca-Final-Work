@@ -195,18 +195,27 @@ const Setup = ({
                 onNameChange={(n) => save({ name: n })}
                 onTypeChange={(t) => patch({ type: t })}
               />
-              <TestAudio
-                deviceId={formData.audio_device.device_id}
-                channel={formData.audio_device.channel}
-              />
+              {/* Guard testaudio */}
+              {formData.type !== 'midi' && (
+                <TestAudio
+                  deviceId={formData.audio_device?.device_id}
+                  channel={formData.audio_device?.channel}
+                />
+              )}
             </div>
         
             <div className={styles.audioControls}>
               <AudioDevicesConfig
                 inputType={formData.type}
-                selectedDevice={formData.audio_device}
-                onSelectDevice={(device) => save({ audio_device: device })}
-                onSwapDevice={handleSwapDevice}
+                selectedDevice={formData.type === 'midi' ? formData.midi_device : formData.audio_device}
+                onSelectDevice={(device) => {
+                  if (formData.type === 'midi') {
+                    save({ midi_device: { name: device.name, device_id: device.index, port: 'input', connected: true } });
+                  } else {
+                    save({ audio_device: device });
+                  }
+                }}
+                onSwapDevice={formData.type === 'midi' ? null : handleSwapDevice}
                 currentInstrumentName={formData.name}
                 allInstruments={instruments}
                 onReconcile={onReconcile}
@@ -221,7 +230,7 @@ const Setup = ({
               <div className={styles.signalPath}>
                 <SignalPath
                   name={formData.name}
-                  audioDevice={formData.audio_device}
+                  audioDevice={formData.type !== 'midi' ? formData.audio_device : null}
                   analysers={formData.analysers}
                 />
               </div>

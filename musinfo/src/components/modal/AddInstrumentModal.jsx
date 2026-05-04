@@ -40,7 +40,7 @@ const AddInstrumentModal = ({ onClose, onSubmit, instruments  }) => {
   // prevent going to next step if required fields are not filled
   const canContinue = 
     step === 0 ? !!formData.type :
-    step === 1 ? !!formData.audio_device.name :
+    step === 1 ? (formData.type === 'midi' ? !!formData.midi_device?.name : !!formData.audio_device?.name) :
     step === 2 ? formData.analysers.length > 0 && !!formData.name :
     true;
     
@@ -95,7 +95,13 @@ const AddInstrumentModal = ({ onClose, onSubmit, instruments  }) => {
             <AudioDevicesConfig
               inputType={formData.type}
               selectedDevice={formData.audio_device}
-              onSelectDevice={(device) => patch({ audio_device: device })}
+              onSelectDevice={(device) => {
+                if (formData.type === 'midi') {
+                  patch({ midi_device: { name: device.name, device_id: device.index, port: 'input', connected: true } });
+                } else {
+                  patch({ audio_device: device });
+                }
+              }}
               currentInstrumentName=""
               allInstruments={instruments}
             />
@@ -124,31 +130,38 @@ const AddInstrumentModal = ({ onClose, onSubmit, instruments  }) => {
         {step === 3 && (
           <div className={styles.stepContent}>
           
-            <TestAudio
-              deviceId={formData.audio_device.device_id}
-              channel={formData.audio_device.channel}
-            />
-            
+            {formData.type !== 'midi' && (
+              <TestAudio
+                deviceId={formData.audio_device.device_id}
+                channel={formData.audio_device.channel}
+              />
+            )}
+        
             <div className={styles.finalConfigSection}>
-
               <SignalPath
                 name={formData.name}
-                audioDevice={formData.audio_device}
+                audioDevice={formData.type !== 'midi' ? formData.audio_device : null}
                 analysers={formData.analysers}
               />
-
+        
               <p>Final check</p>
               <div className={styles.finalConfig}>
                 <p><span>Name</span>{formData.name}</p>
                 <p><span>Type</span>{formData.type}</p>
-                <p><span>Device</span>{formData.audio_device.name}</p>
-                <p><span>Channel</span>{formData.audio_device.channel}</p>
-                <p><span>Host API</span>{formData.audio_device.host_api}</p>
-                <p><span>Sample rate</span>{formData.audio_device.sample_rate} Hz</p>
+                {formData.type === 'midi' ? (
+                  <p><span>MIDI Device</span>{formData.midi_device?.name}</p>
+                ) : (
+                  <>
+                    <p><span>Device</span>{formData.audio_device.name}</p>
+                    <p><span>Channel</span>{formData.audio_device.channel}</p>
+                    <p><span>Host API</span>{formData.audio_device.host_api}</p>
+                    <p><span>Sample rate</span>{formData.audio_device.sample_rate} Hz</p>
+                  </>
+                )}
                 <p><span>Analysers</span>{formData.analysers.join(', ')}</p>
               </div>
             </div>
-
+              
           </div>
         )}
 

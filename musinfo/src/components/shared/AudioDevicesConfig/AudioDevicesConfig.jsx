@@ -144,10 +144,12 @@ const AudioDevicesConfig = ({
         {!loading && devices.map((device, i) => {
           // Compare by name + channel rather than device_id — the id is a hardware
           // index that can change between sessions, name + channel is stable.
-          const isSelected =
-            selectedDevice?.name    === device.name &&
-            selectedDevice?.channel === (device.channel ?? 0) &&
-            selectedDevice?.host_api === device.host_api;
+          // index midi device
+          const isSelected = inputType === 'midi'
+            ? selectedDevice?.name === device.name
+            : selectedDevice?.name    === device.name &&
+              selectedDevice?.channel  === (device.channel ?? 0) &&
+              selectedDevice?.host_api === device.host_api;
 
           const usedEntry = usedDevices.find(u =>
             u.name    === device.name &&
@@ -171,10 +173,16 @@ const AudioDevicesConfig = ({
                 <div className={styles.deviceInfo}>
                   <h4 className={styles.deviceName}>{device.name}</h4>
                   <div className={styles.deviceDetails}>
-                    <p>{device.host_api}</p>
-                    <p>Ch.{(device.channel ?? 0) + 1}</p>
-                    <p>{device.sample_rate}Hz</p>
-                    <p>{device.latency}ms</p>
+                    {inputType === 'midi' ? (
+                      <p>MIDI input</p>
+                    ) : (
+                      <>
+                        <p>{device.host_api}</p>
+                        <p>Ch.{(device.channel ?? 0) + 1}</p>
+                        <p>{device.sample_rate}Hz</p>
+                        <p>{device.latency}ms</p>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className={styles.deviceStatus}>

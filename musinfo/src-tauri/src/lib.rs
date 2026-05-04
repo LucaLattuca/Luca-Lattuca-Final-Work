@@ -271,24 +271,30 @@ fn get_midi_devices() -> Vec<Value> {
         .args([
             "-c",
             r#"
-import json, rtmidi
-m = rtmidi.MidiIn()
-ports = m.get_ports()
-result = [{"index": i, "name": p} for i, p in enumerate(ports)]
+import os, json
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
+import pygame.midi
+pygame.midi.init()
+result = []
+for i in range(pygame.midi.get_count()):
+    info = pygame.midi.get_device_info(i)
+    name = info[1].decode('utf-8')
+    is_input = info[2]
+    if is_input:
+        result.append({"index": i, "name": name, "port": "input"})
 print(json.dumps(result))
+pygame.midi.quit()
 "#,
         ])
         .output()
     {
         Ok(o) => o,
         Err(e) => {
-            eprintln!("[get_midi_devices] Failed to spawn python: {}", e);
+            eprintln!("[get_midi_devices] {}", e);
             return vec![];
         }
     };
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(stdout.trim()).unwrap_or_default()
+    serde_json::from_str(String::from_utf8_lossy(&output.stdout).trim()).unwrap_or_default()
 }
 
 // TEST AUDIO
