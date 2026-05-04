@@ -1,6 +1,6 @@
 .sidebar {
     border-right: 1px solid #333;
-    width: 300px;
+    width: 25vw;
     height: 100%;
     background: #525252;
     background: linear-gradient(172deg,rgba(82, 82, 82, 1) 0%, rgba(59, 59, 59, 1) 50%, rgba(33, 30, 30, 1) 100%);
