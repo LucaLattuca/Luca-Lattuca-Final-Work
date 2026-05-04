@@ -8,12 +8,35 @@ import socket
 import struct
 import json
 import numpy as np
+import os
+import sys
 
 from analysers.pitch_analyser import PitchAnalyser
 
 
 TCP_HOST = "0.0.0.0"
 TCP_PORT = 5007
+
+
+# ─── SAMPLE RATES ─────────────────────────────────────────────────────────────
+def load_sample_rates():
+    """Load sample_rates.json written by capture.py"""
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+    sample_rates_path = os.path.join(base_dir, "config", "sample_rates.json")
+    
+    try:
+        with open(sample_rates_path) as f:
+            rates = json.load(f)
+        print(f"[windows_receiver] Loaded sample rates: {rates}")
+        sys.stdout.flush()
+        return rates
+    except FileNotFoundError:
+        print(f"[windows_receiver] sample_rates.json not found, using default 48000Hz")
+        sys.stdout.flush()
+        return {}
+
+# Load sample rates at startup
+SAMPLE_RATES = load_sample_rates()
 
 
 # ─── ANALYSERS ────────────────────────────────────────────────────────────────
@@ -66,20 +89,30 @@ def initialise_analyser(instrument, analyser):
     if analyser not in analyser_registry[instrument]:
         cls = AVAILABLE_ANALYSERS.get(analyser)
         if cls:
-            print(f"[receiver] Starting {analyser} analyser for {instrument}")
-            # Pass instrument name to analyser constructor
-            analyser_registry[instrument][analyser] = cls(instrument_name=instrument)
+            # Get sample rate for this instrument
+            sample_rate = SAMPLE_RATES.get(instrument, 48000)
+            
+            print(f"[windows_receiver] Starting {analyser} analyser for {instrument} @ {sample_rate}Hz")
+            sys.stdout.flush()
+            
+            # Pass both instrument name AND sample rate to analyser constructor
+            analyser_registry[instrument][analyser] = cls(
+                instrument_name=instrument,
+                sample_rate=sample_rate
+            )
 
 # prints instrument/analyser combination 
 def log_routing(name, analysers):
     analysers = ", ".join(analysers) if analysers else "none"
-    print(f"[receiver] {name:<16} -> {analysers}")
+    print(f"[windows_receiver] {name:<16} -> {analysers}")
+    sys.stdout.flush()
 
 
 
 # Handles connection to broadcaster.py, initialises analysers, routes incoming audio chunks
 def handle_connection(conn, addr): 
-    print(f"[receiver] broadcaster connected from {addr}")
+    print(f"[windows_receiver] broadcaster connected from {addr}")
+    sys.stdout.flush()
     logged_instruments = set()
 
     try:
@@ -106,9 +139,11 @@ def handle_connection(conn, addr):
                     analyser_instance.push(audio)
 
     except Exception as e:
-        print(f"[receiver] Error: {e}")
+        print(f"[windows_receiver] Error: {e}")
+        sys.stdout.flush()
     finally:
-        print(f"[receiver] broadcaster disconnected.")
+        print(f"[windows_receiver] broadcaster disconnected.")
+        sys.stdout.flush()
         conn.close()
 
 
@@ -119,7 +154,8 @@ def start_server():
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server.bind((TCP_HOST, TCP_PORT))
         server.listen(1)
-        print(f"[receiver] Listening on {TCP_HOST}:{TCP_PORT}")
+        print(f"[windows_receiver] Listening on {TCP_HOST}:{TCP_PORT}")
+        sys.stdout.flush()
 
         while True:
             conn, addr = server.accept()
@@ -130,4 +166,5 @@ if __name__ == "__main__":
     try:
         start_server()
     except KeyboardInterrupt:
-        print("[receiver] Stopped.")
+        print("[windows_receiver] Stopped.")
+        sys.stdout.flush()

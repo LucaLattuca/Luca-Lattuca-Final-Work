@@ -519,7 +519,7 @@ fn start_osc_listener(app_handle: AppHandle) {
         loop {
             match socket.recv_from(&mut buf) {
                 Ok((size, addr)) => {
-                    println!("[OSC] Packet received from {}", addr);
+                    println!("[OSC] Packet received from {} ({} bytes)", addr, size);
 
                     match decode_udp(&buf[..size]) {
                         Ok((_, OscPacket::Message(msg))) => {

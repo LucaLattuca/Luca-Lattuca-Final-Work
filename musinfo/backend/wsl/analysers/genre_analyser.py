@@ -7,11 +7,11 @@ from scipy.signal import resample_poly
 from essentia.standard import TensorflowPredictEffnetDiscogs
 from pythonosc import udp_client
 import sys
+import subprocess
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 # Configuration
-SENDER_RATE     = 48000
 MODEL_RATE      = 16000
 CHUNK_DURATION  = 4
 CHUNK_SAMPLES   = MODEL_RATE * CHUNK_DURATION
@@ -25,8 +25,19 @@ MODEL_JSON = os.path.join(MODELS_DIR, "discogs-effnet-bs64-1.json")
 
 DETAILED_GENRES = True
 
-# OSC Configuration
-OSC_HOST = "127.0.0.1"
+
+def get_windows_host_ip():
+    result = subprocess.run(
+        ["ip", "route", "show", "default"],
+        capture_output=True, text=True
+    )
+    for line in result.stdout.splitlines():
+        if "default via" in line:
+            return line.split()[2]
+    return "172.29.16.1"
+
+# OSC config
+OSC_HOST = get_windows_host_ip()
 OSC_PORT = 9000
 
 
@@ -50,11 +61,12 @@ def resample(audio, from_rate, to_rate):
 
 
 class AudioBuffer:
-    def __init__(self):
+    def __init__(self, sender_rate):
         self.buffer = np.array([], dtype=np.float32)
+        self.sender_rate = sender_rate  # Store the sample rate
     
     def push(self, chunk):
-        resampled = resample(chunk, SENDER_RATE, MODEL_RATE) 
+        resampled = resample(chunk, self.sender_rate, MODEL_RATE) 
         self.buffer = np.concatenate([self.buffer, resampled])
 
     def ready(self):
@@ -108,14 +120,17 @@ def classify(audio, model, labels):
 
 
 class GenreAnalyser:
-    def __init__(self, instrument_name="unknown"):
+    def __init__(self, instrument_name="unknown", sample_rate=48000):
         self.instrument_name = instrument_name
+        self.sender_rate = sample_rate  # Use the provided sample rate
         self.model, self.labels = load_model()
-        self.buffer = AudioBuffer()
+        self.buffer = AudioBuffer(self.sender_rate)
         self.osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
-        print(f"[genre] Ready for '{instrument_name}'")
+        print(f"[genre] Ready for '{instrument_name}' @ {sample_rate}Hz")
         sys.stdout.flush() 
-
+        print(f"[genre] OSC target: {OSC_HOST}:{OSC_PORT}")
+        sys.stdout.flush()
+        
     def push(self, audio):
         self.buffer.push(audio)
 
@@ -134,6 +149,8 @@ class GenreAnalyser:
         ]
         message = json.dumps(top_3)
         self.osc_client.send_message(f"/genre/{self.instrument_name}", message)
+        print(f"[genre] OSC SENT: /genre/{self.instrument_name} → {message}")
+        sys.stdout.flush()
 
     def _display(self, results):
         print(f"\n[genre/{self.instrument_name}] ──────────────────────────────────")

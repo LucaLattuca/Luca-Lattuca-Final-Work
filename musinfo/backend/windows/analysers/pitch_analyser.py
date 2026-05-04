@@ -7,7 +7,6 @@ from pythonosc import udp_client
 import sys
 
 # Configuration
-SAMPLE_RATE       = 48000  # From broadcaster
 HOP_SIZE          = 512    # Aubio window size
 SILENCE_THRESHOLD = 0.01
 MIN_PITCH         = 80
@@ -28,18 +27,19 @@ def hz_to_note(freq):
 
 
 class PitchAnalyser:
-    def __init__(self, instrument_name="unknown"):
+    def __init__(self, instrument_name="unknown", sample_rate=48000):
         self.instrument_name = instrument_name
+        self.sample_rate = sample_rate
         
-        # Create Aubio pitch detector
-        self.detector = aubio.pitch("yin", HOP_SIZE, HOP_SIZE, SAMPLE_RATE)
+        # Create Aubio pitch detector with the provided sample rate
+        self.detector = aubio.pitch("yin", HOP_SIZE, HOP_SIZE, sample_rate)
         self.detector.set_unit("Hz")
         self.detector.set_silence(-40)
         
         # Create OSC client
         self.osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
         
-        print(f"[pitch] Ready for '{instrument_name}'")
+        print(f"[pitch] Ready for '{instrument_name}' @ {sample_rate}Hz")
         sys.stdout.flush() 
 
     def push(self, audio):

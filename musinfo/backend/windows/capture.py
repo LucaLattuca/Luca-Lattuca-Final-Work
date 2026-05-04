@@ -39,17 +39,20 @@ def load_instruments_config():
         
         # Group instruments by device_id
         devices = {}
+        
         for name, inst in enabled.items():
             device_info = inst.get("audio_device", {})
             device_id = device_info.get("device_id")
             channel = device_info.get("channel")
-            sample_rate = device_info.get("sample_rate", 44100)
             
             if device_id is None or channel is None:
                 print(f"[capture.py] Skipping {name}: missing device_id or channel")
                 continue
             
             if device_id not in devices:
+                # Read sample rate directly from instruments.json config
+                sample_rate = device_info.get("sample_rate", 48000)
+                
                 devices[device_id] = {
                     "sample_rate": sample_rate,
                     "max_input_channels": device_info.get("max_input_channels", 2),
@@ -62,7 +65,7 @@ def load_instruments_config():
                 "channel_id": channel
             }
             
-            print(f"[capture.py] {name}: device {device_id}, channel {channel}, {sample_rate}Hz")
+            print(f"[capture.py] {name}: device {device_id}, channel {channel}, {devices[device_id]['sample_rate']}Hz")
         
         return devices
         
@@ -112,12 +115,9 @@ def stream_device(device_id, device_config, sock):
     def audio_callback(indata, frames, time, status):
         if status:
             print(f"[capture.py] Status: {status}")
-        
-        # Put each enabled channel's data into its queue
         for ch in channels_map.keys():
             channel_queues[ch].put(indata[:, ch].copy())
     
-    # Start sender threads for each enabled channel
     def send_loop(q, channel_id):
         while True:
             chunk = q.get()
@@ -134,7 +134,6 @@ def stream_device(device_id, device_config, sock):
         ).start()
         print(f"[capture.py] Started sender thread for channel {ch} ({info['instrument_name']})")
     
-    # Open the audio stream
     with sd.InputStream(
         device=device_id,
         channels=channels_to_capture,
@@ -160,7 +159,6 @@ def main():
         sock.connect((BROADCASTER_HOST, BROADCASTER_PORT))
         print("[capture.py] Connected to broadcaster.")
         
-        # Handle multiple devices - each in its own thread
         device_threads = []
         
         for device_id, device_config in devices_config.items():
@@ -174,7 +172,6 @@ def main():
             device_threads.append(thread)
             print(f"[capture.py] Started capture thread for device {device_id}")
         
-        # Wait for all device threads
         for thread in device_threads:
             thread.join()
 

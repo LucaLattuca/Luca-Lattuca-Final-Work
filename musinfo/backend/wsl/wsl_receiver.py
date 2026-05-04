@@ -8,12 +8,48 @@ import socket
 import struct
 import json
 import numpy as np
+import os
+import sys
 
 from analysers.genre_analyser import GenreAnalyser
 
 
 TCP_HOST = "0.0.0.0"
 TCP_PORT = 5006
+
+
+# ─── SAMPLE RATES ─────────────────────────────────────────────────────────────
+def load_sample_rates():
+    """Read sample rates directly from instruments.json audio_device config."""
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+    config_path = os.path.join(base_dir, "config", "instruments.json")
+
+    try:
+        with open(config_path) as f:
+            config = json.load(f)
+
+        rates = {}
+        for name, inst in config.get("instruments", {}).items():
+            device_info = inst.get("audio_device", {})
+            sample_rate = device_info.get("sample_rate")
+            if sample_rate is not None:
+                rates[name] = sample_rate
+
+        print(f"[wsl_receiver] Loaded sample rates: {rates}")
+        sys.stdout.flush()
+        return rates
+
+    except FileNotFoundError:
+        print(f"[wsl_receiver] instruments.json not found, using default 48000Hz")
+        sys.stdout.flush()
+        return {}
+    except json.JSONDecodeError as e:
+        print(f"[wsl_receiver] Failed to parse instruments.json: {e}")
+        sys.stdout.flush()
+        return {}
+
+# Load sample rates at startup
+SAMPLE_RATES = load_sample_rates()
 
 
 # ─── ANALYSERS ────────────────────────────────────────────────────────────────
@@ -66,20 +102,27 @@ def initialise_analyser(instrument, analyser):
     if analyser not in analyser_registry[instrument]:
         cls = AVAILABLE_ANALYSERS.get(analyser)
         if cls:
-            print(f"[receiver] Starting {analyser} analyser for {instrument}")
-            # Pass instrument name to analyser constructor
-            analyser_registry[instrument][analyser] = cls(instrument_name=instrument)
+            sample_rate = SAMPLE_RATES.get(instrument, 48000)
 
-# prints instrument/analyser combination 
+            print(f"[wsl_receiver] Starting {analyser} analyser for {instrument} @ {sample_rate}Hz")
+            sys.stdout.flush()
+
+            analyser_registry[instrument][analyser] = cls(
+                instrument_name=instrument,
+                sample_rate=sample_rate
+            )
+
+# prints instrument/analyser combination
 def log_routing(name, analysers):
-    analysers = ", ".join(analysers) if analysers else "none"
-    print(f"[receiver] {name:<16} → {analysers}")
-
+    analysers_str = ", ".join(analysers) if analysers else "none"
+    print(f"[wsl_receiver] {name:<16} -> {analysers_str}")
+    sys.stdout.flush()
 
 
 # Handles connection to broadcaster.py, initialises analysers, routes incoming audio chunks
-def handle_connection(conn, addr): 
-    print(f"[receiver] broadcaster connected from {addr}")
+def handle_connection(conn, addr):
+    print(f"[wsl_receiver] broadcaster connected from {addr}")
+    sys.stdout.flush()
     logged_instruments = set()
 
     try:
@@ -89,28 +132,27 @@ def handle_connection(conn, addr):
             if instrument_info is None:
                 break
 
-            name   = instrument_info.get("instrument", "unknown")
+            name      = instrument_info.get("instrument", "unknown")
             analysers = instrument_info.get("analysers", [])
 
-            # initialise and log each instrument once per connection
             if name not in logged_instruments:
                 logged_instruments.add(name)
                 log_routing(name, analysers)
                 for analyser in analysers:
                     initialise_analyser(name, analyser)
 
-            # route audio to each active analyser for this instrument
             for analyser in analysers:
                 analyser_instance = analyser_registry.get(name, {}).get(analyser)
                 if analyser_instance:
                     analyser_instance.push(audio)
 
     except Exception as e:
-        print(f"[receiver] Error: {e}")
+        print(f"[wsl_receiver] Error: {e}")
+        sys.stdout.flush()
     finally:
-        print(f"[receiver] broadcaster disconnected.")
+        print(f"[wsl_receiver] broadcaster disconnected.")
+        sys.stdout.flush()
         conn.close()
-
 
 
 # start TCP server loop
@@ -119,7 +161,8 @@ def start_server():
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server.bind((TCP_HOST, TCP_PORT))
         server.listen(1)
-        print(f"[receiver] Listening on {TCP_HOST}:{TCP_PORT}")
+        print(f"[wsl_receiver] Listening on {TCP_HOST}:{TCP_PORT}")
+        sys.stdout.flush()
 
         while True:
             conn, addr = server.accept()
@@ -130,4 +173,5 @@ if __name__ == "__main__":
     try:
         start_server()
     except KeyboardInterrupt:
-        print("[receiver] Stopped.")
+        print("[wsl_receiver] Stopped.")
+        sys.stdout.flush()

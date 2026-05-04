@@ -7,21 +7,15 @@ const OutputPanel = ({
     instruments = []
 }) => {
     // Store latest value for each instrument/analyser combo
-    // Format: { "vocals": { "pitch": "A4 (440.0Hz)", "genre": [...] }, ... }
+    // Format: { "vocals": { "pitch": "A4 (440.0Hz)", "genre": [{genre: "Folk", confidence: 67.3}, ...] } }
     const [analyserData, setAnalyserData] = useState({});
     
     const output = Object.entries(instruments);
 
     useEffect(() => {
-        console.log('[OutputPanel] Setting up OSC listener...');
-        
         // Listen for OSC messages from the backend
         const unlisten = listen('osc-message', (event) => {
-            console.log('[OutputPanel] OSC received:', {
-                address: event.payload.address,
-                payload: event.payload.payload,
-                payloadType: typeof event.payload.payload
-            });
+            console.log('[OutputPanel] OSC received:', event.payload);
             
             // event.payload is { address: "/pitch/vocals", payload: "A4 (440.0Hz)" }
             const { address, payload } = event.payload;
@@ -31,58 +25,49 @@ const OutputPanel = ({
             if (parts.length === 2) {
                 const [analyser, instrument] = parts;
                 
-                console.log('[OutputPanel] Parsed:', { analyser, instrument, payload });
-                
-                // Try to parse JSON for genre data
+                // Parse genre JSON if applicable
                 let parsedPayload = payload;
                 if (analyser === 'genre') {
                     try {
                         parsedPayload = JSON.parse(payload);
-                        console.log('[OutputPanel] Genre data parsed:', parsedPayload);
+                        console.log('[OutputPanel] Parsed genre data:', parsedPayload);
                     } catch (e) {
-                        console.warn('[OutputPanel] Failed to parse genre JSON:', payload, e);
+                        console.error('[OutputPanel] Failed to parse genre JSON:', e);
                     }
                 }
                 
-                setAnalyserData(prev => {
-                    const updated = {
-                        ...prev,
-                        [instrument]: {
-                            ...prev[instrument],
-                            [analyser]: parsedPayload
-                        }
-                    };
-                    console.log('[OutputPanel] State updated:', updated);
-                    return updated;
-                });
-            } else {
-                console.warn('[OutputPanel] Invalid address format:', address);
+                console.log('[OutputPanel] Updating:', { instrument, analyser, parsedPayload });
+                
+                setAnalyserData(prev => ({
+                    ...prev,
+                    [instrument]: {
+                        ...prev[instrument],
+                        [analyser]: parsedPayload
+                    }
+                }));
             }
         });
 
         return () => {
-            console.log('[OutputPanel] Cleaning up OSC listener...');
             unlisten.then(fn => fn());
         }
     }, []);
 
-    // Render genre data (array of top 3)
+    // Render genre data (array of {genre, confidence})
     const renderGenre = (genreData) => {
-        if (!Array.isArray(genreData)) {
-            return genreData || "—";
-        }
+        if (!Array.isArray(genreData)) return String(genreData);
         
         return (
-            <div className={styles.genreList}>
+            <div>
                 {genreData.map((item, idx) => (
-                    <div key={idx} className={styles.genreItem}>
-                        <span className={styles.genreName}>{item.genre}</span>
-                        <span className={styles.genreConfidence}>{item.confidence}%</span>
+                    <div key={idx}>
+                        {item.genre} ({item.confidence}%)
                     </div>
                 ))}
             </div>
         );
     };
+
 
     return (
         <div className={styles.outputPanel}>
@@ -100,7 +85,7 @@ const OutputPanel = ({
                                 <span className={styles.analyserName}>{analyser}:</span>
                                 <span className={styles.analyserValue}>
                                     {analyser === 'genre' 
-                                        ? renderGenre(analyserData[name]?.[analyser])
+                                        ? renderGenre(analyserData[name]?.genre)
                                         : (analyserData[name]?.[analyser] || "—")
                                     }
                                 </span>
