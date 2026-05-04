@@ -23,7 +23,7 @@ MODELS_DIR = os.path.join(os.path.dirname(SCRIPT_DIR), "models")  # Go up one le
 MODEL_PB = os.path.join(MODELS_DIR, "discogs-effnet-bs64-1.pb")
 MODEL_JSON = os.path.join(MODELS_DIR, "discogs-effnet-bs64-1.json")
 
-DETAILED_GENRES = True
+DETAILED_GENRES = False
 
 
 def get_windows_host_ip():
