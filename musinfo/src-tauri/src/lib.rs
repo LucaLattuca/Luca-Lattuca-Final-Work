@@ -119,22 +119,26 @@ fn reconcile_devices(_app: AppHandle) -> Result<Value, String> {
     let path = instruments_path()?;
     let mut config = read_config(&path)?;
 
-    // query all WASAPI input devices regardless of virtual/audio type
+    // query all input devices regardless of host api
     let script = r#"
 import json, sounddevice as sd
 devices = sd.query_devices()
 host_apis = sd.query_hostapis()
 result = []
+ALLOWED_APIS = ["Windows WASAPI", "Windows WDM-KS", "MME", "ASIO"]
+
 for i, d in enumerate(devices):
+    api_name = host_apis[d["hostapi"]]["name"]
     if d["max_input_channels"] == 0:
         continue
-    if host_apis[d["hostapi"]]["name"] != "Windows WASAPI":
+    if api_name not in ALLOWED_APIS:
         continue
     for ch in range(d["max_input_channels"]):
         result.append({
             "device_index": i,
             "name": d["name"],
             "channel": ch,
+            "host_api": api_name,
         })
 print(json.dumps(result))
 "#;
@@ -168,10 +172,17 @@ print(json.dumps(result))
             .and_then(|v| v.as_i64())
             .unwrap_or(0);
 
+        let stored_host_api = audio_device
+            .get("host_api")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Windows WASAPI")
+            .to_string();
+
         // find the live device matching by name + channel
         let matched = live_devices.iter().find(|d| {
             d["name"].as_str().unwrap_or("") == stored_name
                 && d["channel"].as_i64().unwrap_or(0) == stored_channel
+                && d["host_api"].as_str().unwrap_or("") == stored_host_api
         });
 
         match matched {

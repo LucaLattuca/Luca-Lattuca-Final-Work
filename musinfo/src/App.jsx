@@ -69,9 +69,9 @@ function App() {
   const handleSubmit = async (formData) => {
     try {
       await invoke('save_instrument', { instrument: formData });
-      setInstruments(prev => ({ ...prev, [formData.name]: { ...formData } }));
-      // auto-select the newly added instrument
-      setSelectedInstrument({ ...formData });
+      const reconciled = await invoke('reconcile_devices');
+      setInstruments(reconciled.instruments);
+      setSelectedInstrument({ name: formData.name, ...reconciled.instruments[formData.name] });
       setSwitchInstrument(k => k + 1);
       setModalOpen(false);
     } catch (err) {
