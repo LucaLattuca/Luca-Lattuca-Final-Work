@@ -20,18 +20,27 @@ TCP_PORT = 5007
 
 # ─── SAMPLE RATES ─────────────────────────────────────────────────────────────
 def load_sample_rates():
-    """Load sample_rates.json written by capture.py"""
+    """Read sample rates directly from instruments.json audio_device config."""
     base_dir = os.path.dirname(os.path.dirname(__file__))
-    sample_rates_path = os.path.join(base_dir, "config", "sample_rates.json")
-    
+    config_path = os.path.join(base_dir, "config", "instruments.json")
+
     try:
-        with open(sample_rates_path) as f:
-            rates = json.load(f)
+        with open(config_path) as f:
+            config = json.load(f)
+
+        rates = {}
+        for name, inst in config.get("instruments", {}).items():
+            device_info = inst.get("audio_device", {})
+            sample_rate = device_info.get("sample_rate")
+            if sample_rate is not None:
+                rates[name] = sample_rate
+
         print(f"[windows_receiver] Loaded sample rates: {rates}")
         sys.stdout.flush()
         return rates
+
     except FileNotFoundError:
-        print(f"[windows_receiver] sample_rates.json not found, using default 48000Hz")
+        print(f"[windows_receiver] instruments.json not found, using default 48000Hz")
         sys.stdout.flush()
         return {}
 

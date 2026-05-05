@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*- (current version)
 # broadcaster.py Audio Router 
 # Reads instruments.json and analysers.json to route per-channel audio from capture.py
 # to either WSL receiver or Windows analysers based on each analyser's target.
@@ -34,19 +34,6 @@ def get_audio_stats(audio_bytes):
     return rms, peak
 
 
-def load_sample_rates():
-    """Load sample_rates.json written by capture.py"""
-    base_dir = os.path.dirname(os.path.dirname(__file__))
-    sample_rates_path = os.path.join(base_dir, "config", "sample_rates.json")
-    
-    try:
-        with open(sample_rates_path) as f:
-            rates = json.load(f)
-        print(f"[broadcaster] Loaded sample rates: {rates}")
-        return rates
-    except FileNotFoundError:
-        print(f"[broadcaster] sample_rates.json not found, using default 48000Hz")
-        return {}
 
 # Loads both config files and returns them merged into one dict.
 def load_config():
