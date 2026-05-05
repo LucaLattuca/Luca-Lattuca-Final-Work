@@ -13,6 +13,9 @@ use tauri::{AppHandle, Emitter, State};
 // holds the test audio state
 struct TestProcess(Mutex<Option<Child>>);
 
+// holds the test midi state
+struct MidiTestProcess(Mutex<Option<Child>>);
+
 // holds the capture.py process handle so stop_pipeline can kill it
 struct CaptureProcess(Mutex<Option<Child>>);
 
@@ -119,37 +122,65 @@ fn reconcile_devices(_app: AppHandle) -> Result<Value, String> {
     let path = instruments_path()?;
     let mut config = read_config(&path)?;
 
-    // query all input devices regardless of host api
-    let script = r#"
+    // strips Windows MME port suffix so "Digital Piano-2" matches "Digital Piano-1"
+    fn strip_midi_suffix(name: &str) -> &str {
+        if let Some(pos) = name.rfind('-') {
+            let suffix = &name[pos + 1..];
+            if !suffix.is_empty() && suffix.chars().all(|c| c.is_ascii_digit()) {
+                return name[..pos].trim_end();
+            }
+        }
+        name
+    }
+
+    // query live audio devices
+    let live_audio: Vec<Value> = Command::new("python")
+        .args([
+            "-c",
+            r#"
 import json, sounddevice as sd
 devices = sd.query_devices()
 host_apis = sd.query_hostapis()
 result = []
 ALLOWED_APIS = ["Windows WASAPI", "Windows WDM-KS", "MME", "ASIO"]
-
 for i, d in enumerate(devices):
     api_name = host_apis[d["hostapi"]]["name"]
-    if d["max_input_channels"] == 0:
-        continue
-    if api_name not in ALLOWED_APIS:
+    if d["max_input_channels"] == 0 or api_name not in ALLOWED_APIS:
         continue
     for ch in range(d["max_input_channels"]):
-        result.append({
-            "device_index": i,
-            "name": d["name"],
-            "channel": ch,
-            "host_api": api_name,
-        })
+        result.append({"device_index": i, "name": d["name"], "channel": ch, "host_api": api_name})
 print(json.dumps(result))
-"#;
-
-    let output = Command::new("python")
-        .args(["-c", script])
+"#,
+        ])
         .output()
-        .map_err(|e| format!("Failed to query devices: {}", e))?;
+        .map(|o| {
+            serde_json::from_str(String::from_utf8_lossy(&o.stdout).trim()).unwrap_or_default()
+        })
+        .unwrap_or_default();
 
-    let live_devices: Vec<Value> =
-        serde_json::from_str(String::from_utf8_lossy(&output.stdout).trim()).unwrap_or_default();
+    // query live MIDI devices
+    let live_midi: Vec<Value> = Command::new("python")
+        .args([
+            "-c",
+            r#"
+import os, json
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
+import pygame.midi
+pygame.midi.init()
+result = []
+for i in range(pygame.midi.get_count()):
+    info = pygame.midi.get_device_info(i)
+    if info[2] == 1:
+        result.append({"index": i, "name": info[1].decode('utf-8')})
+print(json.dumps(result))
+pygame.midi.quit()
+"#,
+        ])
+        .output()
+        .map(|o| {
+            serde_json::from_str(String::from_utf8_lossy(&o.stdout).trim()).unwrap_or_default()
+        })
+        .unwrap_or_default();
 
     let instruments = config
         .get_mut("instruments")
@@ -157,51 +188,74 @@ print(json.dumps(result))
         .ok_or("instruments.json has no 'instruments' key")?;
 
     for (_, inst) in instruments.iter_mut() {
-        let audio_device = match inst.get_mut("audio_device").and_then(|v| v.as_object_mut()) {
-            Some(d) => d,
+        let inst_obj = match inst.as_object_mut() {
+            Some(o) => o,
             None => continue,
         };
 
-        let stored_name = audio_device
-            .get("name")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
-        let stored_channel = audio_device
-            .get("channel")
-            .and_then(|v| v.as_i64())
-            .unwrap_or(0);
+        // audio reconcile — exact match on name + channel + host_api
+        if let Some(dev) = inst_obj
+            .get_mut("audio_device")
+            .and_then(|v| v.as_object_mut())
+        {
+            let name = dev
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let channel = dev.get("channel").and_then(|v| v.as_i64()).unwrap_or(0);
+            let host_api = dev
+                .get("host_api")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Windows WASAPI")
+                .to_string();
 
-        let stored_host_api = audio_device
-            .get("host_api")
-            .and_then(|v| v.as_str())
-            .unwrap_or("Windows WASAPI")
-            .to_string();
-
-        // find the live device matching by name + channel
-        let matched = live_devices.iter().find(|d| {
-            d["name"].as_str().unwrap_or("") == stored_name
-                && d["channel"].as_i64().unwrap_or(0) == stored_channel
-                && d["host_api"].as_str().unwrap_or("") == stored_host_api
-        });
-
-        match matched {
-            Some(live) => {
-                // update device_id to the current hardware index
-                if let Some(id) = live["device_index"].as_i64() {
-                    audio_device.insert("device_id".to_string(), Value::Number(id.into()));
+            match live_audio.iter().find(|d| {
+                d["name"].as_str().unwrap_or("") == name
+                    && d["channel"].as_i64().unwrap_or(0) == channel
+                    && d["host_api"].as_str().unwrap_or("") == host_api
+            }) {
+                Some(live) => {
+                    if let Some(id) = live["device_index"].as_i64() {
+                        dev.insert("device_id".to_string(), Value::Number(id.into()));
+                    }
+                    dev.insert("connected".to_string(), Value::Bool(true));
                 }
-                audio_device.insert("connected".to_string(), Value::Bool(true));
+                None => {
+                    dev.insert("connected".to_string(), Value::Bool(false));
+                }
             }
-            None => {
-                audio_device.insert("connected".to_string(), Value::Bool(false));
+        }
+
+        // midi reconcile — fuzzy match on base name (strips trailing -N suffix)
+        if let Some(dev) = inst_obj
+            .get_mut("midi_device")
+            .and_then(|v| v.as_object_mut())
+        {
+            let stored_name = dev
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let stored_base = strip_midi_suffix(&stored_name).to_string();
+
+            match live_midi
+                .iter()
+                .find(|d| strip_midi_suffix(d["name"].as_str().unwrap_or("")) == stored_base)
+            {
+                Some(live) => {
+                    let live_name = live["name"].as_str().unwrap_or(&stored_name).to_string();
+                    dev.insert("name".to_string(), Value::String(live_name));
+                    dev.insert("connected".to_string(), Value::Bool(true));
+                }
+                None => {
+                    dev.insert("connected".to_string(), Value::Bool(false));
+                }
             }
         }
     }
 
-    // write updated device_ids back to disk
     write_config(&path, &config)?;
-
     Ok(Value::Object(config))
 }
 
@@ -271,24 +325,123 @@ fn get_midi_devices() -> Vec<Value> {
         .args([
             "-c",
             r#"
-import json, rtmidi
-m = rtmidi.MidiIn()
-ports = m.get_ports()
-result = [{"index": i, "name": p} for i, p in enumerate(ports)]
+import os, json
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
+import pygame.midi
+pygame.midi.init()
+result = []
+for i in range(pygame.midi.get_count()):
+    info = pygame.midi.get_device_info(i)
+    name = info[1].decode('utf-8')
+    is_input = info[2]
+    if is_input:
+        result.append({"index": i, "name": name, "port": "input"})
 print(json.dumps(result))
+pygame.midi.quit()
 "#,
         ])
         .output()
     {
         Ok(o) => o,
         Err(e) => {
-            eprintln!("[get_midi_devices] Failed to spawn python: {}", e);
+            eprintln!("[get_midi_devices] {}", e);
             return vec![];
         }
     };
+    serde_json::from_str(String::from_utf8_lossy(&output.stdout).trim()).unwrap_or_default()
+}
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(stdout.trim()).unwrap_or_default()
+// TEST MIDI
+
+// Spawns a Python script that listens to a MIDI input device and emits events.
+#[tauri::command]
+fn test_midi_input(
+    device_name: String,
+    app: AppHandle,
+    midi_state: State<MidiTestProcess>,
+) -> Result<String, String> {
+    if let Some(mut child) = midi_state.0.lock().unwrap().take() {
+        let _ = child.kill();
+    }
+
+    let script = format!(
+        r#"
+import os, json, sys, time
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
+import pygame.midi
+pygame.midi.init()
+
+NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']
+def note_name(n):
+    return NOTE_NAMES[n % 12] + str(n // 12 - 1)
+
+device_id = None
+for i in range(pygame.midi.get_count()):
+    info = pygame.midi.get_device_info(i)
+    name = info[1].decode('utf-8')
+    if info[2] == 1 and name == '{device_name}':
+        device_id = i
+        break
+
+if device_id is None:
+    print(json.dumps({{"error": "Device not found: {device_name}"}}), flush=True)
+    sys.exit(1)
+
+midi_in = pygame.midi.Input(device_id)
+while True:
+    if midi_in.poll():
+        for event in midi_in.read(16):
+            data = event[0]
+            status = data[0] & 0xF0
+            note = data[1]
+            velocity = data[2]
+            if status == 0x90 and velocity > 0:
+                print(json.dumps({{"type": "note_on", "note": note_name(note), "velocity": velocity}}), flush=True)
+            elif status == 0x80 or (status == 0x90 and velocity == 0):
+                print(json.dumps({{"type": "note_off", "note": note_name(note), "velocity": 0}}), flush=True)
+    time.sleep(0.01)
+"#
+    );
+
+    let mut child = Command::new("python")
+        .args(["-c", &script])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn MIDI listener: {}", e))?;
+
+    let stdout = child.stdout.take().ok_or("No stdout")?;
+    let stderr = child.stderr.take().ok_or("No stderr")?;
+    *midi_state.0.lock().unwrap() = Some(child);
+
+    thread::spawn(move || {
+        for line in std::io::BufRead::lines(std::io::BufReader::new(stderr)) {
+            if let Ok(line) = line {
+                eprintln!("[test_midi_input stderr] {}", line);
+            }
+        }
+    });
+
+    thread::spawn(move || {
+        for line in std::io::BufRead::lines(std::io::BufReader::new(stdout)) {
+            if let Ok(line) = line {
+                eprintln!("[test_midi_input stdout] {}", line); // ← add
+                if let Ok(event) = serde_json::from_str::<Value>(&line) {
+                    let _ = app.emit("midi-event", event);
+                }
+            }
+        }
+    });
+
+    Ok("MIDI listener started".to_string())
+}
+
+#[tauri::command]
+fn stop_midi_test(midi_state: State<MidiTestProcess>) -> Result<String, String> {
+    if let Some(mut child) = midi_state.0.lock().unwrap().take() {
+        child.kill().map_err(|e| format!("Failed to stop: {}", e))?;
+    }
+    Ok("MIDI listener stopped".to_string())
 }
 
 // TEST AUDIO
@@ -574,6 +727,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(CaptureProcess(Mutex::new(None)))
         .manage(TestProcess(Mutex::new(None)))
+        .manage(MidiTestProcess(Mutex::new(None)))
         .manage(WslProcess(Mutex::new(None)))
         .manage(WindowsReceiverProcess(Mutex::new(None)))
         .manage(BroadcasterProcess(Mutex::new(None)))
@@ -588,6 +742,8 @@ pub fn run() {
             stop_pipeline,
             test_device_audio,
             stop_device_test,
+            test_midi_input,
+            stop_midi_test,
             save_instrument,
             delete_instrument,
             reconcile_devices

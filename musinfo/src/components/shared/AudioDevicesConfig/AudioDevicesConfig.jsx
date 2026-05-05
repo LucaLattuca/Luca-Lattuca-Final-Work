@@ -31,8 +31,9 @@ const AudioDevicesConfig = ({
       .filter(([name]) => name !== currentInstrumentName)
       .map(([name, inst]) => ({
         instrumentName: name,
-        name:           inst.audio_device?.name,
-        channel:        inst.audio_device?.channel,
+        name:    inst.type === 'midi' ? inst.midi_device?.name : inst.audio_device?.name,
+        channel: inst.audio_device?.channel,
+        isMidi:  inst.type === 'midi',
       }));
     setUsedDevices(used);
   }, [allInstruments, currentInstrumentName]);
@@ -46,26 +47,29 @@ const AudioDevicesConfig = ({
         ? await invoke('get_midi_devices')
         : await invoke('get_audio_devices', { deviceType: inputType });
       setDevices(result);
-
-      if (onReconcile) {
-        const updated = await invoke('reconcile_devices');
-        onReconcile(updated.instruments);
-      }
-
+      // reconcile removed from here
     } catch (err) {
       setError('Could not load devices. Is the interface connected?');
-      console.error('[AudioDevicesConfig]', err);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleReload = async () => {
+    await fetchDevices();
+    if (onReconcile) {
+      const updated = await invoke('reconcile_devices');
+      onReconcile(updated.instruments);
+    }
+  };
+
 
   const handleDeviceClick = (device) => {
-    const usedEntry = usedDevices.find(u =>
-      u.name    === device.name &&
-      u.channel === (device.channel ?? 0)
-    );
+  const usedEntry = usedDevices.find(u =>
+    inputType === 'midi'
+      ? u.name === device.name && u.isMidi
+      : u.name === device.name && u.channel === (device.channel ?? 0) && !u.isMidi
+  );
 
     if (usedEntry) {
       // Setup context: open swap prompt.
@@ -126,7 +130,7 @@ const AudioDevicesConfig = ({
       {/* header */}
       <div className={styles.deviceListHeader}>
         <p className={styles.stepHint}>Available devices</p>
-        <button className={styles.reloadBtn} onClick={fetchDevices} disabled={loading}>
+        <button className={styles.reloadBtn} onClick={handleReload} disabled={loading}>
           {loading ? '...' : '↻ Reload'}
         </button>
       </div>
@@ -144,14 +148,17 @@ const AudioDevicesConfig = ({
         {!loading && devices.map((device, i) => {
           // Compare by name + channel rather than device_id — the id is a hardware
           // index that can change between sessions, name + channel is stable.
-          const isSelected =
-            selectedDevice?.name    === device.name &&
-            selectedDevice?.channel === (device.channel ?? 0) &&
-            selectedDevice?.host_api === device.host_api;
+          // index midi device
+          const isSelected = inputType === 'midi'
+            ? selectedDevice?.name === device.name
+            : selectedDevice?.name    === device.name &&
+              selectedDevice?.channel  === (device.channel ?? 0) &&
+              selectedDevice?.host_api === device.host_api;
 
           const usedEntry = usedDevices.find(u =>
-            u.name    === device.name &&
-            u.channel === (device.channel ?? 0)
+            inputType === 'midi'
+              ? u.name === device.name && u.isMidi
+              : u.name === device.name && u.channel === (device.channel ?? 0) && !u.isMidi
           );
           const isInUse = !!usedEntry;
 
@@ -166,15 +173,21 @@ const AudioDevicesConfig = ({
                 onClick={() => handleDeviceClick(device)}
                 // in modal context: block in-use devices entirely
                 // in Setup context: allow click to trigger swap prompt
-                disabled={isInUse && !onSwapDevice}
+                disabled={isInUse && (inputType === 'midi' || !onSwapDevice)}
               >
                 <div className={styles.deviceInfo}>
                   <h4 className={styles.deviceName}>{device.name}</h4>
                   <div className={styles.deviceDetails}>
-                    <p>{device.host_api}</p>
-                    <p>Ch.{(device.channel ?? 0) + 1}</p>
-                    <p>{device.sample_rate}Hz</p>
-                    <p>{device.latency}ms</p>
+                    {inputType === 'midi' ? (
+                      <p>MIDI input</p>
+                    ) : (
+                      <>
+                        <p>{device.host_api}</p>
+                        <p>Ch.{(device.channel ?? 0) + 1}</p>
+                        <p>{device.sample_rate}Hz</p>
+                        <p>{device.latency}ms</p>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className={styles.deviceStatus}>

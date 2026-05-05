@@ -1,0 +1,64 @@
+.testMidi {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.toggleBtn {
+  background: transparent;
+  border: 1px solid gray;
+  border-radius: 6px;
+  color: white;
+  padding: 4px 14px;
+  cursor: pointer;
+  font-size: small;
+  white-space: nowrap;
+}
+
+.toggleBtn.active {
+  border-color: rgb(58, 151, 58);
+  color: rgb(58, 151, 58);
+}
+
+.toggleBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.status {
+  margin: 0;
+  font-size: small;
+  color: #aaa;
+}
+
+.eventDisplay {
+  font-size: small;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.eventDisplay p {
+  margin: 0;
+  display: flex;
+  gap: 12px;
+}
+
+.eventDisplay span {
+  color: #888;
+  min-width: 60px;
+}
+
+.hint {
+  color: #555;
+}
+
+.error {
+  color: rgb(200, 80, 80);
+}
