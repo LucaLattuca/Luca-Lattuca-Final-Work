@@ -13,6 +13,9 @@ use tauri::{AppHandle, Emitter, State};
 // holds the test audio state
 struct TestProcess(Mutex<Option<Child>>);
 
+// holds the test midi state
+struct MidiTestProcess(Mutex<Option<Child>>);
+
 // holds the capture.py process handle so stop_pipeline can kill it
 struct CaptureProcess(Mutex<Option<Child>>);
 
@@ -295,6 +298,99 @@ pygame.midi.quit()
         }
     };
     serde_json::from_str(String::from_utf8_lossy(&output.stdout).trim()).unwrap_or_default()
+}
+
+// TEST MIDI
+
+// Spawns a Python script that listens to a MIDI input device and emits events.
+#[tauri::command]
+fn test_midi_input(
+    device_name: String,
+    app: AppHandle,
+    midi_state: State<MidiTestProcess>,
+) -> Result<String, String> {
+    if let Some(mut child) = midi_state.0.lock().unwrap().take() {
+        let _ = child.kill();
+    }
+
+    let script = format!(
+        r#"
+import os, json, sys, time
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
+import pygame.midi
+pygame.midi.init()
+
+NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']
+def note_name(n):
+    return NOTE_NAMES[n % 12] + str(n // 12 - 1)
+
+device_id = None
+for i in range(pygame.midi.get_count()):
+    info = pygame.midi.get_device_info(i)
+    name = info[1].decode('utf-8')
+    if info[2] == 1 and name == '{device_name}':
+        device_id = i
+        break
+
+if device_id is None:
+    print(json.dumps({{"error": "Device not found: {device_name}"}}), flush=True)
+    sys.exit(1)
+
+midi_in = pygame.midi.Input(device_id)
+while True:
+    if midi_in.poll():
+        for event in midi_in.read(16):
+            data = event[0]
+            status = data[0] & 0xF0
+            note = data[1]
+            velocity = data[2]
+            if status == 0x90 and velocity > 0:
+                print(json.dumps({{"type": "note_on", "note": note_name(note), "velocity": velocity}}), flush=True)
+            elif status == 0x80 or (status == 0x90 and velocity == 0):
+                print(json.dumps({{"type": "note_off", "note": note_name(note), "velocity": 0}}), flush=True)
+    time.sleep(0.01)
+"#
+    );
+
+    let mut child = Command::new("python")
+        .args(["-c", &script])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn MIDI listener: {}", e))?;
+
+    let stdout = child.stdout.take().ok_or("No stdout")?;
+    let stderr = child.stderr.take().ok_or("No stderr")?;
+    *midi_state.0.lock().unwrap() = Some(child);
+
+    thread::spawn(move || {
+        for line in std::io::BufRead::lines(std::io::BufReader::new(stderr)) {
+            if let Ok(line) = line {
+                eprintln!("[test_midi_input stderr] {}", line);
+            }
+        }
+    });
+
+    thread::spawn(move || {
+        for line in std::io::BufRead::lines(std::io::BufReader::new(stdout)) {
+            if let Ok(line) = line {
+                eprintln!("[test_midi_input stdout] {}", line); // ← add
+                if let Ok(event) = serde_json::from_str::<Value>(&line) {
+                    let _ = app.emit("midi-event", event);
+                }
+            }
+        }
+    });
+
+    Ok("MIDI listener started".to_string())
+}
+
+#[tauri::command]
+fn stop_midi_test(midi_state: State<MidiTestProcess>) -> Result<String, String> {
+    if let Some(mut child) = midi_state.0.lock().unwrap().take() {
+        child.kill().map_err(|e| format!("Failed to stop: {}", e))?;
+    }
+    Ok("MIDI listener stopped".to_string())
 }
 
 // TEST AUDIO
@@ -580,6 +676,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(CaptureProcess(Mutex::new(None)))
         .manage(TestProcess(Mutex::new(None)))
+        .manage(MidiTestProcess(Mutex::new(None)))
         .manage(WslProcess(Mutex::new(None)))
         .manage(WindowsReceiverProcess(Mutex::new(None)))
         .manage(BroadcasterProcess(Mutex::new(None)))
@@ -594,6 +691,8 @@ pub fn run() {
             stop_pipeline,
             test_device_audio,
             stop_device_test,
+            test_midi_input,
+            stop_midi_test,
             save_instrument,
             delete_instrument,
             reconcile_devices

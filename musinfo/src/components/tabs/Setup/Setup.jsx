@@ -7,7 +7,7 @@ import AudioDevicesConfig from '../../shared/AudioDevicesConfig/AudioDevicesConf
 import AnalyserConfig     from '../../shared/AnalyserConfig/AnalyserConfig';
 import SignalPath         from '../../shared/SignalPath/SignalPath';
 import TestAudio          from '../../shared/TestAudio/TestAudio';
-
+import TestMidi           from '../../shared/TestMIDI/TestMidi';
 
 const Setup = ({
     selectedInstrument,
@@ -196,12 +196,10 @@ const Setup = ({
                 onTypeChange={(t) => patch({ type: t })}
               />
               {/* Guard testaudio */}
-              {formData.type !== 'midi' && (
-                <TestAudio
-                  deviceId={formData.audio_device?.device_id}
-                  channel={formData.audio_device?.channel}
-                />
-              )}
+              { formData.type === 'midi'
+                 ? <TestMidi deviceName={formData.midi_device?.name} />
+                 : <TestAudio deviceId={formData.audio_device?.device_id} channel={formData.audio_device?.channel} />
+              }
             </div>
         
             <div className={styles.audioControls}>
