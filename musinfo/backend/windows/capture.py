@@ -1,6 +1,8 @@
 # capture.py — Audio Capture + TCP Streamer (Windows side)
 # Loads instruments.json, captures enabled channels, streams to broadcaster.py
 
+import os
+os.environ["SD_ENABLE_ASIO"] = "1"
 import socket
 import struct
 import queue
@@ -8,7 +10,6 @@ import threading
 import numpy as np
 import sounddevice as sd
 import json
-import os
 
 
 BROADCASTER_HOST = "127.0.0.1"
@@ -16,6 +17,7 @@ BROADCASTER_PORT = 5005
 
 # Thread lock for socket operations (multiple devices sending simultaneously)
 socket_lock = threading.Lock()
+
 
 
 def load_instruments_config():

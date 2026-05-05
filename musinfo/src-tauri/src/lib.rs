@@ -135,6 +135,7 @@ fn reconcile_devices(_app: AppHandle) -> Result<Value, String> {
 
     // query live audio devices
     let live_audio: Vec<Value> = Command::new("python")
+        .env("SD_ENABLE_ASIO", "1")
         .args([
             "-c",
             r#"
@@ -274,7 +275,7 @@ for i, d in enumerate(devices):
     api_name = host_apis[d["hostapi"]]["name"]
     if d["max_input_channels"] == 0:
         continue
-    if api_name not in ["Windows WASAPI", "Windows WDM-KS", "MME"]:
+    if api_name not in ["Windows WASAPI", "Windows WDM-KS", "MME", "ASIO"]:
         continue
 
     name_lower = d["name"].lower()
@@ -306,7 +307,11 @@ print(json.dumps(result))
 "#
     );
 
-    let output = match Command::new("python").args(["-c", &python_script]).output() {
+    let output = match Command::new("python")
+        .env("SD_ENABLE_ASIO", "1")
+        .args(["-c", &python_script])
+        .output()
+    {
         Ok(o) => o,
         Err(e) => {
             eprintln!("[get_audio_devices] Failed to spawn python: {}", e);
@@ -487,6 +492,7 @@ with sd.InputStream(
     );
 
     let mut child = Command::new("python")
+        .env("SD_ENABLE_ASIO", "1")
         .args(["-c", &script])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -614,6 +620,7 @@ fn start_pipeline(
     println!("[Tauri] Spawning capture.py...");
 
     let capture_child = Command::new("python")
+        .env("SD_ENABLE_ASIO", "1")
         .arg(&capture_script)
         // REMOVED: .stdout(Stdio::null())
         // REMOVED: .stderr(Stdio::null())
