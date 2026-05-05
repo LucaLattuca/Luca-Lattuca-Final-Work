@@ -18,6 +18,48 @@ BROADCASTER_PORT = 5005
 # Thread lock for socket operations (multiple devices sending simultaneously)
 socket_lock = threading.Lock()
 
+def resolve_device_id(name: str, host_api: str) -> tuple[int, int]:
+    """
+    Resolve a stable device index by matching name + host API.
+    Returns (device_id, actual_sample_rate).
+    Falls back gracefully if the stored host_api changed.
+    """
+    devices  = sd.query_devices()
+    hostapis = sd.query_hostapis()
+
+    # Build a map of hostapi name -> index
+    api_index = {a["name"]: i for i, a in enumerate(hostapis)}
+    wanted_api = api_index.get(host_api)
+
+    candidates = []
+    for i, d in enumerate(devices):
+        if name.lower() not in d["name"].lower():
+            continue
+        if d["max_input_channels"] < 1:
+            continue
+        if "[Loopback]" in d["name"]:
+            continue
+        if wanted_api is not None and d["hostapi"] != wanted_api:
+            continue
+        candidates.append((i, d))
+
+    if not candidates:
+        # Relax host_api constraint — maybe it changed
+        candidates = [
+            (i, d) for i, d in enumerate(devices)
+            if name.lower() in d["name"].lower()
+            and d["max_input_channels"] > 0
+            and "[Loopback]" not in d["name"]
+        ]
+
+    if not candidates:
+        raise RuntimeError(f"[capture.py] No input device found matching '{name}'")
+
+    idx, info = candidates[0]
+    actual_rate = int(info["default_samplerate"])
+    print(f"[capture.py] Resolved '{name}' -> device {idx} ({info['name']}, {sd.query_hostapis(info['hostapi'])['name']}) @ {actual_rate}Hz")
+    return idx, actual_rate
+
 
 
 def load_instruments_config():
@@ -100,15 +142,18 @@ def stream_device(device_id, device_config, sock):
     Opens an audio stream for one device and sends each enabled channel to broadcaster.
     """
     channels_map = device_config["channels"]
-    sample_rate = device_config["sample_rate"]
     max_channels = device_config["max_input_channels"]
     device_name = device_config["name"]
     
+    # get sample rate from querying device id
+    device_info  = sd.query_devices(device_id)
+    sample_rate  = int(device_info["default_samplerate"])
+
     # Determine how many channels we need to capture
     max_channel_index = max(channels_map.keys())
     channels_to_capture = max_channel_index + 1
     
-    print(f"[capture.py] Opening device {device_id} ({device_name})")
+    print(f"[capture.py] Opening device {device_id} ({device_name}) @ {sample_rate}Hz")
     print(f"[capture.py] Sample rate: {sample_rate}Hz, capturing {channels_to_capture}/{max_channels} channels")
     
     # Create a queue for each enabled channel
