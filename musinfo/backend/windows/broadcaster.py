@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*- (current version)
 # broadcaster.py Audio Router 
 # Reads instruments.json and analysers.json to route per-channel audio from capture.py
 # to either WSL receiver or Windows analysers based on each analyser's target.
@@ -225,7 +224,9 @@ def handle_capture_connection(conn, config_holder):
     sys.stdout.flush()
     wsl_sock = connect_to_wsl()
     windows_sock = connect_to_windows()
-    channel_map, mix_configs = build_channel_map(config_holder["config"])
+
+    last_config = config_holder["config"]
+    channel_map, mix_configs = build_channel_map(last_config)
 
     try:
         while True:
@@ -238,8 +239,10 @@ def handle_capture_connection(conn, config_holder):
             if audio_bytes is None:
                 break
             
-            # Rebuild routing on every chunk (handles config changes)
-            channel_map, mix_configs = build_channel_map(config_holder["config"])
+            current_config = config_holder["config"]
+            if current_config is not last_config:
+                last_config = current_config
+                channel_map, mix_configs = build_channel_map(last_config)
             
             instrument_info = channel_map.get(channel_id)
 
@@ -277,9 +280,9 @@ def handle_capture_connection(conn, config_holder):
                     # Buffer this chunk
                     mix_config["buffer"][channel_id] = audio_bytes
                     
-                    # Check if all source channels are ready
-                    if len(mix_config["buffer"]) == len(mix_config["source_channels"]):
-                        # Combine audio
+
+                    # Flush immediately with whatever channels are currently buffered
+                    if mix_config["buffer"]:
                         mixed_audio = combine_audio(mix_config["buffer"])
                         
                         # Route to receivers
@@ -299,8 +302,6 @@ def handle_capture_connection(conn, config_holder):
                                 sys.stdout.flush()
                                 wsl_sock = connect_to_wsl()
                         
-                        # Clear buffer for next chunk
-                        mix_config["buffer"].clear()
 
     finally:
         print("[broadcaster] capture.py disconnected.")
