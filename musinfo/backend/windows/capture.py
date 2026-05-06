@@ -190,7 +190,7 @@ def stream_device(device_config, sock):
             device=device_id,
             channels=channels_to_capture,
             samplerate=sample_rate,
-            blocksize=2048,
+            blocksize=2048, # Minimum block size needed by all analysers. (2048 works for now.)
             dtype="float32",
             callback=audio_callback,
         ):
