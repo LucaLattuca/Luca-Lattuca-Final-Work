@@ -15,7 +15,8 @@ import wave
 
 # AUDIO DEBUGGING information
 _record_buffers = {}
-_mix_sample_rate = 48000  # adjust if yours differs | 44100
+# TODO : adjust sample rate based on mix. or if relative sample rates, recalculate
+_mix_sample_rate = 44100  # adjust if yours differs | 44100
 _mix_record_lock = threading.Lock()
 
 AUDIO_DEBUG_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "audio_debug")
@@ -94,7 +95,7 @@ def build_channel_map(config):
         if inst_type == "mix" and mix_source == "internal":
             continue
 
-        
+
         # Get channel from audio_device
         audio_device = instrument.get("audio_device", {})
         channel_id = audio_device.get("channel")
