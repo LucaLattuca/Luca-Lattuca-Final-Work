@@ -641,12 +641,27 @@ fn stop_pipeline(
     broadcaster_state: State<BroadcasterProcess>,
     windows_receiver_state: State<WindowsReceiverProcess>,
 ) -> Result<String, String> {
+    let project_root_windows = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .ok_or("Could not resolve project root")?;
+
     // if capture.py is running, kill it
     if let Some(mut child) = capture_state.0.lock().unwrap().take() {
         child
             .kill()
             .map_err(|e| format!("Failed to kill capture.py: {}", e))?;
         println!("[Tauri] capture.py stopped.");
+    }
+
+    let sentinel_path = project_root_windows
+        .join("backend")
+        .join("broadcaster.stop");
+
+    if let Err(e) = fs::write(&sentinel_path, b"stop") {
+        eprintln!("[Tauri] Failed to write stop sentinel: {}", e);
+    } else {
+        println!("[Tauri] Stop sentinel written — waiting for broadcaster to save...");
+        std::thread::sleep(std::time::Duration::from_millis(1500)); // give it time to save
     }
 
     // if broadcaster.py is running, kill it

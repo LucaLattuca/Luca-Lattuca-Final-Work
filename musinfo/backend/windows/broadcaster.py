@@ -11,6 +11,15 @@ import os
 import time
 import numpy as np
 import sys
+import wave
+
+# AUDIO DEBUGGING information
+_record_buffers = {}
+_mix_sample_rate = 44100  # adjust if yours differs
+_mix_record_lock = threading.Lock()
+RECORD_OUTPUT_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "debug_mix.wav")
+STOP_SENTINEL = os.path.join(os.path.dirname(os.path.dirname(__file__)), "broadcaster.stop")
+
 
 LOCAL_HOST      = "127.0.0.1"
 LOCAL_PORT      = 5005
@@ -117,6 +126,7 @@ def build_channel_map(config):
                     source_channels.append(ch_id)
                     break
                 
+        print(f"[broadcaster] Mix '{mix_name}' source_channels resolved: {source_channels}")
         if not source_channels:
             print(f"[broadcaster] Mix '{mix_name}' has no valid source channels — skipping")
             sys.stdout.flush()
@@ -203,20 +213,38 @@ def send_framed_chunk(sock, instrument_name, analysers, audio_bytes):
     sock.sendall(frame)
 
 # Combine multiple audio chunks into a mixed chunk
-def combine_audio(buffers):
-    import numpy as np
-    
-    # Convert all to numpy arrays
-    arrays = [
-        np.frombuffer(audio_bytes, dtype=np.float32)
-        for audio_bytes in buffers.values()
-    ]
-    
-    # Average to prevent clipping (sum would risk going over ±1.0)
+def combine_audio(mix_name, buffers):
+    arrays = [np.frombuffer(b, dtype=np.float32) for b in buffers.values()]
     mixed = np.mean(arrays, axis=0)
-    
-    # Convert back to bytes
+    with _mix_record_lock:
+        _record_buffers.setdefault(mix_name, []).append(mixed.copy())
     return mixed.astype(np.float32).tobytes()
+
+# save broadcaster recording
+def save_recording():
+    with _mix_record_lock:
+        if not _record_buffers:
+            print("[recorder] Nothing to save.")
+            return
+        snapshot = {name: list(chunks) for name, chunks in _record_buffers.items()}
+
+    for name, chunks in snapshot.items():
+        all_audio = np.concatenate(chunks)
+        int16_audio = (np.clip(all_audio, -1.0, 1.0) * 32767).astype(np.int16)
+        
+        output_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            f"debug_{name}.wav"
+        )
+        with wave.open(output_path, "w") as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(_mix_sample_rate)
+            wf.writeframes(int16_audio.tobytes())
+        
+        print(f"[recorder] Saved {len(all_audio) / _mix_sample_rate:.1f}s -> {output_path}")
+        sys.stdout.flush()
+
 
 # reads chunks from capture.py, looks up instrument routing, forwards to receivers
 def handle_capture_connection(conn, config_holder):
@@ -256,7 +284,12 @@ def handle_capture_connection(conn, config_holder):
                 print(f"[audio] ch{channel_id} ({instrument_info['name']:8s}) RMS={rms:.4f} Peak={peak:.4f}")
                 sys.stdout.flush()
  
-            
+
+            # Record this instrument's audio
+            audio_array = np.frombuffer(audio_bytes, dtype=np.float32)
+            with _mix_record_lock:
+                _record_buffers.setdefault(instrument_info["name"], []).append(audio_array.copy())
+
             # ──── 1. Route individual instrument ────────────────────────────
             if instrument_info["windows_analysers"]:
                 try:
@@ -277,15 +310,13 @@ def handle_capture_connection(conn, config_holder):
             # ──── 2. Check if this channel is part of any mix ───────────────
             for mix_name, mix_config in mix_configs.items():
                 if channel_id in mix_config["source_channels"]:
-                    # Buffer this chunk
                     mix_config["buffer"][channel_id] = audio_bytes
-                    
-
-                    # Flush immediately with whatever channels are currently buffered
-                    if mix_config["buffer"]:
-                        mixed_audio = combine_audio(mix_config["buffer"])
-                        
-                        # Route to receivers
+            
+                    # Only flush when ALL source channels have contributed
+                    if len(mix_config["buffer"]) == len(mix_config["source_channels"]):
+                        mixed_audio = combine_audio(mix_name, mix_config["buffer"])
+                        mix_config["buffer"] = {}  # clear for next round
+            
                         if mix_config["windows_analysers"]:
                             try:
                                 send_framed_chunk(windows_sock, mix_name, mix_config["windows_analysers"], mixed_audio)
@@ -293,7 +324,7 @@ def handle_capture_connection(conn, config_holder):
                                 print("[broadcaster] Lost Windows connection — reconnecting")
                                 sys.stdout.flush()
                                 windows_sock = connect_to_windows()
-                        
+            
                         if mix_config["wsl_analysers"]:
                             try:
                                 send_framed_chunk(wsl_sock, mix_name, mix_config["wsl_analysers"], mixed_audio)
@@ -339,9 +370,28 @@ def start_server(config_holder):
             ).start()
 
 
+def watch_stop_sentinel():
+    """Polls for a stop sentinel file — when found, saves recording and exits."""
+    while True:
+        time.sleep(0.5)
+        if os.path.exists(STOP_SENTINEL):
+            print("[broadcaster] Stop sentinel detected — saving recording...")
+            sys.stdout.flush()
+            try:
+                os.remove(STOP_SENTINEL)
+            except OSError:
+                pass
+            save_recording()
+            os._exit(0)  # hard exit — kills all threads cleanly
+
 def main():
+    # Clean up any leftover sentinel from a previous run
+    if os.path.exists(STOP_SENTINEL):
+        os.remove(STOP_SENTINEL)
+
     config_holder = {"config": load_config()}
     threading.Thread(target=watch_config, args=(config_holder,), daemon=True).start()
+    threading.Thread(target=watch_stop_sentinel, daemon=True).start()
     start_server(config_holder)
 
 
@@ -351,3 +401,4 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("[broadcaster] Stopped.")
         sys.stdout.flush()
+        save_recording()
