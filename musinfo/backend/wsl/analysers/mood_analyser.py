@@ -86,15 +86,24 @@ def load_models():
 
     mood_classifiers = {}
     for mood, pb_path in MOOD_MODELS.items():
-        mood_classifiers[mood] = TensorflowPredict2D(graphFilename=pb_path)
+        mood_classifiers[mood] = TensorflowPredict2D(
+            graphFilename=pb_path,
+            output="model/Softmax"
+        )
         print(f"[mood] Loaded classifier: {mood}")
         sys.stdout.flush()
 
-    danceability_clf = TensorflowPredict2D(graphFilename=DANCEABILITY_PB)
+    danceability_clf = TensorflowPredict2D(
+        graphFilename=DANCEABILITY_PB,
+        output="model/Softmax"
+    )
     print("[mood] Loaded classifier: danceability")
     sys.stdout.flush()
 
-    jamendo_clf = TensorflowPredict2D(graphFilename=JAMENDO_PB)
+    jamendo_clf = TensorflowPredict2D(
+        graphFilename=JAMENDO_PB,
+        output="model/Sigmoid"
+    )
     with open(JAMENDO_JSON, "r") as f:
         jamendo_labels = json.load(f)["classes"]
     print(f"[mood] Loaded MTG-Jamendo ({len(jamendo_labels)} tags)")
