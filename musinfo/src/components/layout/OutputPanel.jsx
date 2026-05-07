@@ -6,38 +6,27 @@ import styles from './OutputPanel.module.css';
 const OutputPanel = ({
     instruments = []
 }) => {
-    // Store latest value for each instrument/analyser combo
-    // Format: { "vocals": { "pitch": "A4 (440.0Hz)", "genre": [{genre: "Folk", confidence: 67.3}, ...] } }
     const [analyserData, setAnalyserData] = useState({});
     
     const output = Object.entries(instruments);
 
     useEffect(() => {
-        // Listen for OSC messages from the backend
         const unlisten = listen('osc-message', (event) => {
             console.log('[OutputPanel] OSC received:', event.payload);
             
-            // event.payload is { address: "/pitch/vocals", payload: "A4 (440.0Hz)" }
             const { address, payload } = event.payload;
-            
-            // Parse address: "/pitch/vocals" -> analyser="pitch", instrument="vocals"
             const parts = address.split('/').filter(Boolean);
+
+            // Pattern A: /analyser/instrument         (e.g. /genre/vocals, /pitch/vocals)
+            // Pattern B: /analyser/instrument/subkey  (e.g. /mood/backing_track/top)
             if (parts.length === 2) {
                 const [analyser, instrument] = parts;
-                
-                // Parse genre JSON if applicable
+
                 let parsedPayload = payload;
                 if (analyser === 'genre') {
-                    try {
-                        parsedPayload = JSON.parse(payload);
-                        console.log('[OutputPanel] Parsed genre data:', parsedPayload);
-                    } catch (e) {
-                        console.error('[OutputPanel] Failed to parse genre JSON:', e);
-                    }
+                    try { parsedPayload = JSON.parse(payload); } catch (e) {}
                 }
-                
-                console.log('[OutputPanel] Updating:', { instrument, analyser, parsedPayload });
-                
+
                 setAnalyserData(prev => ({
                     ...prev,
                     [instrument]: {
@@ -45,29 +34,61 @@ const OutputPanel = ({
                         [analyser]: parsedPayload
                     }
                 }));
+
+            } else if (parts.length === 3) {
+                const [analyser, instrument, subkey] = parts;
+
+                let parsedPayload = payload;
+                if (analyser === 'mood' && subkey === 'tags') {
+                    // tags arrive as "film, dark" — keep as string, split for display
+                    parsedPayload = payload;
+                }
+
+                setAnalyserData(prev => ({
+                    ...prev,
+                    [instrument]: {
+                        ...prev[instrument],
+                        [analyser]: {
+                            ...prev[instrument]?.[analyser],
+                            [subkey]: parsedPayload
+                        }
+                    }
+                }));
             }
         });
 
-        return () => {
-            unlisten.then(fn => fn());
-        }
+        return () => { unlisten.then(fn => fn()); };
     }, []);
 
-    // Render genre data (array of {genre, confidence})
     const renderGenre = (genreData) => {
-        if (!Array.isArray(genreData)) return String(genreData);
-        
+        if (!Array.isArray(genreData)) return String(genreData ?? '—');
         return (
             <div>
                 {genreData.map((item, idx) => (
-                    <div key={idx}>
-                        {item.genre} ({item.confidence}%)
-                    </div>
+                    <div key={idx}>{item.genre} ({item.confidence}%)</div>
                 ))}
             </div>
         );
     };
 
+    const renderMood = (moodData) => {
+        if (!moodData) return '—';
+        const { top, danceability, tags } = moodData;
+        return (
+            <div>
+                {top         && <div>mood: {top}</div>}
+                {danceability != null && <div>danceability: {danceability}%</div>}
+                {tags        && <div>tags: {tags}</div>}
+            </div>
+        );
+    };
+
+    const renderValue = (analyser, instrument) => {
+        const data = analyserData[instrument]?.[analyser];
+        if (analyser === 'genre') return renderGenre(data);
+        if (analyser === 'mood')  return renderMood(data);
+        return data || '—';
+    };
 
     return (
         <div className={styles.outputPanel}>
@@ -84,10 +105,7 @@ const OutputPanel = ({
                             <div key={analyser} className={styles.analyserRow}>
                                 <span className={styles.analyserName}>{analyser}:</span>
                                 <span className={styles.analyserValue}>
-                                    {analyser === 'genre' 
-                                        ? renderGenre(analyserData[name]?.genre)
-                                        : (analyserData[name]?.[analyser] || "—")
-                                    }
+                                    {renderValue(analyser, name)}
                                 </span>
                             </div>
                         ))}
