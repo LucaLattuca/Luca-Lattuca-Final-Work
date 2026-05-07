@@ -1,5 +1,4 @@
 .vscode/settings.json
-musinfo/backend/config/instruments.json
 musinfo/src-tauri/Cargo.toml
 musinfo/logs.txt
 /musinfo/backend/audio_debug
