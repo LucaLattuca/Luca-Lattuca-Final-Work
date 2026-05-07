@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MUSINFO — Documentation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0e0f11;
+      --surface:   #15171a;
+      --border:    #222428;
+      --accent:    #c8f04a;
+      --accent-dim:#8aab2a;
+      --text:      #d4d6d9;
+      --text-dim:  #5a5e66;
+      --text-mid:  #8c9099;
+      --sidebar-w: 240px;
+      --header-h:  52px;
+      --mono:      'IBM Plex Mono', monospace;
+      --sans:      'IBM Plex Sans', sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 14px;
+      line-height: 1.7;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── HEADER ── */
+    header {
+      height: var(--header-h);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 20px;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .logo {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+
+    .logo span {
+      color: var(--text-dim);
+      font-weight: 400;
+    }
+
+    nav.tabs {
+      display: flex;
+      gap: 2px;
+      margin-left: auto;
+    }
+
+    nav.tabs a {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      text-decoration: none;
+      padding: 6px 14px;
+      border-radius: 3px;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    nav.tabs a:hover { color: var(--text); background: var(--border); }
+    nav.tabs a.active { color: var(--accent); background: rgba(200,240,74,0.07); }
+
+    /* ── LAYOUT ── */
+    .layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── SIDEBAR ── */
+    aside {
+      width: var(--sidebar-w);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      flex-shrink: 0;
+      padding: 24px 0;
+    }
+
+    aside::-webkit-scrollbar { width: 4px; }
+    aside::-webkit-scrollbar-track { background: transparent; }
+    aside::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .sidebar-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      padding: 0 20px 8px;
+    }
+
+    .sidebar-section { margin-bottom: 20px; }
+
+    .sidebar-link {
+      display: block;
+      font-size: 13px;
+      color: var(--text-mid);
+      text-decoration: none;
+      padding: 5px 20px;
+      border-left: 2px solid transparent;
+      transition: color 0.12s, border-color 0.12s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sidebar-link:hover { color: var(--text); }
+
+    .sidebar-link.h2 {
+      font-weight: 500;
+      color: var(--text);
+      font-size: 12px;
+      letter-spacing: 0.02em;
+      margin-top: 4px;
+    }
+
+    .sidebar-link.h3 {
+      padding-left: 32px;
+      font-size: 12px;
+    }
+
+    .sidebar-link.active {
+      color: var(--accent);
+      border-left-color: var(--accent);
+    }
+
+    /* ── CONTENT ── */
+    main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 48px 64px 80px;
+      max-width: 800px;
+    }
+
+    main::-webkit-scrollbar { width: 6px; }
+    main::-webkit-scrollbar-track { background: transparent; }
+    main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* Markdown styles */
+    #content h1 {
+      font-family: var(--mono);
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--accent);
+      letter-spacing: -0.01em;
+      margin-bottom: 32px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #content h2 {
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-top: 52px;
+      margin-bottom: 20px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #content h3 {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--accent-dim);
+      margin-top: 28px;
+      margin-bottom: 10px;
+      font-family: var(--mono);
+    }
+
+    #content p {
+      color: var(--text);
+      margin-bottom: 14px;
+      font-size: 14px;
+      line-height: 1.75;
+      font-weight: 300;
+    }
+
+    #content ul, #content ol {
+      margin: 10px 0 16px 20px;
+    }
+
+    #content li {
+      color: var(--text);
+      margin-bottom: 6px;
+      font-size: 14px;
+      font-weight: 300;
+    }
+
+    #content li strong {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    #content code {
+      font-family: var(--mono);
+      font-size: 12px;
+      background: var(--border);
+      color: var(--accent);
+      padding: 1px 6px;
+      border-radius: 3px;
+    }
+
+    #content strong { font-weight: 500; color: var(--text); }
+
+    #content hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 40px 0;
+    }
+
+    /* loading state */
+    .loading {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-dim);
+      letter-spacing: 0.08em;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">MUSINFO <span>/ docs</span></div>
+  <nav class="tabs">
+    <a href="index.html" class="active">Documentation</a>
+    <a href="about.html">About</a>
+  </nav>
+</header>
+
+<div class="layout">
+  <aside id="sidebar">
+    <div class="loading" style="padding: 20px;">Loading...</div>
+  </aside>
+
+  <main>
+    <div id="content" class="loading">Loading documentation...</div>
+  </main>
+</div>
+
+<script>
+  async function loadDocs() {
+    const res = await fetch('./content/documentation.md');
+    const md = await res.text();
+
+    // Render markdown
+    const html = marked.parse(md);
+    const content = document.getElementById('content');
+    content.innerHTML = html;
+    content.classList.remove('loading');
+
+    // Build sidebar from headings
+    const headings = content.querySelectorAll('h1, h2, h3');
+    const sidebar = document.getElementById('sidebar');
+    sidebar.innerHTML = '';
+
+    const section = document.createElement('div');
+    section.className = 'sidebar-section';
+    const label = document.createElement('div');
+    label.className = 'sidebar-label';
+    label.textContent = 'Contents';
+    section.appendChild(label);
+
+    headings.forEach((h, i) => {
+      // Give each heading an id if it doesn't have one
+      if (!h.id) {
+        h.id = 'section-' + i;
+      }
+
+      const a = document.createElement('a');
+      a.href = '#' + h.id;
+      a.textContent = h.textContent;
+      a.className = 'sidebar-link ' + h.tagName.toLowerCase();
+      section.appendChild(a);
+    });
+
+    sidebar.appendChild(section);
+
+    // Active link on scroll
+    const links = sidebar.querySelectorAll('.sidebar-link');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          links.forEach(l => l.classList.remove('active'));
+          const active = sidebar.querySelector(`a[href="#${entry.target.id}"]`);
+          if (active) active.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-10% 0px -80% 0px' });
+
+    headings.forEach(h => observer.observe(h));
+  }
+
+  loadDocs();
+</script>
+</body>
+</html>
