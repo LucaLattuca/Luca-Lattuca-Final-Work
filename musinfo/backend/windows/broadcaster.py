@@ -15,7 +15,7 @@ import wave
 
 # AUDIO DEBUGGING information
 _record_buffers = {}
-_mix_sample_rate = 44100  # adjust if yours differs
+_mix_sample_rate = 48000  # adjust if yours differs | 44100
 _mix_record_lock = threading.Lock()
 RECORD_OUTPUT_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "debug_mix.wav")
 STOP_SENTINEL = os.path.join(os.path.dirname(os.path.dirname(__file__)), "broadcaster.stop")
