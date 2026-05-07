@@ -73,3 +73,31 @@ class AudioBuffer:
         window      = self.buffer[:CHUNK_SAMPLES]
         self.buffer = self.buffer[int(CHUNK_SAMPLES * HOP_FRACTION):]
         return window
+
+
+# ─── Model loading ────────────────────────────────────────────────────────────
+def load_models():
+    embedder = TensorflowPredictEffnetDiscogs(
+        graphFilename=EFFNET_PB,
+        output="PartitionedCall:1"
+    )
+    print("[mood] Discogs-EffNet embedder loaded")
+    sys.stdout.flush()
+
+    mood_classifiers = {}
+    for mood, pb_path in MOOD_MODELS.items():
+        mood_classifiers[mood] = TensorflowPredict2D(graphFilename=pb_path)
+        print(f"[mood] Loaded classifier: {mood}")
+        sys.stdout.flush()
+
+    danceability_clf = TensorflowPredict2D(graphFilename=DANCEABILITY_PB)
+    print("[mood] Loaded classifier: danceability")
+    sys.stdout.flush()
+
+    jamendo_clf = TensorflowPredict2D(graphFilename=JAMENDO_PB)
+    with open(JAMENDO_JSON, "r") as f:
+        jamendo_labels = json.load(f)["classes"]
+    print(f"[mood] Loaded MTG-Jamendo ({len(jamendo_labels)} tags)")
+    sys.stdout.flush()
+
+    return embedder, mood_classifiers, danceability_clf, jamendo_clf, jamendo_labels
