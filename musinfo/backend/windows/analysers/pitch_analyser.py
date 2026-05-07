@@ -8,10 +8,13 @@ import sys
 
 # Configuration
 HOP_SIZE          = 512    # Aubio window size
+BUF_SIZE          = 2048   
 SILENCE_THRESHOLD = 0.01
-MIN_PITCH         = 80
+MIN_PITCH         = 100 
 MAX_PITCH         = 1100
-CONFIDENCE        = 0.7
+CONFIDENCE        = 0.6
+
+DETECTION_MODE    = "yin" # yinfft | yin | mcomb. swap to CREPE for more accurate readings. for now yin is fine       
 
 # OSC Configuration
 OSC_HOST = "127.0.0.1"
@@ -25,14 +28,14 @@ def hz_to_note(freq):
     midi = round(69 + 12 * np.log2(freq / 440.0))
     return f"{NOTE_NAMES[midi % 12]}{(midi // 12) - 1}"
 
-
+# TODO add median filter for inaccurate octave readings
 class PitchAnalyser:
     def __init__(self, instrument_name="unknown", sample_rate=48000):
         self.instrument_name = instrument_name
         self.sample_rate = sample_rate
         
         # Create Aubio pitch detector with the provided sample rate
-        self.detector = aubio.pitch("yin", HOP_SIZE, HOP_SIZE, sample_rate)
+        self.detector = aubio.pitch(DETECTION_MODE, BUF_SIZE, HOP_SIZE, sample_rate)
         self.detector.set_unit("Hz")
         self.detector.set_silence(-40)
         
@@ -65,6 +68,7 @@ class PitchAnalyser:
             confidence = self.detector.get_confidence()
 
             # Only output if within human singing range and confident
+            # if pitch > 0:
             if MIN_PITCH < pitch < MAX_PITCH and confidence > CONFIDENCE:
                 note = hz_to_note(pitch)
                 message = f"{note} ({pitch:.1f}Hz)"
