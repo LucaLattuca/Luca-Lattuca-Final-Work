@@ -4,8 +4,16 @@
       "analysers": [
         "genre"
       ],
+      "audio_device": {
+        "channel": 10,
+        "device_id": 29,
+        "host_api": "ASIO",
+        "max_input_channels": 20,
+        "name": "Focusrite USB ASIO",
+        "sample_rate": 44100
+      },
       "enabled": true,
-      "mix_source": "internal",
+      "mix_source": "external",
       "source_instruments": [
         "piano_audio",
         "vocals"
@@ -18,7 +26,6 @@
       ],
       "audio_device": {
         "channel": 1,
-        "connected": true,
         "device_id": 29,
         "host_api": "ASIO",
         "max_input_channels": 20,
@@ -30,7 +37,8 @@
     },
     "vocals": {
       "analysers": [
-        "pitch"
+        "pitch",
+        "genre"
       ],
       "audio_device": {
         "channel": 0,

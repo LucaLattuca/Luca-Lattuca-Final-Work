@@ -16,7 +16,7 @@ import wave
 # AUDIO DEBUGGING information
 _record_buffers = {}
 # TODO : adjust sample rate based on mix. or if relative sample rates, recalculate
-_mix_sample_rate = 44100  # adjust if yours differs | 44100
+_mix_sample_rate = 48000  # adjust if yours differs | 44100
 _mix_record_lock = threading.Lock()
 
 AUDIO_DEBUG_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "audio_debug")
