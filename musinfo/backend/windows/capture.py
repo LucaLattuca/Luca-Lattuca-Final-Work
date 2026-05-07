@@ -84,6 +84,11 @@ def load_instruments_config():
         devices = {}
 
         for name, inst in enabled.items():
+
+            # Skip internal mixes — they have no audio_device to capture from
+            if inst.get("type") == "mix" and inst.get("mix_source") == "internal":
+                continue
+            
             device_info = inst.get("audio_device", {})
             device_name = device_info.get("name")
             host_api    = device_info.get("host_api", "Windows WASAPI")

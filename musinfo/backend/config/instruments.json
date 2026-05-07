@@ -6,7 +6,6 @@
       ],
       "audio_device": {
         "channel": 10,
-        "connected": true,
         "device_id": 29,
         "host_api": "ASIO",
         "max_input_channels": 20,
@@ -27,7 +26,6 @@
       ],
       "audio_device": {
         "channel": 1,
-        "connected": true,
         "device_id": 29,
         "host_api": "ASIO",
         "max_input_channels": 20,
@@ -43,7 +41,6 @@
       ],
       "audio_device": {
         "channel": 0,
-        "connected": true,
         "device_id": 29,
         "host_api": "ASIO",
         "max_input_channels": 20,
