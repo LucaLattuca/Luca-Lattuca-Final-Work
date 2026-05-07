@@ -101,3 +101,37 @@ def load_models():
     sys.stdout.flush()
 
     return embedder, mood_classifiers, danceability_clf, jamendo_clf, jamendo_labels
+
+
+# ─── Inference ────────────────────────────────────────────────────────────────
+def classify(audio, embedder, mood_classifiers, danceability_clf, jamendo_clf, jamendo_labels):
+    # shared embeddings — computed once, reused by all classifiers
+    embeddings = embedder(audio)
+
+    # binary moods — index 1 = probability of positive class
+    mood_scores = {}
+    for mood, clf in mood_classifiers.items():
+        preds = clf(embeddings)                  # [frames, 2]
+        mood_scores[mood] = float(np.mean(preds[:, 1]))
+
+    top_mood = max(mood_scores, key=mood_scores.get)
+
+    # danceability — index 1 = danceable
+    dance_preds  = danceability_clf(embeddings)  # [frames, 2]
+    danceability = float(np.mean(dance_preds[:, 1]))
+
+    # jamendo multi-label — mean over frames, top N above threshold
+    jamendo_preds = jamendo_clf(embeddings)      # [frames, 56]
+    mean_preds    = np.mean(jamendo_preds, axis=0)
+    top_indices   = np.argsort(mean_preds)[::-1]
+
+    jamendo_tags = []
+    for i in top_indices:
+        conf = float(mean_preds[i])
+        if conf < JAMENDO_MIN_CONFIDENCE:
+            break
+        jamendo_tags.append(jamendo_labels[i])
+        if len(jamendo_tags) >= JAMENDO_TOP_N:
+            break
+
+    return top_mood, danceability, jamendo_tags
