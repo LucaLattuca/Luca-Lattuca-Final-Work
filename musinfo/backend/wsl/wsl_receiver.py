@@ -12,6 +12,7 @@ import os
 import sys
 
 from analysers.genre_analyser import GenreAnalyser
+from analysers.mood_analyser import MoodAnalyser
 
 
 TCP_HOST = "0.0.0.0"
@@ -55,6 +56,7 @@ SAMPLE_RATES = load_sample_rates()
 # ─── ANALYSERS ────────────────────────────────────────────────────────────────
 AVAILABLE_ANALYSERS = {
     "genre": GenreAnalyser,
+    "mood": MoodAnalyser,
 }
 
 # holds every instance of each analyser (piano : pitch, guitar : pitch, genre...)
