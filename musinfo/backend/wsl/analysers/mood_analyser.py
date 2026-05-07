@@ -135,3 +135,49 @@ def classify(audio, embedder, mood_classifiers, danceability_clf, jamendo_clf, j
             break
 
     return top_mood, danceability, jamendo_tags
+
+
+# ─── Analyser class ───────────────────────────────────────────────────────────
+class MoodAnalyser:
+    def __init__(self, instrument_name="unknown", sample_rate=48000):
+        self.instrument_name = instrument_name
+        self.sender_rate     = sample_rate
+
+        (self.embedder,
+         self.mood_classifiers,
+         self.danceability_clf,
+         self.jamendo_clf,
+         self.jamendo_labels) = load_models()
+
+        self.buffer     = AudioBuffer(self.sender_rate)
+        self.osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
+
+        print(f"[mood] Ready for '{instrument_name}' @ {sample_rate}Hz")
+        print(f"[mood] OSC target: {OSC_HOST}:{OSC_PORT}")
+        sys.stdout.flush()
+
+    def push(self, audio):
+        self.buffer.push(audio)
+        if self.buffer.ready():
+            window = self.buffer.pop_window()
+            top_mood, danceability, jamendo_tags = classify(
+                window,
+                self.embedder,
+                self.mood_classifiers,
+                self.danceability_clf,
+                self.jamendo_clf,
+                self.jamendo_labels,
+            )
+            self._send(top_mood, danceability, jamendo_tags)
+
+    def _send(self, top_mood, danceability, jamendo_tags):
+        inst = self.instrument_name
+
+        self.osc_client.send_message(f"/mood/{inst}/top",          top_mood)
+        self.osc_client.send_message(f"/mood/{inst}/danceability", round(danceability * 100, 1))
+        self.osc_client.send_message(f"/mood/{inst}/tags",         ", ".join(jamendo_tags))
+
+        print(f"[mood/{inst}] mood: {top_mood}")
+        print(f"[mood/{inst}] danceability_score: {round(danceability * 100, 1)}")
+        print(f"[mood/{inst}] mood_tags: {', '.join(jamendo_tags) or 'none'}")
+        sys.stdout.flush()
