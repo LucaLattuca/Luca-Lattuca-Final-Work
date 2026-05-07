@@ -17,7 +17,12 @@ import wave
 _record_buffers = {}
 _mix_sample_rate = 48000  # adjust if yours differs | 44100
 _mix_record_lock = threading.Lock()
-RECORD_OUTPUT_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "debug_mix.wav")
+
+AUDIO_DEBUG_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "audio_debug")
+os.makedirs(AUDIO_DEBUG_DIR, exist_ok=True)
+RECORD_OUTPUT_PATH = os.path.join(AUDIO_DEBUG_DIR, "debug_mix.wav")
+
+
 STOP_SENTINEL = os.path.join(os.path.dirname(os.path.dirname(__file__)), "broadcaster.stop")
 
 
@@ -220,7 +225,7 @@ def combine_audio(mix_name, buffers):
         _record_buffers.setdefault(mix_name, []).append(mixed.copy())
     return mixed.astype(np.float32).tobytes()
 
-# save broadcaster recording
+# save broadcaster recording to audio_debug folder
 def save_recording():
     with _mix_record_lock:
         if not _record_buffers:
@@ -232,10 +237,9 @@ def save_recording():
         all_audio = np.concatenate(chunks)
         int16_audio = (np.clip(all_audio, -1.0, 1.0) * 32767).astype(np.int16)
         
-        output_path = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)),
-            f"debug_{name}.wav"
-        )
+
+        output_path = os.path.join(AUDIO_DEBUG_DIR, f"debug_{name}.wav")
+
         with wave.open(output_path, "w") as wf:
             wf.setnchannels(1)
             wf.setsampwidth(2)
