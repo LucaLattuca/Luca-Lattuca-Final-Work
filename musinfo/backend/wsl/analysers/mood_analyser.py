@@ -50,3 +50,26 @@ def get_windows_host_ip():
 
 OSC_HOST = get_windows_host_ip()
 OSC_PORT = 9000
+
+# ─── Audio helpers ────────────────────────────────────────────────────────────
+def resample(audio, from_rate, to_rate):
+    g = gcd(from_rate, to_rate)
+    return resample_poly(audio, to_rate // g, from_rate // g).astype(np.float32)
+
+
+class AudioBuffer:
+    def __init__(self, sender_rate):
+        self.buffer      = np.array([], dtype=np.float32)
+        self.sender_rate = sender_rate
+
+    def push(self, chunk):
+        resampled = resample(chunk, self.sender_rate, MODEL_RATE)
+        self.buffer = np.concatenate([self.buffer, resampled])
+
+    def ready(self):
+        return len(self.buffer) >= CHUNK_SAMPLES
+
+    def pop_window(self):
+        window      = self.buffer[:CHUNK_SAMPLES]
+        self.buffer = self.buffer[int(CHUNK_SAMPLES * HOP_FRACTION):]
+        return window
