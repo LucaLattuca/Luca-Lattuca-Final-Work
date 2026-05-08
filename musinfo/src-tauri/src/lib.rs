@@ -56,7 +56,7 @@ fn write_config(path: &Path, config: &serde_json::Map<String, Value>) -> Result<
 
 //  Save instrument configuration to instruments.json.
 #[tauri::command]
-fn save_instrument(app: AppHandle, instrument: Value) -> Result<String, String> {
+fn save_instrument(_app: AppHandle, instrument: Value) -> Result<String, String> {
     // resolve path to instruments.json relative to the project root
     let project_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -745,11 +745,82 @@ fn start_osc_listener(app_handle: AppHandle) {
     });
 }
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
+
+#[tauri::command]
+async fn save_session(app: AppHandle) -> Result<String, String> {
+    use tauri_plugin_dialog::DialogExt;
+
+    // read current instruments.json
+    let src = instruments_path()?;
+    let contents = fs::read_to_string(&src)
+        .map_err(|e| format!("Failed to read instruments.json: {}", e))?;
+
+    // open a native save dialog
+    let path = app
+        .dialog()
+        .file()
+        .set_title("Save Session")
+        .add_filter("JSON", &["json"])
+        .blocking_save_file();
+
+    // user cancelled
+    let Some(path) = path else {
+        return Ok("cancelled".to_string());
+    };
+
+    fs::write(path.into_path().map_err(|e| format!("Invalid path: {}", e))?, contents)
+    .map_err(|e| format!("Failed to write session file: {}", e))?;
+
+    Ok("saved".to_string())
+}
+
+
+#[tauri::command]
+async fn load_session(app: AppHandle) -> Result<Option<Value>, String> {
+    use tauri_plugin_dialog::DialogExt;
+
+    // open a native open dialog
+    let path = app
+        .dialog()
+        .file()
+        .set_title("Load Session")
+        .add_filter("JSON", &["json"])
+        .blocking_pick_file();
+
+    // user cancelled — return None, React checks for this
+    let Some(path) = path else {
+        return Ok(None);
+    };
+
+    // read and validate the chosen file
+    let contents = fs::read_to_string(path.into_path().map_err(|e| format!("Invalid path: {}", e))?)
+    .map_err(|e| format!("Failed to read session file: {}", e))?;
+
+    let config: serde_json::Map<String, Value> = serde_json::from_str(&contents)
+        .map_err(|e| format!("Invalid session file: {}", e))?;
+
+    // basic sanity check — must have an instruments key
+    if !config.contains_key("instruments") {
+        return Err("File does not look like a MUSINFO session".to_string());
+    }
+
+    // overwrite instruments.json with the loaded config
+    let dest = instruments_path()?;
+    write_config(&dest, &config)?;
+
+    // run reconcile so device_ids are resolved for this machine
+    // we call reconcile_devices logic directly rather than re-invoking
+    drop(config); // reconcile reads from disk
+    let reconciled = reconcile_devices(app)?;
+
+    Ok(Some(reconciled))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(CaptureProcess(Mutex::new(None)))
         .manage(TestProcess(Mutex::new(None)))
         .manage(MidiTestProcess(Mutex::new(None)))
@@ -757,9 +828,13 @@ pub fn run() {
         .manage(WindowsReceiverProcess(Mutex::new(None)))
         .manage(BroadcasterProcess(Mutex::new(None)))
         .setup(|app| {
+            // build and attach the native menu
             let menu = menu::build_menu(&app.handle())?;
             app.set_menu(menu)?;
+
+            // start OSC listener
             start_osc_listener(app.handle().clone());
+
             Ok(())
         })
         .on_menu_event(menu::handle_menu_event)
@@ -774,7 +849,9 @@ pub fn run() {
             stop_midi_test,
             save_instrument,
             delete_instrument,
-            reconcile_devices
+            reconcile_devices,
+            save_session,
+            load_session,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

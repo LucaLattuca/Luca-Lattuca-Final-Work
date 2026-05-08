@@ -1,7 +1,7 @@
 use std::path::Path;
 use tauri::{
     menu::{Menu, MenuBuilder, MenuItemBuilder, SubmenuBuilder},
-    AppHandle, Emitter, Manager,
+    AppHandle, Emitter,
 };
 use tauri_plugin_opener::OpenerExt;
 
