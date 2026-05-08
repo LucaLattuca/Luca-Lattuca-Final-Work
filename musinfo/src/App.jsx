@@ -45,8 +45,8 @@ function App() {
       });
 
       // load session — Rust opens the picker, we just refresh the UI after
-      const unlistenLoad = listen('menu-load-session', () => {
-          handleLoadSession();
+      const unlistenLoad = listen('menu-load-session', (event) => {
+          handleLoadSession(event.payload);
       });
 
       // cleanup when App unmounts
@@ -57,27 +57,27 @@ function App() {
   }, []);
 
   const handleSaveSession = async () => {
-      try {
-          await invoke('save_session');
-      } catch (err) {
-          console.error('[App] Failed to save session:', err);
-      }
+    try {
+        await invoke('save_session');
+    } catch (err) {
+        console.error('[App] Failed to save session:', err);
+    }
   };
 
-  const handleLoadSession = async () => {
-      try {
-          const updated = await invoke('load_session');
-          if (!updated) return; // user cancelled the dialog
-          setInstruments(updated.instruments);
-          const entries = Object.entries(updated.instruments);
-          if (entries.length > 0) {
-              const [name, data] = entries[0];
-              setSelectedInstrument({ name, ...data });
-              setSwitchInstrument(k => k + 1);
-          }
-      } catch (err) {
-          console.error('[App] Failed to load session:', err);
-      }
+  const handleLoadSession = async (name) => {
+    try {
+        const updated = await invoke('load_session', { name });
+        if (!updated) return;
+        setInstruments(updated.instruments);
+        const entries = Object.entries(updated.instruments);
+        if (entries.length > 0) {
+            const [firstName, data] = entries[0];
+            setSelectedInstrument({ name: firstName, ...data });
+            setSwitchInstrument(k => k + 1);
+        }
+    } catch (err) {
+        console.error('[App] Failed to load session:', err);
+    }
   };
 
 
