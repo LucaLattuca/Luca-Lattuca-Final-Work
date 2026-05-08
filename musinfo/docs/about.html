@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MUSINFO — About</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0e0f11;
+      --surface:   #15171a;
+      --border:    #222428;
+      --accent:    #c8f04a;
+      --accent-dim:#8aab2a;
+      --text:      #d4d6d9;
+      --text-dim:  #5a5e66;
+      --text-mid:  #8c9099;
+      --mono:      'IBM Plex Mono', monospace;
+      --sans:      'IBM Plex Sans', sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 14px;
+      line-height: 1.7;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── HEADER ── */
+    header {
+      height: 52px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .logo {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+
+    .logo span { color: var(--text-dim); font-weight: 400; }
+
+    nav.tabs {
+      display: flex;
+      gap: 2px;
+      margin-left: auto;
+    }
+
+    nav.tabs a {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      text-decoration: none;
+      padding: 6px 14px;
+      border-radius: 3px;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    nav.tabs a:hover { color: var(--text); background: var(--border); }
+    nav.tabs a.active { color: var(--accent); background: rgba(200,240,74,0.07); }
+
+    /* ── HERO ── */
+    .hero {
+      padding: 80px 64px 60px;
+      max-width: 960px;
+      margin: 0 auto;
+      position: relative;
+    }
+
+    .hero-tag {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .hero-tag::after {
+      content: '';
+      display: block;
+      height: 1px;
+      width: 40px;
+      background: var(--accent-dim);
+      opacity: 0.4;
+    }
+
+    .hero-title {
+      font-family: var(--mono);
+      font-size: clamp(36px, 5vw, 56px);
+      font-weight: 500;
+      color: var(--text);
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      margin-bottom: 10px;
+    }
+
+    .hero-title em {
+      color: var(--accent);
+      font-style: normal;
+    }
+
+    .hero-subtitle {
+      font-size: 15px;
+      color: var(--text-mid);
+      font-weight: 300;
+      max-width: 480px;
+      margin-top: 20px;
+      line-height: 1.8;
+    }
+
+    /* ── GRID DIVIDER ── */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    /* ── SECTION ── */
+    section {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 56px 64px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 28px;
+    }
+
+    /* ── WHAT IS IT ── */
+    .what-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      align-items: start;
+    }
+
+    .what-text h2 {
+      font-family: var(--mono);
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 16px;
+      letter-spacing: -0.01em;
+    }
+
+    .what-text p {
+      color: var(--text-mid);
+      font-weight: 300;
+      margin-bottom: 14px;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+
+    /* ── PIPELINE DIAGRAM ── */
+    .pipeline {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 24px;
+    }
+
+    .pipeline-title {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 20px;
+    }
+
+    .pipeline-step {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .pipeline-step:last-child { margin-bottom: 0; }
+
+    .step-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+      opacity: 0.7;
+    }
+
+    .step-dot.dim { background: var(--text-dim); opacity: 1; }
+
+    .step-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-mid);
+      flex: 1;
+    }
+
+    .step-tag {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--text-dim);
+      background: var(--border);
+      padding: 2px 7px;
+      border-radius: 2px;
+      letter-spacing: 0.06em;
+    }
+
+    .step-tag.win { color: #6ab0f5; }
+    .step-tag.wsl { color: #f0a84a; }
+    .step-tag.td  { color: var(--accent-dim); }
+
+    .pipeline-arrow {
+      display: block;
+      text-align: left;
+      padding-left: 18px;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--border);
+      margin: 2px 0;
+    }
+
+    /* ── TECH STACK ── */
+    .stack-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .stack-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 20px;
+      transition: border-color 0.2s;
+    }
+
+    .stack-card:hover { border-color: var(--text-dim); }
+
+    .stack-card-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
+
+    .stack-card-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .stack-card-desc {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-weight: 300;
+      line-height: 1.6;
+    }
+
+    /* ── IMAGES ── */
+    .image-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+    }
+
+    .img-placeholder {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      aspect-ratio: 16/9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .img-placeholder.tall { aspect-ratio: 4/5; }
+
+    .img-placeholder-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+    }
+
+    .img-placeholder svg {
+      opacity: 0.2;
+    }
+
+    img.screenshot {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      display: block;
+    }
+
+    /* ── CREDITS ── */
+    .credits {
+      display: flex;
+      gap: 48px;
+    }
+
+    .credit-block { flex: 1; }
+
+    .credit-role {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+
+    .credit-name {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .credit-detail {
+      font-size: 12px;
+      color: var(--text-mid);
+      font-weight: 300;
+    }
+
+    /* ── VERSION BADGE ── */
+    .version-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-top: 40px;
+    }
+
+    .badge {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      padding: 4px 10px;
+      border-radius: 3px;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+    }
+
+    .badge.green {
+      border-color: var(--accent-dim);
+      color: var(--accent);
+      background: rgba(200,240,74,0.05);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">MUSINFO <span>/ about</span></div>
+  <nav class="tabs">
+    <a href="index.html">Documentation</a>
+    <a href="about.html" class="active">About</a>
+  </nav>
+</header>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-tag">EHB — Erasmushogeschool Brussel — Final Project</div>
+  <h1 class="hero-title">Music <em>Information</em><br>Retrieval</h1>
+  <p class="hero-subtitle">
+    A real-time audio analysis system that extracts musical structure from live instrument input and drives generative visuals through TouchDesigner.
+  </p>
+</div>
+
+<!-- WHAT IS IT -->
+<section>
+  <div class="section-label">01 — What is it</div>
+  <div class="what-grid">
+    <div class="what-text">
+      <h2>Sound made visible</h2>
+      <p>MUSINFO listens to a live performance, analyses pitch, genre, and harmonic content in real time, and translates that information into visual parameters.</p>
+      <p>The result is a performance system where the visuals are not designed in advance — they emerge from the music itself, frame by frame.</p>
+    </div>
+
+    <div class="pipeline">
+      <div class="pipeline-title">Signal flow</div>
+
+      <div class="pipeline-step">
+        <div class="step-dot"></div>
+        <div class="step-label">Instrument input</div>
+        <div class="step-tag win">WASAPI</div>
+      </div>
+      <span class="pipeline-arrow">↓</span>
+
+      <div class="pipeline-step">
+        <div class="step-dot"></div>
+        <div class="step-label">capture.py</div>
+        <div class="step-tag win">Windows</div>
+      </div>
+      <span class="pipeline-arrow">↓</span>
+
+      <div class="pipeline-step">
+        <div class="step-dot"></div>
+        <div class="step-label">broadcaster.py</div>
+        <div class="step-tag win">Windows</div>
+      </div>
+      <span class="pipeline-arrow">↓  ↓</span>
+
+      <div class="pipeline-step">
+        <div class="step-dot dim"></div>
+        <div class="step-label">pitch analyser</div>
+        <div class="step-tag win">Windows</div>
+      </div>
+
+      <div class="pipeline-step">
+        <div class="step-dot"></div>
+        <div class="step-label">genre analyser</div>
+        <div class="step-tag wsl">WSL</div>
+      </div>
+      <span class="pipeline-arrow">↓</span>
+
+      <div class="pipeline-step">
+        <div class="step-dot"></div>
+        <div class="step-label">OSC out</div>
+        <div class="step-tag td">TouchDesigner</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SCREENSHOTS -->
+<section>
+  <div class="section-label">02 — Interface</div>
+  <div class="image-grid">
+    <div class="img-placeholder" id="screenshot-main">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#8c9099" stroke-width="1">
+        <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>
+      </svg>
+      <div class="img-placeholder-label">App screenshot</div>
+    </div>
+    <div class="img-placeholder tall" id="screenshot-td">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#8c9099" stroke-width="1">
+        <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>
+      </svg>
+      <div class="img-placeholder-label">TouchDesigner output</div>
+    </div>
+  </div>
+  <p style="margin-top:12px; font-size:12px; color:var(--text-dim); font-family:var(--mono);">
+    → Replace placeholders: put images in docs/assets/ and update src attributes below
+  </p>
+</section>
+
+<!-- TECH STACK -->
+<section>
+  <div class="section-label">03 — Stack</div>
+  <div class="stack-grid">
+    <div class="stack-card">
+      <div class="stack-card-label">Frontend</div>
+      <div class="stack-card-name">Tauri + React</div>
+      <div class="stack-card-desc">Rust backend, React UI. Native desktop app with a web frontend.</div>
+    </div>
+    <div class="stack-card">
+      <div class="stack-card-label">Analysis — Windows</div>
+      <div class="stack-card-name">Python + aubio</div>
+      <div class="stack-card-desc">Real-time pitch detection via YIN algorithm. Hz-to-note conversion with confidence filtering.</div>
+    </div>
+    <div class="stack-card">
+      <div class="stack-card-label">Analysis — WSL</div>
+      <div class="stack-card-name">Essentia + TF</div>
+      <div class="stack-card-desc">Discogs-EffNet genre classification. 400-label model with 4s sliding window at 16kHz.</div>
+    </div>
+    <div class="stack-card">
+      <div class="stack-card-label">Audio routing</div>
+      <div class="stack-card-name">VB-Cable + Reaper</div>
+      <div class="stack-card-desc">16-channel WDM-KS virtual cable for multi-instrument routing without ASIO conflicts.</div>
+    </div>
+    <div class="stack-card">
+      <div class="stack-card-label">Visuals</div>
+      <div class="stack-card-name">TouchDesigner</div>
+      <div class="stack-card-desc">OSC In DAT receives analysis results. Real-time generative visual output driven by musical data.</div>
+    </div>
+    <div class="stack-card">
+      <div class="stack-card-label">Protocol</div>
+      <div class="stack-card-name">OSC + TCP</div>
+      <div class="stack-card-desc">OSC for Tauri↔TouchDesigner. TCP for Windows→WSL audio chunk streaming.</div>
+    </div>
+  </div>
+</section>
+
+<!-- CREDITS -->
+<section style="border-bottom: none;">
+  <div class="section-label">04 — Credits</div>
+  <div class="credits">
+    <div class="credit-block">
+      <div class="credit-role">Project</div>
+      <div class="credit-name">MUSINFO</div>
+      <div class="credit-detail">Music Information Retrieval for Harmonic Visuals</div>
+    </div>
+    <div class="credit-block">
+      <div class="credit-role">Student</div>
+      <div class="credit-name">Kiday</div>
+      <div class="credit-detail">Erasmushogeschool Brussel — Final Year Project</div>
+    </div>
+    <div class="credit-block">
+      <div class="credit-role">School</div>
+      <div class="credit-name">EHB</div>
+      <div class="credit-detail">Erasmushogeschool Brussel, Brussels</div>
+    </div>
+  </div>
+
+  <div class="version-row">
+    <span class="badge green">v0.1.0</span>
+    <span class="badge">Tauri v2</span>
+    <span class="badge">Windows + WSL</span>
+    <span class="badge">2025–2026</span>
+  </div>
+</section>
+
+</body>
+</html>

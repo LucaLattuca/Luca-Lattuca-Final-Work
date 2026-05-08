@@ -1,3 +1,4 @@
+mod menu;
 use rosc::decoder::decode_udp;
 use rosc::OscPacket;
 use serde_json::Value;
@@ -38,6 +39,14 @@ fn instruments_path() -> Result<std::path::PathBuf, String> {
     Ok(root.join("backend/config/instruments.json"))
 }
 
+// Resolves the path to the sessions folder
+fn sessions_path() -> Result<std::path::PathBuf, String> {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .ok_or("Could not resolve project root")?;
+    Ok(root.join("sessions"))
+}
+
 // Reads and parses instruments.json into a mutable JSON map.
 fn read_config(path: &Path) -> Result<serde_json::Map<String, Value>, String> {
     let raw = fs::read_to_string(path).map_err(|e| format!("Failed to read: {}", e))?;
@@ -55,7 +64,7 @@ fn write_config(path: &Path, config: &serde_json::Map<String, Value>) -> Result<
 
 //  Save instrument configuration to instruments.json.
 #[tauri::command]
-fn save_instrument(app: AppHandle, instrument: Value) -> Result<String, String> {
+fn save_instrument(_app: AppHandle, instrument: Value) -> Result<String, String> {
     // resolve path to instruments.json relative to the project root
     let project_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -744,9 +753,117 @@ fn start_osc_listener(app_handle: AppHandle) {
     });
 }
 
+// save current session configuration 
+#[tauri::command]
+async fn save_session(app: AppHandle) -> Result<String, String> {
+    use tauri_plugin_dialog::DialogExt;
+
+    let sessions_dir = sessions_path()?;
+    if !sessions_dir.exists() {
+        fs::create_dir_all(&sessions_dir)
+            .map_err(|e| format!("Failed to create sessions dir: {}", e))?;
+    }
+
+    let src = instruments_path()?;
+    let contents = fs::read_to_string(&src)
+        .map_err(|e| format!("Failed to read instruments.json: {}", e))?;
+
+    let default_name = next_session_name(&sessions_dir);
+
+    let path = app
+        .dialog()
+        .file()
+        .set_title("Save Session")
+        .add_filter("JSON", &["json"])
+        .set_directory(&sessions_dir)
+        .set_file_name(format!("{}.json", default_name))
+        .blocking_save_file();
+
+    let Some(path) = path else {
+        return Ok("cancelled".to_string());
+    };
+
+    let path = path.into_path()
+        .map_err(|e| format!("Invalid path: {}", e))?;
+
+    fs::write(&path, contents)
+        .map_err(|e| format!("Failed to write session file: {}", e))?;
+
+    menu::rebuild_menu(&app)?;
+
+    Ok("saved".to_string())
+}
+
+// dynamic save session names
+fn next_session_name(sessions_dir: &Path) -> String {
+    let mut i = 1;
+    loop {
+        let candidate = format!("session{}.json", i);
+        if !sessions_dir.join(&candidate).exists() {
+            return format!("session{}", i);
+        }
+        i += 1;
+    }
+}
+
+// Loads in a previous session 
+#[tauri::command]
+async fn load_session(app: AppHandle, name: String) -> Result<Option<Value>, String> {
+    let sessions_dir = sessions_path()?;
+    let path = sessions_dir.join(format!("{}.json", name));
+
+    let contents = fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read session file: {}", e))?;
+
+    let config: serde_json::Map<String, Value> = serde_json::from_str(&contents)
+        .map_err(|e| format!("Invalid session file: {}", e))?;
+
+    if !config.contains_key("instruments") {
+        return Err("File does not look like a MUSINFO session".to_string());
+    }
+
+    let dest = instruments_path()?;
+    write_config(&dest, &config)?;
+
+    drop(config);
+    let reconciled = reconcile_devices(app)?;
+
+    Ok(Some(reconciled))
+}
+
+// Returns all session names (without .json extension) from the sessions/ folder.
+#[tauri::command]
+fn list_sessions() -> Result<Vec<String>, String> {
+    let sessions_dir = sessions_path()?;
+
+    // folder might not exist yet if no sessions saved
+    if !sessions_dir.exists() {
+        return Ok(vec![]);
+    }
+
+    let mut names = vec![];
+    for entry in fs::read_dir(&sessions_dir)
+        .map_err(|e| format!("Failed to read sessions dir: {}", e))?
+    {
+        let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) == Some("json") {
+            if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                names.push(stem.to_string());
+            }
+        }
+    }
+
+    names.sort();
+    Ok(names)
+}
+
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(CaptureProcess(Mutex::new(None)))
         .manage(TestProcess(Mutex::new(None)))
         .manage(MidiTestProcess(Mutex::new(None)))
@@ -754,9 +871,16 @@ pub fn run() {
         .manage(WindowsReceiverProcess(Mutex::new(None)))
         .manage(BroadcasterProcess(Mutex::new(None)))
         .setup(|app| {
+            // build and attach the native menu
+            let menu = menu::build_menu(&app.handle())?;
+            app.set_menu(menu)?;
+
+            // start OSC listener
             start_osc_listener(app.handle().clone());
+
             Ok(())
         })
+        .on_menu_event(menu::handle_menu_event)
         .invoke_handler(tauri::generate_handler![
             get_audio_devices,
             get_midi_devices,
@@ -768,7 +892,10 @@ pub fn run() {
             stop_midi_test,
             save_instrument,
             delete_instrument,
-            reconcile_devices
+            reconcile_devices,
+            save_session,
+            load_session,
+            list_sessions,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

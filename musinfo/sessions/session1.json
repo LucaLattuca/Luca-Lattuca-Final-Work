@@ -24,22 +24,6 @@
         "backingtrack"
       ],
       "type": "mix"
-    },
-    "vocals": {
-      "analysers": [
-        "genre"
-      ],
-      "audio_device": {
-        "channel": 0,
-        "connected": true,
-        "device_id": 0,
-        "host_api": "MME",
-        "max_input_channels": 2,
-        "name": "Microsoft Sound Mapper - Input",
-        "sample_rate": 44100
-      },
-      "enabled": true,
-      "type": "audio"
     }
   }
 }
