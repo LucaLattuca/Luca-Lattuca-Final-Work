@@ -1,6 +1,7 @@
 import reactLogo from "./assets/react.svg";
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from '@tauri-apps/api/event';
 
 import "./App.css";
 import Layout from "./components/layout/Layout";
@@ -36,6 +37,49 @@ function App() {
       };
       reconcile();
   }, []);
+
+  useEffect(() => {
+      // save session — entirely handled in Rust, nothing to do here yet
+      const unlistenSave = listen('menu-save-session', () => {
+          handleSaveSession();
+      });
+
+      // load session — Rust opens the picker, we just refresh the UI after
+      const unlistenLoad = listen('menu-load-session', () => {
+          handleLoadSession();
+      });
+
+      // cleanup when App unmounts
+      return () => {
+          unlistenSave.then(fn => fn());
+          unlistenLoad.then(fn => fn());
+      };
+  }, []);
+
+  const handleSaveSession = async () => {
+      try {
+          await invoke('save_session');
+      } catch (err) {
+          console.error('[App] Failed to save session:', err);
+      }
+  };
+
+  const handleLoadSession = async () => {
+      try {
+          const updated = await invoke('load_session');
+          if (!updated) return; // user cancelled the dialog
+          setInstruments(updated.instruments);
+          const entries = Object.entries(updated.instruments);
+          if (entries.length > 0) {
+              const [name, data] = entries[0];
+              setSelectedInstrument({ name, ...data });
+              setSwitchInstrument(k => k + 1);
+          }
+      } catch (err) {
+          console.error('[App] Failed to load session:', err);
+      }
+  };
+
 
   // The instrument currently shown in the Setup tab.
   const [selectedInstrument, setSelectedInstrument] = useState(() => {
