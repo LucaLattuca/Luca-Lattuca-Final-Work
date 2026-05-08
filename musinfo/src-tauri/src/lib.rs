@@ -1,3 +1,4 @@
+mod menu;
 use rosc::decoder::decode_udp;
 use rosc::OscPacket;
 use serde_json::Value;
@@ -745,8 +746,10 @@ fn start_osc_listener(app_handle: AppHandle) {
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
         .manage(CaptureProcess(Mutex::new(None)))
         .manage(TestProcess(Mutex::new(None)))
         .manage(MidiTestProcess(Mutex::new(None)))
@@ -754,9 +757,12 @@ pub fn run() {
         .manage(WindowsReceiverProcess(Mutex::new(None)))
         .manage(BroadcasterProcess(Mutex::new(None)))
         .setup(|app| {
+            let menu = menu::build_menu(&app.handle())?;
+            app.set_menu(menu)?;
             start_osc_listener(app.handle().clone());
             Ok(())
         })
+        .on_menu_event(menu::handle_menu_event)
         .invoke_handler(tauri::generate_handler![
             get_audio_devices,
             get_midi_devices,
