@@ -107,13 +107,13 @@ def classify(audio, model):
 
 
 
-class PitchAnalyser:
+class PitchCREPEAnalyser:
     def __init__(self, instrument_name="unknown", sample_rate=48000):
         self.instrument_name = instrument_name
         self.model  = load_model()
         self.buffer = AudioBuffer(sample_rate)
         self.osc    = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
-        print(f"[Pitch] ready — {instrument_name} @ {sample_rate}Hz → OSC {OSC_HOST}:{OSC_PORT}")
+        print(f"[Pitch_crepe] ready — {instrument_name} @ {sample_rate}Hz → OSC {OSC_HOST}:{OSC_PORT}")
         sys.stdout.flush()
 
     def push(self, audio):
@@ -136,11 +136,11 @@ class PitchAnalyser:
         }
 
         self._display(summary)
-        self.osc.send_message(f"/pitch/{self.instrument_name}", json.dumps(summary))
-        print(f"[Pitch] → /pitch/{self.instrument_name}  {summary['note']} {summary['freq_hz']}Hz")
+        self.osc.send_message(f"/pitch_crepe/{self.instrument_name}", json.dumps(summary))
+        print(f"[Pitch] → /pitch_crepe/{self.instrument_name}  {summary['note']} {summary['freq_hz']}Hz")
         sys.stdout.flush()
 
     def _display(self, s):
-        print(f"\n[pitch/{self.instrument_name}]")
+        print(f"\n[pitch_crepe/{self.instrument_name}]")
         print(f"  {s['note']}  {s['freq_hz']} Hz  conf={s['confidence']:.3f}  voiced={s['voiced_frames']} frames")
         sys.stdout.flush()
