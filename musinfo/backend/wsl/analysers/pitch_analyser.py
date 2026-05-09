@@ -8,6 +8,9 @@ import numpy as np
 from scipy.signal import resample_poly
 from pythonosc import udp_client
 
+
+from essentia.standard import PitchCREPE
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 MODEL_RATE       = 16000
@@ -15,7 +18,20 @@ CHUNK_DURATION   = 4
 CHUNK_SAMPLES    = MODEL_RATE * CHUNK_DURATION  # 64000 samples
 HOP_FRACTION     = 0.5
 CONF_THRESHOLD   = 0.5
-MODEL_PATH       = "/path/to/models/crepe-medium-1.pb"
+
+MODELS_DIR = os.path.join(os.path.dirname(__file__), "..", "models", "pitch", "crepe")
+
+
+CREPE_MODELS = {
+    # "tiny":   os.path.join(MODELS_DIR, "crepe-tiny-1.pb"),  -> not added
+    # "small":  os.path.join(MODELS_DIR, "crepe-small-1.pb"), -> not added
+    "medium": os.path.join(MODELS_DIR, "crepe-medium-1.pb"),
+    "large":  os.path.join(MODELS_DIR, "crepe-large-1.pb"),
+    # "full":   os.path.join(MODELS_DIR, "crepe-full-1.pb"), -> not added
+}
+
+
+_NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
 
 def get_windows_host_ip():
@@ -49,3 +65,14 @@ class AudioBuffer:
         window = self.buffer[:CHUNK_SAMPLES]
         self.buffer = self.buffer[int(CHUNK_SAMPLES * HOP_FRACTION):]
         return window
+    
+
+
+def load_model():
+    path = CREPE_MODELS[MODEL_SIZE]
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"[CREPE] model not found: {path}")
+    model = PitchCREPE(graphFilename=path)
+    print(f"[CREPE] loaded: {MODEL_SIZE} ({path})")
+    sys.stdout.flush()
+    return model
