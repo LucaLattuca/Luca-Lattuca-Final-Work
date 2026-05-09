@@ -200,7 +200,7 @@ def recv_exact(sock, n):
 
 
 # packs instrument name + analysers list + raw PCM into a framed TCP message and sends to a receiver
-def send_framed_chunk(sock, instrument_name, analysers, audio_bytes):
+def send_framed_chunk(sock, instrument_name, analysers, audio_bytes, capture_time):
     """
     Frame format:
       [4 bytes: header length  (uint32 big-endian)]
@@ -210,8 +210,9 @@ def send_framed_chunk(sock, instrument_name, analysers, audio_bytes):
       
     """
     header = json.dumps({
-        "instrument": instrument_name,
-        "analysers":     analysers,
+        "instrument":   instrument_name,
+        "analysers":    analysers,
+        "capture_time": capture_time,
     }).encode("utf-8")
 
     frame = (
@@ -267,11 +268,11 @@ def handle_capture_connection(conn, config_holder):
 
     try:
         while True:
-            header = recv_exact(conn, 5)
+            header = recv_exact(conn, 13)
             if header is None:
                 break
-                
-            channel_id, data_len = struct.unpack(">BI", header)
+            channel_id, capture_time, data_len = struct.unpack(">BdI", header)
+
             audio_bytes = recv_exact(conn, data_len)
             if audio_bytes is None:
                 break
@@ -302,7 +303,7 @@ def handle_capture_connection(conn, config_holder):
             # ──── 1. Route individual instrument ────────────────────────────
             if instrument_info["windows_analysers"]:
                 try:
-                    send_framed_chunk(windows_sock, instrument_info["name"], instrument_info["windows_analysers"], audio_bytes)
+                    send_framed_chunk(windows_sock, instrument_info["name"], instrument_info["windows_analysers"], audio_bytes, capture_time)
                 except OSError:
                     print("[broadcaster] Lost Windows connection — reconnecting")
                     sys.stdout.flush()
@@ -310,7 +311,7 @@ def handle_capture_connection(conn, config_holder):
 
             if instrument_info["wsl_analysers"]:
                 try:
-                    send_framed_chunk(wsl_sock, instrument_info["name"], instrument_info["wsl_analysers"], audio_bytes)
+                    send_framed_chunk(wsl_sock, instrument_info["name"], instrument_info["wsl_analysers"], audio_bytes, capture_time)
                 except OSError:
                     print("[broadcaster] Lost WSL connection — reconnecting")
                     sys.stdout.flush()
@@ -328,7 +329,7 @@ def handle_capture_connection(conn, config_holder):
             
                         if mix_config["windows_analysers"]:
                             try:
-                                send_framed_chunk(windows_sock, mix_name, mix_config["windows_analysers"], mixed_audio)
+                                send_framed_chunk(windows_sock, mix_name, mix_config["windows_analysers"], mixed_audio, capture_time)
                             except OSError:
                                 print("[broadcaster] Lost Windows connection — reconnecting")
                                 sys.stdout.flush()
@@ -336,7 +337,7 @@ def handle_capture_connection(conn, config_holder):
             
                         if mix_config["wsl_analysers"]:
                             try:
-                                send_framed_chunk(wsl_sock, mix_name, mix_config["wsl_analysers"], mixed_audio)
+                                send_framed_chunk(wsl_sock, mix_name, mix_config["wsl_analysers"], mixed_audio, capture_time)
                             except OSError:
                                 print("[broadcaster] Lost WSL connection — reconnecting")
                                 sys.stdout.flush()
