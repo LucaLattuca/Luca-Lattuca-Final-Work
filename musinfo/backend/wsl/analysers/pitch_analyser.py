@@ -31,7 +31,6 @@ CREPE_MODELS = {
 }
 
 
-_NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
 
 def get_windows_host_ip():
@@ -76,3 +75,31 @@ def load_model():
     print(f"[CREPE] loaded: {MODEL_SIZE} ({path})")
     sys.stdout.flush()
     return model
+
+
+_NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+
+def _hz_to_note(freq_hz):
+    if freq_hz <= 0:
+        return None
+    midi = int(round(69 + 12 * np.log2(freq_hz / 440.0)))
+    return f"{_NOTE_NAMES[midi % 12]}{(midi // 12) - 1}"
+
+
+def classify(audio, model):
+    # essentia unpacks the wrapped model output into 4 parallel frame-level arrays
+    time, frequency, confidence, activations = model(audio)
+
+    frames = []
+    for t, freq, conf in zip(time, frequency, confidence):
+        if conf < CONF_THRESHOLD:
+            continue  # unvoiced / silent frame
+        note = _hz_to_note(float(freq))
+        if note:
+            frames.append({
+                "time":       round(float(t), 3),
+                "freq_hz":    round(float(freq), 2),
+                "note":       note,
+                "confidence": round(float(conf), 3),
+            })
+    return frames
