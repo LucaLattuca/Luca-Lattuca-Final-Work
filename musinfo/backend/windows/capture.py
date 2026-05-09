@@ -10,6 +10,7 @@ import threading
 import numpy as np
 import sounddevice as sd
 import json
+import time as time_module
 
 
 BROADCASTER_HOST = "127.0.0.1"
@@ -123,7 +124,7 @@ def load_instruments_config():
         print(f"[capture.py] Failed to parse instruments.json: {e}")
         return {}
 
-def send_chunk(sock, channel_id, audio_chunk):
+def send_chunk(sock, channel_id, audio_chunk, capture_time):
     """
     Frame format sent to broadcaster.py:
       [1 byte : channel_id  (uint8) ]
@@ -133,10 +134,12 @@ def send_chunk(sock, channel_id, audio_chunk):
     Thread-safe: uses socket_lock to prevent concurrent writes
     """
     raw = audio_chunk.astype(np.float32).tobytes()
-    header = struct.pack(">BI", channel_id, len(raw))
+    
+    header = struct.pack(">BdI", channel_id, capture_time, len(raw))
     
     with socket_lock:
         sock.sendall(header + raw)
+
 
 
 def stream_device(device_config, sock):
@@ -171,16 +174,18 @@ def stream_device(device_config, sock):
     def audio_callback(indata, frames, time, status):
         if status:
             print(f"[capture.py] Status: {status}", flush=True)
+        capture_time = time_module.perf_counter()
         for ch in channels_map.keys():
-            channel_queues[ch].put(indata[:, ch].copy())
+            channel_queues[ch].put((indata[:, ch].copy(), capture_time))
 
     def send_loop(q, channel_id):
         while True:
-            chunk = q.get()
+            chunk, capture_time = q.get()
             try:
-                send_chunk(sock, channel_id, chunk)
+                send_chunk(sock, channel_id, chunk, capture_time)
             except OSError:
                 break
+
 
     for ch, info in channels_map.items():
         threading.Thread(
