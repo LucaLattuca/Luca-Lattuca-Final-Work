@@ -1,45 +1,32 @@
 {
   "instruments": {
-    "backingtrack": {
+    "backing_track": {
       "analysers": [
+        "mood",
         "genre"
       ],
       "audio_device": {
         "channel": 0,
         "connected": true,
-        "device_id": 2,
-        "host_api": "MME",
+        "device_id": 32,
+        "host_api": "Windows WASAPI",
         "max_input_channels": 2,
         "name": "Stereo Mix (Realtek(R) Audio)",
-        "sample_rate": 44100
+        "sample_rate": 48000
       },
       "enabled": true,
       "type": "audio"
     },
     "mix": {
-      "analysers": [],
-      "enabled": false,
+      "analysers": [
+        "genre"
+      ],
+      "enabled": true,
       "mix_source": "internal",
       "source_instruments": [
         "backingtrack"
       ],
       "type": "mix"
-    },
-    "vocals": {
-      "analysers": [
-        "genre"
-      ],
-      "audio_device": {
-        "channel": 0,
-        "connected": true,
-        "device_id": 0,
-        "host_api": "MME",
-        "max_input_channels": 2,
-        "name": "Microsoft Sound Mapper - Input",
-        "sample_rate": 44100
-      },
-      "enabled": true,
-      "type": "audio"
     }
   }
 }
