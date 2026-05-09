@@ -126,12 +126,11 @@ def load_instruments_config():
 
 def send_chunk(sock, channel_id, audio_chunk, capture_time):
     """
-    Frame format sent to broadcaster.py:
-      [1 byte : channel_id  (uint8) ]
-      [4 bytes: data length (uint32)]
-      [N bytes: raw float32 PCM    ]
-    
-    Thread-safe: uses socket_lock to prevent concurrent writes
+        Frame format sent to broadcaster.py:
+          [1 byte : channel_id   (uint8)  ]
+          [8 bytes: capture_time (float64)]
+          [4 bytes: data length  (uint32) ]
+          [N bytes: raw float32 PCM       ]
     """
     raw = audio_chunk.astype(np.float32).tobytes()
     
