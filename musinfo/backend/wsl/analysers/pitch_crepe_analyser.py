@@ -26,6 +26,10 @@ HOP_FRACTION     = 0.5
 CONF_THRESHOLD     = 0.5   # per-frame filter in classify()
 MIN_SEND_CONFIDENCE = 0.60
 
+MIN_FREQ_HZ = 65.0   # C2 — below this is almost certainly an octave error
+MAX_FREQ_HZ = 1047.0  # C6
+
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR = os.path.join(os.path.dirname(SCRIPT_DIR), "models", "pitch_models")
 
@@ -70,7 +74,12 @@ class AudioBuffer:
 
     def pop_window(self):
         window = self.buffer[:CHUNK_SAMPLES]
-        self.buffer = self.buffer[int(CHUNK_SAMPLES * HOP_FRACTION):]
+        # if we're more than 2 windows behind, skip ahead to current audio
+        if len(self.buffer) > CHUNK_SAMPLES * 3:
+            print(f"[AudioBuffer] falling behind — dropping old audio", flush=True)
+            self.buffer = self.buffer[-(CHUNK_SAMPLES):]  # keep only the most recent window
+        else:
+            self.buffer = self.buffer[int(CHUNK_SAMPLES * HOP_FRACTION):]
         return window
     
 
@@ -84,7 +93,6 @@ def load_model():
     sys.stdout.flush()
     return model
 
-
 _NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
 def _hz_to_note(freq_hz):
@@ -95,13 +103,13 @@ def _hz_to_note(freq_hz):
 
 
 def classify(audio, model):
-    # essentia unpacks the wrapped model output into 4 parallel frame-level arrays
     time, frequency, confidence, activations = model(audio)
-
     frames = []
     for t, freq, conf in zip(time, frequency, confidence):
         if conf < CONF_THRESHOLD:
-            continue  # unvoiced / silent frame
+            continue
+        if not (MIN_FREQ_HZ <= float(freq) <= MAX_FREQ_HZ):
+            continue  # outside expected instrument range — likely octave error
         note = _hz_to_note(float(freq))
         if note:
             frames.append({
@@ -118,7 +126,8 @@ class PitchCREPEAnalyser:
     def __init__(self, instrument_name="unknown", sample_rate=48000):
         self.instrument_name = instrument_name
         self.model  = load_model()
-        self.buffer = AudioBuffer(sample_rate)
+        self.buffer = AudioBuffer(sample_rate)  
+        self.buffer.buffer = np.array([], dtype=np.float32)  # discard pre-load audio
         self.osc    = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
         print(f"[Pitch_crepe] ready — {instrument_name} @ {sample_rate}Hz → OSC {OSC_HOST}:{OSC_PORT}")
         sys.stdout.flush()
