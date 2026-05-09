@@ -1,4 +1,9 @@
 import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'      # suppresses C++ INFO/WARNING logs
+os.environ['CUDA_VISIBLE_DEVICES'] = ''         # tells TF no GPU → stops the whole probe loop
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'       # suppresses the oneDNN message
+os.environ['ESSENTIA_LOG_LEVEL'] = 'error'  # suppresses INFO from Essentia's C++ logger
+
 import json
 import sys
 import subprocess
@@ -12,10 +17,14 @@ from pythonosc import udp_client
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 # ─── Audio config ─────────────────────────────────────────────────────────────
-MODEL_RATE     = 16000
-CHUNK_DURATION = 4
-CHUNK_SAMPLES  = MODEL_RATE * CHUNK_DURATION
-HOP_FRACTION   = 0.5
+MODEL_RATE = 16000
+
+# Per-group durations (seconds) — tune these independently
+MOOD_DURATION    = 3
+DANCE_DURATION   = 3
+JAMENDO_DURATION = 3
+
+HOP_FRACTION = 0.5
 
 # ─── Paths ────────────────────────────────────────────────────────────────────
 SCRIPT_DIR      = os.path.dirname(os.path.abspath(__file__))
@@ -24,13 +33,16 @@ MOOD_MODELS_DIR = os.path.join(MODELS_DIR, "mood_models")
 
 EFFNET_PB = os.path.join(MODELS_DIR, "discogs-effnet-bs64-1.pb")
 
+# (pb_path, positive_class_index) — index of the positive/active class in model output
 MOOD_MODELS = {
-    "aggressive": os.path.join(MOOD_MODELS_DIR, "mood_aggressive-discogs-effnet-1.pb"),
-    "happy":      os.path.join(MOOD_MODELS_DIR, "mood_happy-discogs-effnet-1.pb"),
-    "party":      os.path.join(MOOD_MODELS_DIR, "mood_party-discogs-effnet-1.pb"),
-    "relaxed":    os.path.join(MOOD_MODELS_DIR, "mood_relaxed-discogs-effnet-1.pb"),
-    "sad":        os.path.join(MOOD_MODELS_DIR, "mood_sad-discogs-effnet-1.pb"),
+    "aggressive": (os.path.join(MOOD_MODELS_DIR, "mood_aggressive-discogs-effnet-1.pb"), 0),  # ["aggressive", "not_aggressive"]
+    "happy":      (os.path.join(MOOD_MODELS_DIR, "mood_happy-discogs-effnet-1.pb"),      0),  # ["happy", "not_happy"]
+    "party":      (os.path.join(MOOD_MODELS_DIR, "mood_party-discogs-effnet-1.pb"),      1),  # ["non_party", "party"]
+    "relaxed":    (os.path.join(MOOD_MODELS_DIR, "mood_relaxed-discogs-effnet-1.pb"),    1),  # ["non_relaxed", "relaxed"]
+    "sad":        (os.path.join(MOOD_MODELS_DIR, "mood_sad-discogs-effnet-1.pb"),        1),  # ["non_sad", "sad"]
 }
+
+DANCEABILITY_POSITIVE_IDX = 0  # ["danceable", "not_danceable"]
 
 DANCEABILITY_PB = os.path.join(MOOD_MODELS_DIR, "danceability-discogs-effnet-1.pb")
 JAMENDO_PB      = os.path.join(MOOD_MODELS_DIR, "mtg_jamendo_moodtheme-discogs-effnet-1.pb")
@@ -58,20 +70,21 @@ def resample(audio, from_rate, to_rate):
 
 
 class AudioBuffer:
-    def __init__(self, sender_rate):
+    def __init__(self, sender_rate, duration_seconds):
         self.buffer      = np.array([], dtype=np.float32)
         self.sender_rate = sender_rate
+        self.chunk_samples = MODEL_RATE * duration_seconds
 
     def push(self, chunk):
         resampled = resample(chunk, self.sender_rate, MODEL_RATE)
         self.buffer = np.concatenate([self.buffer, resampled])
 
     def ready(self):
-        return len(self.buffer) >= CHUNK_SAMPLES
+        return len(self.buffer) >= self.chunk_samples
 
     def pop_window(self):
-        window      = self.buffer[:CHUNK_SAMPLES]
-        self.buffer = self.buffer[int(CHUNK_SAMPLES * HOP_FRACTION):]
+        window      = self.buffer[:self.chunk_samples]
+        self.buffer = self.buffer[int(self.chunk_samples * HOP_FRACTION):]
         return window
 
 
@@ -85,12 +98,12 @@ def load_models():
     sys.stdout.flush()
 
     mood_classifiers = {}
-    for mood, pb_path in MOOD_MODELS.items():
-        mood_classifiers[mood] = TensorflowPredict2D(
-            graphFilename=pb_path,
-            output="model/Softmax"
+    for mood, (pb_path, pos_idx) in MOOD_MODELS.items():
+        mood_classifiers[mood] = (
+            TensorflowPredict2D(graphFilename=pb_path, output="model/Softmax"),
+            pos_idx
         )
-        print(f"[mood] Loaded classifier: {mood}")
+        print(f"[mood] Loaded classifier: {mood} (positive class index: {pos_idx})")
         sys.stdout.flush()
 
     danceability_clf = TensorflowPredict2D(
@@ -113,23 +126,26 @@ def load_models():
 
 
 # ─── Inference ────────────────────────────────────────────────────────────────
-def classify(audio, embedder, mood_classifiers, danceability_clf, jamendo_clf, jamendo_labels):
-    # shared embeddings — computed once, reused by all classifiers
+def classify_moods(audio, embedder, mood_classifiers):
+    print(f"[mood] audio stats: min={audio.min():.3f} max={audio.max():.3f} rms={np.sqrt(np.mean(audio**2)):.4f}", flush=True)
     embeddings = embedder(audio)
-
-    # binary moods — index 1 = probability of positive class
     mood_scores = {}
-    for mood, clf in mood_classifiers.items():
+    for mood, (clf, pos_idx) in mood_classifiers.items():
         preds = clf(embeddings)                  # [frames, 2]
-        mood_scores[mood] = float(np.mean(preds[:, 1]))
-
+        mood_scores[mood] = float(np.mean(preds[:, pos_idx]))
     top_mood = max(mood_scores, key=mood_scores.get)
+    return top_mood, mood_scores
 
-    # danceability — index 1 = danceable
-    dance_preds  = danceability_clf(embeddings)  # [frames, 2]
-    danceability = float(np.mean(dance_preds[:, 1]))
 
-    # jamendo multi-label — mean over frames, top N above threshold
+def classify_danceability(audio, embedder, danceability_clf):
+    embeddings   = embedder(audio)
+    preds        = danceability_clf(embeddings)  # [frames, 2]
+    danceability = float(np.mean(preds[:, DANCEABILITY_POSITIVE_IDX]))
+    return danceability
+
+
+def classify_jamendo(audio, embedder, jamendo_clf, jamendo_labels):
+    embeddings    = embedder(audio)
     jamendo_preds = jamendo_clf(embeddings)      # [frames, 56]
     mean_preds    = np.mean(jamendo_preds, axis=0)
     top_indices   = np.argsort(mean_preds)[::-1]
@@ -143,7 +159,7 @@ def classify(audio, embedder, mood_classifiers, danceability_clf, jamendo_clf, j
         if len(jamendo_tags) >= JAMENDO_TOP_N:
             break
 
-    return top_mood, danceability, jamendo_tags
+    return jamendo_tags
 
 
 # ─── Analyser class ───────────────────────────────────────────────────────────
@@ -158,35 +174,54 @@ class MoodAnalyser:
          self.jamendo_clf,
          self.jamendo_labels) = load_models()
 
-        self.buffer     = AudioBuffer(self.sender_rate)
+        # separate buffer per classifier group
+        self.mood_buffer    = AudioBuffer(self.sender_rate, MOOD_DURATION)
+        self.dance_buffer   = AudioBuffer(self.sender_rate, DANCE_DURATION)
+        self.jamendo_buffer = AudioBuffer(self.sender_rate, JAMENDO_DURATION)
+
         self.osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
 
         print(f"[mood] Ready for '{instrument_name}' @ {sample_rate}Hz")
+        print(f"[mood] Windows — mood: {MOOD_DURATION}s  dance: {DANCE_DURATION}s  jamendo: {JAMENDO_DURATION}s")
         print(f"[mood] OSC target: {OSC_HOST}:{OSC_PORT}")
         sys.stdout.flush()
 
     def push(self, audio):
-        self.buffer.push(audio)
-        if self.buffer.ready():
-            window = self.buffer.pop_window()
-            top_mood, danceability, jamendo_tags = classify(
-                window,
-                self.embedder,
-                self.mood_classifiers,
-                self.danceability_clf,
-                self.jamendo_clf,
-                self.jamendo_labels,
-            )
-            self._send(top_mood, danceability, jamendo_tags)
+        self.mood_buffer.push(audio)
+        self.dance_buffer.push(audio)
+        self.jamendo_buffer.push(audio)
 
-    def _send(self, top_mood, danceability, jamendo_tags):
+        if self.mood_buffer.ready():
+            window = self.mood_buffer.pop_window()
+            top_mood, mood_scores = classify_moods(window, self.embedder, self.mood_classifiers)
+            self._send_mood(top_mood, mood_scores)
+
+        if self.dance_buffer.ready():
+            window       = self.dance_buffer.pop_window()
+            danceability = classify_danceability(window, self.embedder, self.danceability_clf)
+            self._send_danceability(danceability)
+
+        if self.jamendo_buffer.ready():
+            window       = self.jamendo_buffer.pop_window()
+            jamendo_tags = classify_jamendo(window, self.embedder, self.jamendo_clf, self.jamendo_labels)
+            self._send_jamendo(jamendo_tags)
+
+    def _send_mood(self, top_mood, mood_scores):
         inst = self.instrument_name
-
-        self.osc_client.send_message(f"/mood/{inst}/top",          top_mood)
-        self.osc_client.send_message(f"/mood/{inst}/danceability", round(danceability * 100, 1))
-        self.osc_client.send_message(f"/mood/{inst}/tags",         ", ".join(jamendo_tags))
-
+        scores_str = "  ".join(f"{k}={v*100:.1f}%" for k, v in sorted(mood_scores.items(), key=lambda x: x[1], reverse=True))
+        self.osc_client.send_message(f"/mood/{inst}/top", top_mood)
+        print(f"[mood/{inst}] {scores_str}")
         print(f"[mood/{inst}] mood: {top_mood}")
-        print(f"[mood/{inst}] danceability_score: {round(danceability * 100, 1)}")
-        print(f"[mood/{inst}] mood_tags: {', '.join(jamendo_tags) or 'none'}")
+        sys.stdout.flush()
+
+    def _send_danceability(self, danceability):
+        inst = self.instrument_name
+        self.osc_client.send_message(f"/mood/{inst}/danceability", str(round(danceability * 100, 1)))
+        print(f"[mood/{inst}] danceability: {round(danceability * 100, 1)}%")
+        sys.stdout.flush()
+
+    def _send_jamendo(self, jamendo_tags):
+        inst = self.instrument_name
+        self.osc_client.send_message(f"/mood/{inst}/tags", ", ".join(jamendo_tags))
+        print(f"[mood/{inst}] tags: {', '.join(jamendo_tags) or 'none'}")
         sys.stdout.flush()
