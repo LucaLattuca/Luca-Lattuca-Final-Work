@@ -85,8 +85,9 @@ const OutputPanel = ({
 
     const renderValue = (analyser, instrument) => {
         const data = analyserData[instrument]?.[analyser];
-        if (analyser === 'genre') return renderGenre(data);
-        if (analyser === 'mood')  return renderMood(data);
+        if (analyser === 'genre')       return renderGenre(data);
+        if (analyser === 'mood')        return renderMood(data);
+        if (analyser === 'pitch_crepe') return data || '—';   // plain note string e.g. "C#4"
         return data || '—';
     };
 

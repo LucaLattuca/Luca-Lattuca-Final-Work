@@ -2,8 +2,7 @@
   "instruments": {
     "backing_track": {
       "analysers": [
-        "mood",
-        "genre"
+        "pitch_crepe"
       ],
       "audio_device": {
         "channel": 0,

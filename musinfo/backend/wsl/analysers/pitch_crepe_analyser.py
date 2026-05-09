@@ -136,8 +136,8 @@ class PitchCREPEAnalyser:
         }
 
         self._display(summary)
-        self.osc.send_message(f"/pitch_crepe/{self.instrument_name}", json.dumps(summary))
-        print(f"[Pitch] → /pitch_crepe/{self.instrument_name}  {summary['note']} {summary['freq_hz']}Hz")
+        self.osc.send_message(f"/pitch_crepe/{self.instrument_name}", best["note"])
+        print(f"[Pitch_crepe] → /pitch_crepe/{self.instrument_name}  {best['note']}  {best['freq_hz']}Hz  conf={best['confidence']:.3f}")
         sys.stdout.flush()
 
     def _display(self, s):
