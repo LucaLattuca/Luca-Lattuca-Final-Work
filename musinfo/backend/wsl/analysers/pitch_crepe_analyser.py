@@ -1,4 +1,9 @@
 import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'      # suppresses C++ INFO/WARNING logs
+os.environ['CUDA_VISIBLE_DEVICES'] = ''         # tells TF no GPU → stops the whole probe loop
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'       # suppresses the oneDNN message
+os.environ['ESSENTIA_LOG_LEVEL'] = 'error'  # suppresses INFO from Essentia's C++ logger
+
 import sys
 import json
 import subprocess
@@ -14,10 +19,12 @@ from essentia.standard import PitchCREPE
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 MODEL_RATE       = 16000
-CHUNK_DURATION   = 0.1
+CHUNK_DURATION   = 0.2
 CHUNK_SAMPLES    = int(MODEL_RATE * CHUNK_DURATION) # 1600 samples @ 0.1s
 HOP_FRACTION     = 0.5
-CONF_THRESHOLD   = 0.5
+
+CONF_THRESHOLD     = 0.5   # per-frame filter in classify()
+MIN_SEND_CONFIDENCE = 0.60
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR = os.path.join(os.path.dirname(SCRIPT_DIR), "models", "pitch_models")
@@ -126,21 +133,20 @@ class PitchCREPEAnalyser:
         if not frames:
             return
 
-        # highest-confidence frame represents the window
         best = max(frames, key=lambda f: f["confidence"])
-        summary = {
-            "note":       best["note"],
-            "freq_hz":    best["freq_hz"],
-            "confidence": best["confidence"],
-            "voiced_frames": len(frames),
-        }
 
-        self._display(summary)
+        # don't send if the best frame isn't confident enough
+        if best["confidence"] < MIN_SEND_CONFIDENCE:
+            print(f"[Pitch_crepe] low confidence ({best['confidence']:.3f}), skipping")
+            sys.stdout.flush()
+            return
+
+        self._display(best)
         self.osc.send_message(f"/pitch_crepe/{self.instrument_name}", best["note"])
         print(f"[Pitch_crepe] → /pitch_crepe/{self.instrument_name}  {best['note']}  {best['freq_hz']}Hz  conf={best['confidence']:.3f}")
         sys.stdout.flush()
 
-    def _display(self, s):
+    def _display(self, best):
         print(f"\n[pitch_crepe/{self.instrument_name}]")
-        print(f"  {s['note']}  {s['freq_hz']} Hz  conf={s['confidence']:.3f}  voiced={s['voiced_frames']} frames")
+        print(f"  {best['note']}  {best['freq_hz']} Hz  conf={best['confidence']:.3f}")
         sys.stdout.flush()
