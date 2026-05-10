@@ -41,3 +41,21 @@ class BpmTempoCNNAnalyser:
     def stop(self):
         self._model = None
         print(f"[bpm_tempo_cnn] '{self.instrument_name}' stopped")
+    
+    # Resample to 11025Hz and accumulate — Essentia TempoCNN needs 11025Hz input.
+    def push(self, audio: np.ndarray):
+        mono      = audio.flatten().astype(np.float32)
+        resampled = _resample(mono, self.input_sr, MODEL_SR)
+        self._audio_buf = np.concatenate([self._audio_buf, resampled])
+        self._try_inference()
+
+
+
+# Polyphase resample — exact rational ratio, no quality loss.
+def _resample(audio: np.ndarray, from_sr: int, to_sr: int) -> np.ndarray:
+    if from_sr == to_sr:
+        return audio
+    g    = gcd(to_sr, from_sr)
+    up   = to_sr   // g
+    down = from_sr // g
+    return resample_poly(audio, up, down).astype(np.float32)
