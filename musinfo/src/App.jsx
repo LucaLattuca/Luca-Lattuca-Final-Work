@@ -10,12 +10,35 @@ import instrumentsConfig from "../backend/config/instruments.json";
 
 function App() {
 
+  const [pipelineStatus, setPipelineStatus] = useState('idle');
+
   const [instruments, setInstruments] = useState(instrumentsConfig.instruments);
   
   // Switch instrument state
   const [switchInstrument, setSwitchInstrument] = useState(0);
   
 
+    const handleStart = async () => {
+    setPipelineStatus('launching');
+    try {
+      await invoke('start_pipeline');
+      setPipelineStatus('running');
+    } catch (e) {
+      console.error('[App] start_pipeline error:', e);
+      setPipelineStatus('idle');
+    }
+  };
+
+  const handleStop = async () => {
+    setPipelineStatus('stopping');
+    try {
+      await invoke('stop_pipeline');
+    } catch (e) {
+      console.error('[App] stop_pipeline error:', e);
+    } finally {
+      setPipelineStatus('idle');
+    }
+  };
 
   // On launch, re-match device_ids by name + channel since hardware
   // indices can change between sessions. Marks devices as connected/disconnected.
@@ -202,6 +225,9 @@ function App() {
   return (
      <>
       <Layout
+        pipelineStatus={pipelineStatus}
+        onStart={handleStart}
+        onStop={handleStop}
         onAddInstrument={() => setModalOpen(true)}
         instruments={instruments}
         selectedInstrument={selectedInstrument}

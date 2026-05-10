@@ -14,6 +14,7 @@ const Tabcontent = ({
   onSwapDevices,
   onReconcile,
   onDeleteInstrument,
+  pipelineStatus={pipelineStatus},
 }) => {
   return (
     <div className={styles.tabcontent}>

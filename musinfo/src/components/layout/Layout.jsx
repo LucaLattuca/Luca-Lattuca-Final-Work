@@ -16,13 +16,22 @@ const Layout = ({
     onSwapDevices,
     onReconcile,
     onDeleteInstrument,
+    pipelineStatus,
+    onStart,
+    onStop,
 }) => {
     const [activeTab, setActiveTab] = React.useState('performance');
 
 
     return (
         <>
-          <Header activeTab={activeTab} setActiveTab={setActiveTab} />
+          <Header 
+          activeTab={activeTab} 
+          setActiveTab={setActiveTab} 
+          pipelineStatus={pipelineStatus}
+          onStart={onStart}
+          onStop={onStop}
+          />
           <main className={style.main}>
             <Sidebar
               onAddInstrument={onAddInstrument}
