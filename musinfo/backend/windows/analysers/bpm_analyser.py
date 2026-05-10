@@ -22,7 +22,7 @@ MAX_BPM       = 220.0
 # Runs on Windows. Outputs to /musinfo/bpm/estimation/{instrument}.
 class BpmAnalyser:
 
-    def __init__(self, instrument_name: str):
+    def __init__(self, instrument_name: str, sample_rate: int = 48000):
         self.instrument_name = instrument_name
         self.osc     = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
         self.address = f"/musinfo/bpm/estimation/{instrument_name}"
