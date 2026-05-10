@@ -64,6 +64,37 @@ class BpmTempoCNNAnalyser:
         self._model = es.TempoCNN(graphFilename=MODEL_FILE, patchHopSize=128, batchSize=1)
         print(f"[bpm_tempo_cnn] model loaded: {MODEL_FILE}")
 
+    # Run inference once we have enough audio (~12s at 11025Hz = 132300 samples).
+    # TempoCNN returns (globalTempo, localTempos, localProbabilities).
+    # We use localTempos and median-smooth ourselves for stable streaming output.
+    def _try_inference(self):
+        if len(self._audio_buf) < MODEL_SR * 12:
+            return
+
+        self._load_model()
+
+        try:
+            _, local_bpm, _ = self._model(self._audio_buf)
+            valid = [b for b in local_bpm if 30.0 <= b <= 286.0]
+            if not valid:
+                return
+            for b in valid:
+                self._predictions.append(b)
+        except Exception as e:
+            print(f"[bpm_tempo_cnn] inference error: {e}")
+            return
+        finally:
+            # Slide buffer forward by 50% for overlap on next inference
+            self._audio_buf = self._audio_buf[len(self._audio_buf) // 2:]
+
+        smoothed = round(float(np.median(self._predictions)), 1)
+
+        now = time.time()
+        if (now - self._last_send) >= SEND_INTERVAL:
+            self.osc.send_message(self.address, smoothed)
+            print(f"[bpm_tempo_cnn] {self.instrument_name}: {smoothed} BPM → {self.address}")
+            self._last_send = now
+
 
 
 # Polyphase resample — exact rational ratio, no quality loss.
