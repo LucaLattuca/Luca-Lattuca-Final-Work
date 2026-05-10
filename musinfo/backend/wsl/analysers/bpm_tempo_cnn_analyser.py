@@ -48,6 +48,21 @@ class BpmTempoCNNAnalyser:
         resampled = _resample(mono, self.input_sr, MODEL_SR)
         self._audio_buf = np.concatenate([self._audio_buf, resampled])
         self._try_inference()
+    
+    # Lazy-load the Essentia TempoCNN algorithm on first call.
+    # Raises FileNotFoundError early with a clear message if the .pb is missing.
+    def _load_model(self):
+        if self._model is not None:
+            return
+        if not os.path.isfile(MODEL_FILE):
+            raise FileNotFoundError(
+                f"Model not found: {MODEL_FILE}\n"
+                f"Download from: https://essentia.upf.edu/models/tempo/tempocnn/deepsquare-k16-3.pb"
+            )
+        import essentia.standard as es
+        # patchHopSize=128 → inference every ~6s; batchSize=1 for streaming
+        self._model = es.TempoCNN(graphFilename=MODEL_FILE, patchHopSize=128, batchSize=1)
+        print(f"[bpm_tempo_cnn] model loaded: {MODEL_FILE}")
 
 
 
