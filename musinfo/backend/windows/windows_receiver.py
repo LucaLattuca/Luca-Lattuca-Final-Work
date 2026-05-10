@@ -12,6 +12,7 @@ import os
 import sys
 
 from analysers.pitch_analyser import PitchAnalyser
+from analysers.windows_test_analyser import WindowsTestAnalyser
 
 
 TCP_HOST = "0.0.0.0"
@@ -51,6 +52,7 @@ SAMPLE_RATES = load_sample_rates()
 # ─── ANALYSERS ────────────────────────────────────────────────────────────────
 AVAILABLE_ANALYSERS = {
     "pitch": PitchAnalyser,
+    "latency_test": WindowsTestAnalyser,
 }
 
 # holds every instance of each analyser (piano : pitch, guitar : pitch, genre...)
@@ -142,10 +144,12 @@ def handle_connection(conn, addr):
                     initialise_analyser(name, analyser)
 
             # route audio to each active analyser for this instrument
+            capture_time = instrument_info.get("capture_time")
+
             for analyser in analysers:
                 analyser_instance = analyser_registry.get(name, {}).get(analyser)
                 if analyser_instance:
-                    analyser_instance.push(audio)
+                    analyser_instance.push(audio, capture_time)
 
     except Exception as e:
         print(f"[windows_receiver] Error: {e}")
