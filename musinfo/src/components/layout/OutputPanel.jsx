@@ -8,7 +8,30 @@ const OutputPanel = ({
 }) => {
     const [analyserData, setAnalyserData] = useState({});
     
+    const [latencyData, setLatencyData] = useState({});
+
     const output = Object.entries(instruments);
+
+
+    useEffect(() => {
+        const unlisten = listen('osc-message', (event) => {
+            const { address, payload } = event.payload;
+            const parts = address.split('/').filter(Boolean);
+
+            // existing instrument/analyser routing
+            if (parts[0] !== 'latency') {
+                // ... your existing parsing logic unchanged
+            }
+
+            // latency messages: /latency/windows or /latency/wsl
+            if (parts[0] === 'latency') {
+                const path = parts[1]; // "windows" or "wsl"
+                setLatencyData(prev => ({ ...prev, [path]: payload }));
+            }
+        });
+
+        return () => { unlisten.then(fn => fn()); };
+    }, []);
 
     useEffect(() => {
         const unlisten = listen('osc-message', (event) => {
@@ -92,7 +115,28 @@ const OutputPanel = ({
     };
 
     return (
+        
         <div className={styles.outputPanel}>
+
+
+            {(latencyData.windows || latencyData.wsl) && (
+                <div className={styles.latencySection}>
+                    <div className={styles.instrumentName}>pipeline latency</div>
+                    {latencyData.windows && (
+                        <div className={styles.analyserRow}>
+                            <span className={styles.analyserName}>windows:</span>
+                            <span className={styles.analyserValue}>{latencyData.windows}</span>
+                        </div>
+                    )}
+                    {latencyData.wsl && (
+                        <div className={styles.analyserRow}>
+                            <span className={styles.analyserName}>wsl:</span>
+                            <span className={styles.analyserValue}>{latencyData.wsl}</span>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {output.length === 0 && (
                 <p className={styles.empty}>No instruments configured.</p>
             )}
