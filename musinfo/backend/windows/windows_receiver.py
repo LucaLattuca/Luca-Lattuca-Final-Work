@@ -93,25 +93,23 @@ def read_frame(conn):
     return instrument_info, audio
 
 
-# creates one analyser instance per instrument+analyser combination
+# instantiate if this receiver handles the analyser's destination
 def initialise_analyser(instrument, analyser):
     if instrument not in analyser_registry:
         analyser_registry[instrument] = {}
     if analyser not in analyser_registry[instrument]:
         cls = AVAILABLE_ANALYSERS.get(analyser)
         if cls:
-            # Get sample rate for this instrument
             sample_rate = SAMPLE_RATES.get(instrument, 48000)
-            
-            print(f"[windows_receiver] Starting {analyser} analyser for {instrument} @ {sample_rate}Hz")
+            print(f"[windows_receiver] Starting {analyser} for {instrument} @ {sample_rate}Hz")
             sys.stdout.flush()
-            
-            # Pass both instrument name AND sample rate to analyser constructor
             analyser_registry[instrument][analyser] = cls(
                 instrument_name=instrument,
                 sample_rate=sample_rate
             )
 
+
+            
 # prints instrument/analyser combination 
 def log_routing(name, analysers):
     analysers = ", ".join(analysers) if analysers else "none"

@@ -83,10 +83,22 @@ const OutputPanel = ({
         );
     };
 
+    const renderBpm = (bpmData) => {
+        if (!bpmData) return '—';
+        const { estimation, accurate } = bpmData;
+        return (
+            <div>
+                {estimation != null && <div>estimation: {estimation} bpm</div>}
+                {accurate   != null && <div>accurate: {accurate} bpm</div>}
+            </div>
+        );
+    };
+
     const renderValue = (analyser, instrument) => {
         const data = analyserData[instrument]?.[analyser];
         if (analyser === 'genre')       return renderGenre(data);
         if (analyser === 'mood')        return renderMood(data);
+        if (analyser === 'bpm')         return renderBpm(data);
         if (analyser === 'pitch_crepe') return data || '—';   // plain note string e.g. "C#4"
         return data || '—';
     };

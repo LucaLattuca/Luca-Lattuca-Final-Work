@@ -21,9 +21,9 @@
             "explanation": "Works best for isolated vocals."
         },
         "bpm": {
-            "target": "windows",
-            "description": "BPM estimation via Aubio beat tracking",
-            "explanation": "Estimates tempo in real time. Fast response, updates every second. Outputs to /musinfo/bpm/estimation/{instrument}."
+            "destination": "both",
+            "description": "BPM estimation — fast (Aubio) + accurate (TempoCNN)",
+            "explanation": "Dual BPM output: fast beat tracking for live response, TempoCNN for stable accurate tempo. Useful for syncing transitions and image generation."
         }
     }
 }
