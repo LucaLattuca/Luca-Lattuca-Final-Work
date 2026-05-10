@@ -9,14 +9,12 @@ SAMPLE_RATE   = 48000
 HOP_SIZE      = 512
 SMOOTHING     = 8        # beat intervals kept for median smoothing
 SEND_INTERVAL = 1.0      # seconds between OSC sends
-
-OSC_HOST      = "127.0.0.1"
+OSC_HOST = "127.0.0.1"
 OSC_PORT      = 9000
 
 MIN_BPM       = 40.0
 MAX_BPM       = 220.0
 # ─────────────────────────────────────────────────────────────────────────────
-
 
 # Fast BPM estimation via Aubio beat tracking.
 # Runs on Windows. Outputs to /musinfo/bpm/estimation/{instrument}.
@@ -25,7 +23,7 @@ class BpmAnalyser:
     def __init__(self, instrument_name: str, sample_rate: int = 48000):
         self.instrument_name = instrument_name
         self.osc     = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
-        self.address = f"/musinfo/bpm/estimation/{instrument_name}"
+        self.address = f"/bpm/{instrument_name}/estimation"
 
         self._tempo = aubio.tempo("default", HOP_SIZE, HOP_SIZE, SAMPLE_RATE)
         self._tempo.set_threshold(0.3)
@@ -70,5 +68,5 @@ class BpmAnalyser:
         now_wall = time.time()
         if self._current_bpm and (now_wall - self._last_send) >= SEND_INTERVAL:
             self.osc.send_message(self.address, self._current_bpm)
-            print(f"[bpm_analyser] {self.instrument_name}: {self._current_bpm} BPM → {self.address}")
+            print(f"[bpm_analyser] {self.instrument_name}: {self._current_bpm} BPM -> {self.address}")
             self._last_send = now_wall
