@@ -553,6 +553,7 @@ fn stop_device_test(test_state: State<TestProcess>) -> Result<String, String> {
 // spawns the full audio pipeline in order: wsl_receiver -> windows_receiver -> broadcaster -> capture
 #[tauri::command]
 fn start_pipeline(
+    app: AppHandle,
     capture_state: State<CaptureProcess>,
     wsl_state: State<WslProcess>,
     broadcaster_state: State<BroadcasterProcess>,
@@ -638,6 +639,9 @@ fn start_pipeline(
 
     *capture_state.0.lock().unwrap() = Some(capture_child);
     println!("[Tauri] capture.py spawned.");
+
+    // Signal frontend that pipeline is ready
+    app.emit("pipeline-ready", ()).unwrap_or_else(|e| eprintln!("[Tauri] emit error: {}", e));
 
     Ok("Pipeline started".to_string())
 }

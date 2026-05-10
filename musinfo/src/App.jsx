@@ -14,6 +14,17 @@ function App() {
 
   const [instruments, setInstruments] = useState(instrumentsConfig.instruments);
   
+  // listen for current pipeline status
+  useEffect(() => {
+      const unlistenReady = listen('pipeline-ready', () => {
+          setPipelineStatus('running');
+      });
+
+      return () => {
+          unlistenReady.then(fn => fn());
+      };
+  }, []);
+
   // Switch instrument state
   const [switchInstrument, setSwitchInstrument] = useState(0);
   
@@ -22,11 +33,11 @@ function App() {
     setPipelineStatus('launching');
     try {
       await invoke('start_pipeline');
-      setPipelineStatus('running');
     } catch (e) {
       console.error('[App] start_pipeline error:', e);
       setPipelineStatus('idle');
     }
+
   };
 
   const handleStop = async () => {
@@ -221,6 +232,7 @@ function App() {
       console.error('[App] Failed to swap devices:', err);
     }
   };
+
 
   return (
      <>
