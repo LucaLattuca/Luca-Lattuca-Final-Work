@@ -5,7 +5,6 @@ import Tabcontent from './Tabcontent';
 import OutputPanel from './OutputPanel';
 import style from './Layout.module.css';
 
-
 const Layout = ({ 
     onAddInstrument,
     instruments,
@@ -16,13 +15,21 @@ const Layout = ({
     onSwapDevices,
     onReconcile,
     onDeleteInstrument,
+    pipelineStatus,
+    onStart,
+    onStop,
 }) => {
     const [activeTab, setActiveTab] = React.useState('performance');
 
-
     return (
         <>
-          <Header activeTab={activeTab} setActiveTab={setActiveTab} />
+          <Header 
+            activeTab={activeTab} 
+            setActiveTab={setActiveTab} 
+            pipelineStatus={pipelineStatus}
+            onStart={onStart}
+            onStop={onStop}
+          />
           <main className={style.main}>
             <Sidebar
               onAddInstrument={onAddInstrument}
@@ -39,6 +46,7 @@ const Layout = ({
               onSwapDevices={onSwapDevices}
               onReconcile={onReconcile}
               onDeleteInstrument={onDeleteInstrument}
+              pipelineStatus={pipelineStatus}
             />
             <OutputPanel
               instruments={instruments}
@@ -48,4 +56,4 @@ const Layout = ({
     );
 };
 
-export default Layout;
+export default Layout

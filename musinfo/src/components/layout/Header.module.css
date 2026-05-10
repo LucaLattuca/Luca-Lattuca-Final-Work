@@ -18,6 +18,62 @@
     gap: 3rem;
 }
 
+.controls {
+ width: 270px;
+ display: flex;
+}
+
+.controls span {
+    
+    text-align: end;
+    align-self:flex-end;
+    margin-right: 20px;   
+    width: 160px;
+    padding-bottom: 5px;
+}
+
+.statusLaunching {
+    margin-right: 30px;
+    color: rgb(46, 112, 136);
+}
+
+.statusListening {
+    margin-right: 30px;
+    color: rgb(48, 173, 48);
+}
+
+.statusStopping {
+    margin-right: 30px;
+    color: rgb(212, 86, 86);
+}
+
 .startButton {
- margin-right: 1rem;
+    color: white;
+    background-color: transparent;
+    margin-right: 15px;
+    margin-left: auto;
+    border: 2px outset rgb(55, 156, 53);
+    border-radius: 5px;
+    height: 30px;
+    width:  80px;
+    cursor: pointer;
+
+}
+
+.stopButton {
+    color: white;
+    background-color: transparent;
+    margin-right: 15px;
+    margin-left: auto;
+    border: 2px outset red;
+    border-radius: 5px;
+    height: 30px;
+    width:  80px;
+    cursor: pointer;
+
+}
+
+.stopDisabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
