@@ -728,12 +728,12 @@ fn start_osc_listener(app_handle: AppHandle) {
                             let payload = msg
                                 .args
                                 .first()
-                                .and_then(|a| {
-                                    if let rosc::OscType::String(s) = a {
-                                        Some(s.clone())
-                                    } else {
-                                        None
-                                    }
+                                .map(|a| match a {
+                                    rosc::OscType::String(s) => s.clone(),
+                                    rosc::OscType::Float(f)  => f.to_string(),
+                                    rosc::OscType::Double(d) => d.to_string(),
+                                    rosc::OscType::Int(i)    => i.to_string(),
+                                    _                        => String::new(),
                                 })
                                 .unwrap_or_default();
 

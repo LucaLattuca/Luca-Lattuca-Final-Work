@@ -45,7 +45,7 @@ const AnalyserConfig = ({
         })}
       </div>
       <div className={styles.analyserDescription}>
-        {hoveredAnalyser && <p>{hoveredAnalyser.explenation}</p>}
+        {hoveredAnalyser && <p>{hoveredAnalyser.explanation}</p>}
       </div>
     </div>
   );
