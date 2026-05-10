@@ -1,9 +1,29 @@
 {
     "analysers": {
-        "pitch":  { "target": "windows", "description": "Pitch detection via Essentia YinFFT" , "explenation": "Best for melodic instruments like voice or guitar. Detects the current note and melody contour in real time."},
-        "genre":  { "target": "wsl",     "description": "Genre classification via Discogs-EffNet" , "explenation": "Best for full mixes or rhythm-heavy sources. Classifies the overall musical style of the audio"},
-        "mood":  { "target": "wsl",     "description": "Mood classification via Discogs-EffNet" , "explenation": "Best for full mixes or rhythm-heavy sources. Classifies the overall musical style of the audio"},
-        "pitch_crepe":  { "target": "wsl", "description": "Pitch detection via CREPE" , "explenation": "Works best for isolated vocals "}
-        
+        "pitch": {
+            "target": "windows",
+            "description": "Pitch detection via Aubio YIN",
+            "explanation": "Best for melodic instruments like voice or guitar. Detects the current note and melody contour in real time."
+        },
+        "genre": {
+            "target": "wsl",
+            "description": "Genre classification via Discogs-EffNet",
+            "explanation": "Best for full mixes or rhythm-heavy sources. Classifies the overall musical style of the audio."
+        },
+        "mood": {
+            "target": "wsl",
+            "description": "Mood classification via Discogs-EffNet",
+            "explanation": "Best for full mixes or rhythm-heavy sources. Classifies the overall musical style of the audio."
+        },
+        "pitch_crepe": {
+            "target": "wsl",
+            "description": "Pitch detection via CREPE",
+            "explanation": "Works best for isolated vocals."
+        },
+        "bpm": {
+            "destination": "both",
+            "description": "BPM estimation — fast (Aubio) + accurate (TempoCNN)",
+            "explanation": "Dual BPM output: fast beat tracking for live response, TempoCNN for stable accurate tempo. Useful for syncing transitions and image generation."
+        }
     }
 }

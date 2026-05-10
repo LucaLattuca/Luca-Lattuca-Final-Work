@@ -1,0 +1,72 @@
+import time
+import numpy as np
+import aubio
+from collections import deque
+from pythonosc import udp_client
+
+# ── CONFIG ────────────────────────────────────────────────────────────────────
+SAMPLE_RATE   = 48000
+HOP_SIZE      = 512
+SMOOTHING     = 8        # beat intervals kept for median smoothing
+SEND_INTERVAL = 1.0      # seconds between OSC sends
+OSC_HOST = "127.0.0.1"
+OSC_PORT      = 9000
+
+MIN_BPM       = 40.0
+MAX_BPM       = 220.0
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Fast BPM estimation via Aubio beat tracking.
+# Runs on Windows. Outputs to /musinfo/bpm/estimation/{instrument}.
+class BpmAnalyser:
+
+    def __init__(self, instrument_name: str, sample_rate: int = 48000):
+        self.instrument_name = instrument_name
+        self.osc     = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
+        self.address = f"/bpm/{instrument_name}/estimation"
+
+        self._tempo = aubio.tempo("default", HOP_SIZE, HOP_SIZE, SAMPLE_RATE)
+        self._tempo.set_threshold(0.3)
+
+        self._audio_buf    = []
+        self._intervals    = deque(maxlen=SMOOTHING)
+        self._last_beat    = None
+        self._sample_count = 0
+        self._current_bpm  = None
+        self._last_send    = 0.0
+
+        print(f"[bpm_analyser] '{instrument_name}' ready")
+
+    # Accumulate incoming audio and drain in HOP_SIZE slices.
+    def push(self, audio: np.ndarray):
+        self._audio_buf.extend(audio.flatten().astype(np.float32).tolist())
+        while len(self._audio_buf) >= HOP_SIZE:
+            hop = np.array(self._audio_buf[:HOP_SIZE], dtype=np.float32)
+            self._audio_buf = self._audio_buf[HOP_SIZE:]
+            self._process_hop(hop)
+
+    def stop(self):
+        print(f"[bpm_analyser] '{self.instrument_name}' stopped")
+
+    # Feed one hop to aubio, record beat timestamps, compute + send BPM.
+    def _process_hop(self, hop: np.ndarray):
+        is_beat = self._tempo(hop)
+        self._sample_count += HOP_SIZE
+
+        if is_beat[0]:
+            now = self._sample_count / SAMPLE_RATE
+            if self._last_beat is not None:
+                interval = now - self._last_beat
+                bpm = 60.0 / interval
+                if MIN_BPM <= bpm <= MAX_BPM:
+                    self._intervals.append(interval)
+            self._last_beat = now
+
+        if len(self._intervals) >= 2:
+            self._current_bpm = round(60.0 / float(np.median(self._intervals)), 1)
+
+        now_wall = time.time()
+        if self._current_bpm and (now_wall - self._last_send) >= SEND_INTERVAL:
+            self.osc.send_message(self.address, self._current_bpm)
+            print(f"[bpm_analyser] {self.instrument_name}: {self._current_bpm} BPM -> {self.address}")
+            self._last_send = now_wall
