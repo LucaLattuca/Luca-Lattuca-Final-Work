@@ -33,11 +33,14 @@ class WindowsTestAnalyser:
     def _loop(self):
         while True:
             audio, capture_time = self.queue.get()
-
+            
             if capture_time is None:
                 continue
 
+            
             now = time.perf_counter()
+            print(f"[debug] capture_time={capture_time} now={now} delta_ms={(now - capture_time) * 1000:.3f}", flush=True)
+
             delta_ms = (now - capture_time) * 1000.0
             self.deltas.append(delta_ms)
             self.chunk_count += 1

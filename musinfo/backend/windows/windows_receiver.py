@@ -51,9 +51,10 @@ SAMPLE_RATES = load_sample_rates()
 
 # ─── ANALYSERS ────────────────────────────────────────────────────────────────
 AVAILABLE_ANALYSERS = {
-    "pitch": PitchAnalyser,
-    "latency_test": WindowsTestAnalyser,
+    "pitch":               PitchAnalyser,
+    "latency_test_windows": WindowsTestAnalyser,
 }
+
 
 # holds every instance of each analyser (piano : pitch, guitar : pitch, genre...)
 analyser_registry = {}

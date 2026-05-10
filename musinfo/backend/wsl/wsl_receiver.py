@@ -57,10 +57,10 @@ SAMPLE_RATES = load_sample_rates()
 
 # ─── ANALYSERS ────────────────────────────────────────────────────────────────
 AVAILABLE_ANALYSERS = {
-    "genre":        GenreAnalyser,
-    "mood":         MoodAnalyser,
-    "pitch_crepe":  PitchCREPEAnalyser,
-    "latency_test": WslTestAnalyser,
+    "genre":              GenreAnalyser,
+    "mood":               MoodAnalyser,
+    "pitch_crepe":        PitchCREPEAnalyser,
+    "latency_test_wsl":   WslTestAnalyser,
 }
 
 # holds every instance of each analyser (piano : pitch, guitar : pitch, genre...)
