@@ -4,6 +4,7 @@
     flex-direction: column;
     gap: 5px;
     
+    
 }
 .instrumentNameInput input{
     background: transparent;
@@ -18,7 +19,7 @@
 
 .setup {
     width: fit-content;
-    
+    height: 170px;
 }
 
 .setup .InputCards {
@@ -52,11 +53,15 @@
 
 .setup .typeDescription {
     color: white;
-    width: fit-content;
+    width: 340px;
     height: 50px;
     font-size: 14px;
+    box-sizing: border-box;
+    text-align: center;
 }
 
+.modal {
+}
 
 .modal .InputCards {
     display: flex;
@@ -83,5 +88,6 @@
 
 .modal .cardDesc {
     font-size: smaller;
+    
 }
 

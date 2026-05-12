@@ -60,6 +60,7 @@ const InstrumentConfig = ({
         </div>
       )}
       
+      
        {showType && (
         <div className={styles.InputCards}>
           {INPUT_TYPES.map(({ id, label, description, icon }) => (

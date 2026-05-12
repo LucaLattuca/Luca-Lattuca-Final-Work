@@ -1,12 +1,13 @@
 
 .analyserSelection {
-    margin-top: 10px;
     font-size: small;
+    min-width: 300px;
+    height: 270px;
 }
 
 .analyserSelection.setup {
     padding-top: 20px;
-    width: 100%;
+    width: 100%;   
 }
 
 .analyserCards {
@@ -25,7 +26,8 @@
 
 
 .analyserCards.setup {
-    height: 100px;
+    height: 140px;
+    margin-top: 10px;
 }
 
 
@@ -57,7 +59,6 @@
     justify-content: center;
     text-align: center;
 
-    margin-top: 10px;
     font-size: small;
     height: 90px;
 }

@@ -7,8 +7,8 @@
     display: flex;
     justify-content: space-between;
     margin-bottom: 10px;
-    width: 100%;
-
+    width: auto;
+    
 }
 
 .reloadBtn {
@@ -19,6 +19,7 @@
     height: 30px;
     cursor: pointer;
     color: white;
+    margin-right: 10px;
 }
 
 
@@ -28,7 +29,8 @@
 
 
 .deviceList {
-    width: 430px;
+    width: auto;
+    min-width: 400px;
     height: 200px;
     display: flex;
     flex-direction: column;
@@ -68,26 +70,30 @@
 }
 
 .deviceInfo {
-    width: 70%;
-    /* border: 1px solid red; */
 
+    min-width: 340px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: flex-start;
     padding-left: 20px;
+    
 }
 .deviceName{
     margin: 0;
     padding: 0;
+    width: 100%;
+    text-align: left;
+    overflow:visible;
 }
 
 .deviceDetails {
     font-size:small;
     display: flex;
+    flex-wrap:nowrap;
     margin: 5px 0 0 0;
     gap: 20px;
-    width: 100%;
+
 }
 
 .deviceDetails p {

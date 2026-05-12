@@ -1,5 +1,7 @@
 
-
+.testDevice {
+    margin-left: 20px;
+}
 
 .testBtn {
     border: 2px outset green;
@@ -8,6 +10,7 @@
     background-color: transparent;
     color: white;
     height: 30px;
+    width: 70px;
 }
 
 .testBtnActive {
