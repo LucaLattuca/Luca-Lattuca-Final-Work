@@ -23,6 +23,7 @@ const AudioDevicesConfig = ({
   // Re-fetch the device list whenever the input type changes (audio / midi / virtual).
   useEffect(() => { fetchDevices(); }, [inputType]); 
 
+  // TODO: filter our WDKS devices. 
 
   // Recompute what decives are in use, runs when instruments gets updated
   useEffect(() => {

@@ -6,12 +6,11 @@
       ],
       "audio_device": {
         "channel": 0,
-        "connected": true,
-        "device_id": 32,
-        "host_api": "Windows WASAPI",
+        "device_id": 0,
+        "host_api": "MME",
         "max_input_channels": 2,
-        "name": "Stereo Mix (Realtek(R) Audio)",
-        "sample_rate": 48000
+        "name": "Microsoft Sound Mapper - Input",
+        "sample_rate": 44100
       },
       "enabled": true,
       "type": "audio"

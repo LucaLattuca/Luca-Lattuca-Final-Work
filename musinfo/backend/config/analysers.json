@@ -3,27 +3,27 @@
         "pitch": {
             "target": "windows",
             "description": "Pitch detection via Aubio YIN",
-            "explanation": "Best for melodic instruments like voice or guitar. Detects the current note and melody contour in real time."
+            "explanation": "Tracks the current note and melody in real time using a classic algorithm. Lightweight and low latency. Best for melodic instruments like voice, guitar, or piano."
         },
         "genre": {
             "target": "wsl",
             "description": "Genre classification via Discogs-EffNet",
-            "explanation": "Best for full mixes or rhythm-heavy sources. Classifies the overall musical style of the audio."
+            "explanation": "Classifies the musical style of the audio using a neural network trained on millions of Discogs tracks. Best for full mixes or rhythm-heavy sources."
         },
         "mood": {
             "target": "wsl",
             "description": "Mood classification via Discogs-EffNet",
-            "explanation": "Best for full mixes or rhythm-heavy sources. Classifies the overall musical style of the audio."
+            "explanation": "Estimates the emotional character of the audio using a neural network: energy, danceability, and overall mood. Best for full mixes."
         },
         "pitch_crepe": {
             "target": "wsl",
             "description": "Pitch detection via CREPE",
-            "explanation": "Works best for isolated vocals."
+            "explanation": "More accurate pitch tracking using a neural network, especially for vocals with vibrato or subtle inflections. Heavier than classic pitch detection (Aubio YIN)."
         },
         "bpm": {
             "destination": "both",
-            "description": "BPM estimation — fast (Aubio) + accurate (TempoCNN)",
-            "explanation": "Dual BPM output: fast beat tracking for live response, TempoCNN for stable accurate tempo. Useful for syncing transitions and image generation."
+            "description": "BPM estimation via Aubio + TempoCNN",
+            "explanation": "Dual tempo output: a classic algorithm (Aubio) for instant beat tracking, and a neural network (TempoCNN) for stable long-term accuracy. Useful for syncing visuals to rhythm."
         }
     }
 }
