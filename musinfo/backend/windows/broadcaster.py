@@ -78,12 +78,12 @@ def load_config():
 
 
 
-# Returns True if analyser should run on the given side ("wsl" or "windows").
-# Supports "target": "wsl"/"windows" and "destination": "both".
-def _dest(analysers_config, analyser_id, side):
-    cfg  = analysers_config.get(analyser_id, {})
-    dest = cfg.get("destination", cfg.get("target", ""))
-    return dest == side or dest == "both"
+# Returns True if analyser should run on the given side ("wsl" or "windows", or "both").
+
+def _target(analysers_config, analyser_id, side):
+    cfg = analysers_config.get(analyser_id, {})
+    target = cfg.get("target", "")
+    return target == side or target == "both"
 
 # builds a lookup table mapping channel_id -> instrument name and analysers split by target
 # so broadcaster can instantly look up routing info for each incoming chunk
@@ -115,8 +115,8 @@ def build_channel_map(config):
 
         channel_map[channel_id] = {
             "name":            name,
-            "wsl_analysers":     [m for m in active_analysers if _dest(analysers_config, m, "wsl")],
-            "windows_analysers": [m for m in active_analysers if _dest(analysers_config, m, "windows")],
+            "wsl_analysers":     [m for m in active_analysers if _target(analysers_config, m, "wsl")],
+            "windows_analysers": [m for m in active_analysers if _target(analysers_config, m, "windows")],
 
         }
         
@@ -157,8 +157,8 @@ def build_channel_map(config):
             "source_channels": source_channels,
             "buffer": {},
             "analysers": mix_analysers,
-            "wsl_analysers":     [a for a in mix_analysers if _dest(analysers_config, a, "wsl")],
-            "windows_analysers": [a for a in mix_analysers if _dest(analysers_config, a, "windows")],
+            "wsl_analysers":     [a for a in mix_analysers if _target(analysers_config, a, "wsl")],
+            "windows_analysers": [a for a in mix_analysers if _target(analysers_config, a, "windows")],
         }
 
         print(f"[broadcaster] Mix '{mix_name}' combines channels {source_channels} | wsl: {mix_configs[mix_name]['wsl_analysers']} | windows: {mix_configs[mix_name]['windows_analysers']}")
