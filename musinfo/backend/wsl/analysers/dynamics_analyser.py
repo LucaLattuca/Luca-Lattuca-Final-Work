@@ -64,6 +64,10 @@ class DynamicsAnalyser:
             method = DEFAULT_METHOD
         self.method = ONSET_METHODS[method]
 
+        # State
+        self.frame_buffer = np.zeros(0, dtype=np.float32)
+        self.smoothed_rms = 0.0
+
         # OSC client
         self.osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
         self.addr_rms       = f"/dynamics/{self.instrument_name}/rms"
@@ -77,5 +81,25 @@ class DynamicsAnalyser:
         sys.stdout.flush()
 
     def push(self, audio):
-        # implemented in step 2
-        pass
+        chunk_rms = float(np.sqrt(np.mean(audio ** 2)))
+
+        # Silence gate — decay smoothed RMS toward 0 so the visual doesn't freeze
+        if chunk_rms < SILENCE_THRESHOLD:
+            self.smoothed_rms = (1 - RMS_EMA_ALPHA) * self.smoothed_rms
+            self._send_rms()
+            return
+
+        # Accumulate into frame buffer (consumed by onset code in step 3)
+        self.frame_buffer = np.concatenate([self.frame_buffer, audio])
+
+        # Update smoothed RMS from this chunk
+        self.smoothed_rms = (
+            RMS_EMA_ALPHA * chunk_rms
+            + (1 - RMS_EMA_ALPHA) * self.smoothed_rms
+        )
+        self._send_rms()
+
+    def _send_rms(self):
+        # RMS of float32 audio rarely exceeds ~0.3 in practice; scale and clip to 0–100
+        scaled = min(100.0, self.smoothed_rms * 300.0)
+        self.osc_client.send_message(self.addr_rms, scaled)
