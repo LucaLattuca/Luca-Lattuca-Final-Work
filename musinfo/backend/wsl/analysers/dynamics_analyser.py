@@ -172,8 +172,9 @@ class DynamicsAnalyser:
         self._send_onset(onset_strength, rms_at_onset)
 
     def _send_rms(self):
-        # RMS of float32 audio rarely exceeds ~0.3 in practice; scale and clip to 0–100
         scaled = min(100.0, self.smoothed_rms * 300.0)
+        if scaled < 0.01:  # floor — don't send noise
+            scaled = 0.0
         self.osc_client.send_message(self.addr_rms, scaled)
 
     def _send_onset(self, onset_strength, rms_at_onset):
