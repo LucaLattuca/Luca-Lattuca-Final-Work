@@ -64,9 +64,22 @@ class DynamicsAnalyser:
             method = DEFAULT_METHOD
         self.method = ONSET_METHODS[method]
 
+        # Essentia algorithms
+        self.windower = es.Windowing(type="hann", size=FRAME_SIZE)
+        self.spectrum = es.Spectrum(size=FRAME_SIZE)
+        self.onset_detection = es.OnsetDetection(
+            method=self.method,
+            sampleRate=SAMPLE_RATE,
+        )
+        self.onsets = es.Onsets()
+
         # State
         self.frame_buffer = np.zeros(0, dtype=np.float32)
         self.smoothed_rms = 0.0
+        self.odf_history = []
+        self.rms_history = []
+        self.frame_counter = 0
+        self.last_onset_frame_global = -1
 
         # OSC client
         self.osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
@@ -89,8 +102,12 @@ class DynamicsAnalyser:
             self._send_rms()
             return
 
-        # Accumulate into frame buffer (consumed by onset code in step 3)
+        # Accumulate into frame buffer and process as many full frames as available
         self.frame_buffer = np.concatenate([self.frame_buffer, audio])
+        while len(self.frame_buffer) >= FRAME_SIZE:
+            frame = self.frame_buffer[:FRAME_SIZE]
+            self.frame_buffer = self.frame_buffer[HOP_SIZE:]
+            self._process_frame(frame)
 
         # Update smoothed RMS from this chunk
         self.smoothed_rms = (
@@ -99,7 +116,71 @@ class DynamicsAnalyser:
         )
         self._send_rms()
 
+    def _process_frame(self, frame):
+        windowed = self.windower(frame)
+        spec = self.spectrum(windowed)
+
+        # OnsetDetection needs spectrum + phase; pass zero-phase for real-input methods
+        phase = np.zeros(len(spec), dtype=np.float32)
+        odf_value = float(self.onset_detection(spec, phase))
+        frame_rms = float(np.sqrt(np.mean(frame ** 2)))
+
+        # Append to rolling history (~1s window)
+        self.odf_history.append(odf_value)
+        self.rms_history.append(frame_rms)
+        if len(self.odf_history) > ODF_BUFFER_FRAMES:
+            self.odf_history.pop(0)
+            self.rms_history.pop(0)
+
+        self.frame_counter += 1
+
+        # Need a full buffer before peak-picking is meaningful
+        if len(self.odf_history) < ODF_BUFFER_FRAMES:
+            return
+
+        # Run Essentia's Onsets on the ODF buffer (adaptive thresholding + peak picking)
+        odf_matrix = np.array([self.odf_history], dtype=np.float32)
+        weights = np.array([1.0], dtype=np.float32)
+        try:
+            onset_times = self.onsets(odf_matrix, weights)
+        except RuntimeError:
+            return
+
+        if len(onset_times) == 0:
+            return
+
+        # Convert latest onset time → frame index inside the buffer
+        latest_time = float(onset_times[-1])
+        latest_local_frame = int(round(latest_time * SAMPLE_RATE / HOP_SIZE))
+        latest_local_frame = max(0, min(latest_local_frame, len(self.odf_history) - 1))
+
+        # Map local-buffer frame → absolute frame counter, dedupe against last sent
+        buffer_start_global = self.frame_counter - len(self.odf_history)
+        onset_global_frame = buffer_start_global + latest_local_frame
+        if onset_global_frame <= self.last_onset_frame_global:
+            return
+        self.last_onset_frame_global = onset_global_frame
+
+        # Strength = ODF value at the onset frame
+        onset_strength = self.odf_history[latest_local_frame]
+
+        # rms_at_onset = peak RMS in ±RMS_PEAK_WINDOW_FRAMES around the onset
+        lo = max(0, latest_local_frame - RMS_PEAK_WINDOW_FRAMES)
+        hi = min(len(self.rms_history), latest_local_frame + RMS_PEAK_WINDOW_FRAMES + 1)
+        rms_at_onset = max(self.rms_history[lo:hi]) if hi > lo else 0.0
+
+        self._send_onset(onset_strength, rms_at_onset)
+
     def _send_rms(self):
         # RMS of float32 audio rarely exceeds ~0.3 in practice; scale and clip to 0–100
         scaled = min(100.0, self.smoothed_rms * 300.0)
         self.osc_client.send_message(self.addr_rms, scaled)
+
+    def _send_onset(self, onset_strength, rms_at_onset):
+        scaled_rms_at_onset = min(100.0, rms_at_onset * 300.0)
+        self.osc_client.send_message(self.addr_onset, 1)
+        self.osc_client.send_message(self.addr_strength, float(onset_strength))
+        self.osc_client.send_message(self.addr_rms_onset, float(scaled_rms_at_onset))
+        print(f"[dynamics/{self.instrument_name}] onset "
+              f"strength={onset_strength:.3f} rms@onset={scaled_rms_at_onset:.1f}")
+        sys.stdout.flush()
