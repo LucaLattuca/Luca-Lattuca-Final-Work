@@ -18,7 +18,7 @@ const OutputPanel = ({
             const parts = address.split('/').filter(Boolean);
 
             // Pattern A: /analyser/instrument         (e.g. /genre/vocals, /pitch/vocals)
-            // Pattern B: /analyser/instrument/subkey  (e.g. /mood/backing_track/top)
+            // Pattern B: /analyser/instrument/subkey  (e.g. /dynamics/piano/rms, /mood/mix/top)
             if (parts.length === 2) {
                 const [analyser, instrument] = parts;
 
@@ -38,11 +38,7 @@ const OutputPanel = ({
             } else if (parts.length === 3) {
                 const [analyser, instrument, subkey] = parts;
 
-                let parsedPayload = payload;
-                if (analyser === 'mood' && subkey === 'tags') {
-                    // tags arrive as "film, dark" — keep as string, split for display
-                    parsedPayload = payload;
-                }
+                const parsedPayload = payload;
 
                 setAnalyserData(prev => ({
                     ...prev,
@@ -54,11 +50,29 @@ const OutputPanel = ({
                         }
                     }
                 }));
+
+                // Reset onset pulse after 150ms so it flashes rather than staying lit
+                if (subkey === 'onset') {
+                    setTimeout(() => {
+                        setAnalyserData(prev => ({
+                            ...prev,
+                            [instrument]: {
+                                ...prev[instrument],
+                                [analyser]: {
+                                    ...prev[instrument]?.[analyser],
+                                    onset: '0'
+                                }
+                            }
+                        }));
+                    }, 150);
+                }
             }
         });
 
         return () => { unlisten.then(fn => fn()); };
     }, []);
+
+    // ── Renderers ────────────────────────────────────────────────────────────
 
     const renderGenre = (genreData) => {
         if (!Array.isArray(genreData)) return String(genreData ?? '—');
@@ -76,9 +90,9 @@ const OutputPanel = ({
         const { top, danceability, tags } = moodData;
         return (
             <div>
-                {top         && <div>mood: {top}</div>}
+                {top              && <div>mood: {top}</div>}
                 {danceability != null && <div>danceability: {danceability}%</div>}
-                {tags        && <div>tags: {tags}</div>}
+                {tags             && <div>tags: {tags}</div>}
             </div>
         );
     };
@@ -94,13 +108,31 @@ const OutputPanel = ({
         );
     };
 
+    const renderDynamics = (dynamicsData) => {
+        if (!dynamicsData) return '—';
+        const { rms, onset, onset_strength, rms_at_onset } = dynamicsData;
+        const rmsValue = Number(rms);
+        const rmsDisplay = rmsValue < 0.01 ? 0.0 : rmsValue;
+        return (
+            <div>
+                {rms            != null && <div>amplitude: {rmsDisplay.toFixed(1)}</div>}
+                {onset          != null && <div>onset: {Number(onset) === 1 ? '▮' : '·'}</div>}
+                {onset_strength != null && <div>strength: {Number(onset_strength).toFixed(3)}</div>}
+                {rms_at_onset   != null && <div>rms@onset: {Number(rms_at_onset).toFixed(1)}</div>}
+            </div>
+        );
+    };
+
+    // Safe fallback — always converts to string, never passes an object to JSX
     const renderValue = (analyser, instrument) => {
         const data = analyserData[instrument]?.[analyser];
-        if (analyser === 'genre')       return renderGenre(data);
-        if (analyser === 'mood')        return renderMood(data);
-        if (analyser === 'bpm')         return renderBpm(data);
-        if (analyser === 'pitch_crepe') return data || '—';   // plain note string e.g. "C#4"
-        return data || '—';
+        if (analyser === 'genre')    return renderGenre(data);
+        if (analyser === 'mood')     return renderMood(data);
+        if (analyser === 'bpm')      return renderBpm(data);
+        if (analyser === 'dynamics') return renderDynamics(data);
+        if (analyser === 'pitch_crepe') return data != null ? String(data) : '—';
+        // Default: always stringify — prevents any object from slipping through to JSX
+        return data != null ? String(data) : '—';
     };
 
     return (
