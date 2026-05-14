@@ -1,26 +1,63 @@
+@import url('https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap');
 .header {
     display: flex;
-    padding: 0.5rem;
+    /* padding: 0.5rem; */
     justify-content: space-between;
-    border-bottom: 1px solid gray;
-    background-color: rgb(46, 46, 46);
+    
+    border-bottom: 2px solid #1d1d1d;
+   /* background: linear-gradient(170deg, #87868c 0%, #2e2e32 100%); titanium finish */
+   /* background: linear-gradient(45deg, #525252 0%, #121212 100%); forged iron*/
+    background: linear-gradient(181deg, #434343 0%, #080808 100%); 
+    /* background-color: #080808; */
 }
 
 
+.logo {
+    padding: 0.5rem;
+     font-family: "Goldman", sans-serif;
+     letter-spacing: 0.5px;
+    /* background-color: #6e0808; */
+}
 .logo *{
     margin: 0;
     padding: 0;
-
+    color: #c9c9c9;
 }
 
 .nav {
     display: flex;
-    gap: 3rem;
+    
 }
+
+.nav button {
+    width: 130px;
+    margin: 0;
+    padding: 0px 10px 0px 10px;
+    cursor: pointer;
+    background: linear-gradient(179deg, #434343 0%, #080808 100%);
+    /* background-color: #080808; */
+    border: none;
+}
+
+.nav button:hover {
+    background: linear-gradient(179deg, #2c2c2c 0%, #080808 100%);
+
+}
+
+.nav button p {
+    color: #9f9f9f;
+    font-weight: 700;
+
+}
+
+
+
 
 .controls {
  width: 270px;
  display: flex;
+ align-self: center;
 }
 
 .controls span {
@@ -49,27 +86,29 @@
 
 .startButton {
     color: white;
-    background-color: transparent;
+    background-color: rgb(34, 95, 33);
     margin-right: 15px;
     margin-left: auto;
-    border: 2px outset rgb(55, 156, 53);
+    border: 2px outset rgb(46, 135, 45);
     border-radius: 5px;
     height: 30px;
-    width:  80px;
+    width:  70px;
     cursor: pointer;
+    font-size: medium;
 
 }
 
 .stopButton {
     color: white;
-    background-color: transparent;
     margin-right: 15px;
     margin-left: auto;
-    border: 2px outset red;
+    background-color: rgb(148, 0, 0);
+    border: 2px outset rgb(199, 0, 0);
     border-radius: 5px;
     height: 30px;
-    width:  80px;
+    width:  70px;
     cursor: pointer;
+    font-size: medium;
 
 }
 

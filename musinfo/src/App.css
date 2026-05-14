@@ -8,5 +8,10 @@ body {
     padding: 0;
     overflow: hidden;
 
-    font-family: monospace;
+    font-family: "Space Grotesk", sans-serif;
+    font-size: smaller;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
 }

@@ -17,9 +17,9 @@ const Header = ({ activeTab, setActiveTab, pipelineStatus, onStart, onStop }) =>
         <p>An interface for Harmonic Visuals</p>
       </div>
       <nav className={styles.nav}>
-        <button onClick={() => setActiveTab('performance')}>Performance</button>
-        <button onClick={() => setActiveTab('setup')}>Setup</button>
-        <button onClick={() => setActiveTab('osc')}>OSC config</button>
+        <button onClick={() => setActiveTab('performance')}><p>Performance</p></button>
+        <button onClick={() => setActiveTab('setup')}><p>Setup</p></button>
+        <button onClick={() => setActiveTab('osc')}><p>OSC config</p></button>
       </nav>
       <div className={styles.controls}>
 
@@ -29,7 +29,7 @@ const Header = ({ activeTab, setActiveTab, pipelineStatus, onStart, onStop }) =>
 
         {isIdle ? (
           <>
-          <button onClick={onStart} className={styles.startButton}>Start</button>
+          <button onClick={onStart} className={styles.startButton}>▶︎</button>
           </>
         ) : (
           <button
@@ -37,7 +37,7 @@ const Header = ({ activeTab, setActiveTab, pipelineStatus, onStart, onStop }) =>
             disabled={isLaunching || isStopping}
             className={`${styles.stopButton} ${(isLaunching || isStopping) ? styles.stopDisabled : ''}`}
           >
-            Stop
+            ◼
           </button>
         )}
 

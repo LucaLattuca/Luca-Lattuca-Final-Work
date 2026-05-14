@@ -1,8 +1,31 @@
 {
   "instruments": {
+    "background_track": {
+      "analysers": [
+        "mood"
+      ],
+      "audio_device": {
+        "channel": 0,
+        "connected": true,
+        "device_id": 35,
+        "host_api": "Windows WASAPI",
+        "max_input_channels": 2,
+        "name": "Stereo Mix (Realtek(R) Audio)",
+        "sample_rate": 48000
+      },
+      "enabled": true,
+      "type": "audio"
+    },
     "mix": {
-      "analysers": [],
-      "enabled": false,
+      "analysers": [
+        "pitch",
+        "bpm",
+        "dynamics",
+        "genre",
+        "pitch_crepe",
+        "mood"
+      ],
+      "enabled": true,
       "mix_source": "internal",
       "source_instruments": [
         "backingtrack"
@@ -11,15 +34,20 @@
     },
     "piano": {
       "analysers": [
-        "dynamics"
+        "dynamics",
+        "pitch",
+        "mood",
+        "bpm",
+        "pitch_crepe",
+        "genre"
       ],
       "audio_device": {
-        "channel": 1,
+        "channel": 0,
         "connected": true,
-        "device_id": 29,
-        "host_api": "ASIO",
+        "device_id": 1,
+        "host_api": "MME",
         "max_input_channels": 2,
-        "name": "Focusrite USB ASIO",
+        "name": "Microphone Array (Realtek(R) Au",
         "sample_rate": 44100
       },
       "enabled": true,

@@ -1,6 +1,7 @@
 .tabcontent {
-   width: 80vw;
-   padding: 2%;
+  width: 80vw;
+  background: linear-gradient(-45deg, #1c1c1c 0%, #101010 100%);
+  padding: 0px 20px 0px 20px;
 }
 
 .setupWrapper {
