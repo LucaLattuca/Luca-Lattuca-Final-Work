@@ -93,9 +93,11 @@ const OutputPanel = ({
                 {top              && <div>mood: {top}</div>}
                 {danceability != null && <div>danceability: {danceability}%</div>}
                 {tags             && <div>tags: {tags}</div>}
+                
             </div>
         );
     };
+    
 
     const renderBpm = (bpmData) => {
         if (!bpmData) return '—';

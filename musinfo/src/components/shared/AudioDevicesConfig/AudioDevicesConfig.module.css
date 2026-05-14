@@ -101,6 +101,14 @@
     padding: 0;
 }
 
+.deviceStatus {
+
+    width: 70px;
+    margin: 0;
+    padding: 0;
+    
+}
+
 /* Comfirmation prompt */
 
 .swapOverlay {
