@@ -38,5 +38,31 @@ class TimbreAnalyser:
         self.osc = SimpleUDPClient(host, port)
         self.sample_rate = sample_rate
 
+        # Frame accumulator (chunks from broadcaster aren't frame-aligned)
+        self._buffer = np.zeros(0, dtype=np.float32)
+
+        # Rate-agnostic spectral primitives
+        self._window = es.Windowing(type="hann", size=FRAME_SIZE)
+        self._spectrum = es.Spectrum(size=FRAME_SIZE)
+
     def push(self, audio: np.ndarray, instrument_name: str):
+        if audio.dtype != np.float32:
+            audio = audio.astype(np.float32)
+
+        # Silence gate — skip frame work entirely when input is dead
+        if np.sqrt(np.mean(audio ** 2)) < SILENCE_THRESHOLD:
+            return
+
+        self._buffer = np.concatenate([self._buffer, audio])
+
+        while len(self._buffer) >= FRAME_SIZE:
+            frame = self._buffer[:FRAME_SIZE]
+            self._buffer = self._buffer[HOP_SIZE:]
+
+            windowed = self._window(frame)
+            spectrum = self._spectrum(windowed)
+
+            self._process_frame(spectrum, instrument_name)
+
+    def _process_frame(self, spectrum: np.ndarray, instrument_name: str):
         pass
