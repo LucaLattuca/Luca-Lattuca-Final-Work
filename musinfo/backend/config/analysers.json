@@ -29,6 +29,11 @@
             "target": "wsl",
             "description": "Onset and amplitude detection via Essentia",
             "explanation": "Tracks when individual notes and hits start, and how loud they are in real time, using a lightweight signal processing algorithm. Best for per-instrument triggering of visual effects."
+        },
+        "timbre": {
+            "target": "wsl",
+            "description": "Spectral feature extraction via Essentia",
+            "explanation": "Analyses the colour and texture of each instrument's sound in real time using spectral descriptors : brightness, noisiness, weight, sharpness and timbral movement."
         }
     }
 }
