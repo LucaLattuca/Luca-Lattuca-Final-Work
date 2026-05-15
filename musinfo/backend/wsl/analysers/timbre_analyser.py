@@ -63,7 +63,7 @@ class TimbreAnalyser:
         self._window = es.Windowing(type="hann", size=FRAME_SIZE)
         self._spectrum = es.Spectrum(size=FRAME_SIZE)
         self._centroid = es.Centroid(range=sample_rate / 2)
-        self._rolloff = es.RollOff(sampleRate=sample_rate)
+        self._rolloff = es.RollOff(sampleRate=sample_rate, cutoff=0.5)
         self._flatness = es.Flatness()
         self._flux = es.Flux()
         self._mfcc = es.MFCC(inputSize=FRAME_SIZE // 2 + 1,
@@ -129,7 +129,9 @@ class TimbreAnalyser:
         rolloff = self._rolloff(spectrum)
         flatness = self._flatness(spectrum)
         flux = self._flux(spectrum)
-
+        print(f"[timbre debug] centroid={centroid:.1f} rolloff={rolloff:.1f} "
+                f"spec[0:4]={spectrum[0]:.4f},{spectrum[1]:.4f},{spectrum[2]:.4f},{spectrum[3]:.4f} "
+                f"spec_sum={spectrum.sum():.4f}", flush=True)
         _, mfcc = self._mfcc(spectrum)
         if self._prev_mfcc is not None:
             mfcc_delta = float(np.linalg.norm(mfcc - self._prev_mfcc))
@@ -183,10 +185,12 @@ class TimbreAnalyser:
         if (self._samples_seen - self._last_attack_sample) / self.sample_rate < ATTACK_MIN_GAP_SEC:
             return
         self._last_attack_sample = self._samples_seen
-
+        print(f"[timbre debug] onset detected, sec_from_end={sec_from_end:.4f}", flush=True)
         self._fire_attack(sec_from_end)
 
     def _fire_attack(self, sec_from_end):
+        print(f"[timbre debug] _fire_attack called, history_len={len(self._audio_history)}, "
+          f"need={self._attack_window_samples}", flush=True)
         if len(self._audio_history) < self._attack_window_samples:
             return
 

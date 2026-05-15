@@ -2,7 +2,7 @@
   "instruments": {
     "background_track": {
       "analysers": [
-        "genre",
+        "timbre",
         "tempo"
       ],
       "audio_device": {
