@@ -131,9 +131,8 @@ class TimbreAnalyser:
         rolloff = self._rolloff(np.sqrt(spectrum + 1e-12))
         flatness = self._flatness(spectrum)
         flux = self._flux(spectrum)
-        print(f"[timbre debug] centroid={centroid:.1f} rolloff={rolloff:.1f} "
-                f"spec[0:4]={spectrum[0]:.4f},{spectrum[1]:.4f},{spectrum[2]:.4f},{spectrum[3]:.4f} "
-                f"spec_sum={spectrum.sum():.4f}", flush=True)
+        
+
         _, mfcc = self._mfcc(spectrum)
         if self._prev_mfcc is not None:
             mfcc_delta = float(np.linalg.norm(mfcc - self._prev_mfcc))
@@ -171,8 +170,6 @@ class TimbreAnalyser:
 
         if len(self._odf_buffer) % 20 == 0:
             recent = self._odf_buffer[-5:]
-            print(f"[attack debug] ODF last 5: {[f'{x:.3f}' for x in recent]} "
-                  f"(buf_len={len(self._odf_buffer)})", flush=True)
     
 
         # Need enough history for Onsets to peak-pick meaningfully
@@ -188,9 +185,7 @@ class TimbreAnalyser:
         
         if len(onsets) == 0:
             if len(self._odf_buffer) % 50 == 0:
-                print(f"[attack debug] no onsets in buffer (buf len={len(self._odf_buffer)}, "
-                      f"max ODF={max(self._odf_buffer):.3f})", flush=True)
-            return
+                return
 
         # Onsets returns times in seconds relative to start of the ODF buffer.
         # We only act on the most recent one, and only if it just appeared.
@@ -216,16 +211,12 @@ class TimbreAnalyser:
 
     def _fire_attack(self, sec_from_end):
         if len(self._audio_history) < self._attack_window_samples:
-            print(f"[attack debug] _fire_attack: history too short "
-                  f"({len(self._audio_history)} < {self._attack_window_samples})", flush=True)
             return
 
         onset_offset_samples = int(sec_from_end * self.sample_rate)
         start = max(0, len(self._audio_history) - onset_offset_samples - 1)
         end = start + self._attack_window_samples
         if end > len(self._audio_history):
-            print(f"[attack debug] _fire_attack: end past history "
-                  f"(start={start}, end={end}, hist_len={len(self._audio_history)})", flush=True)
             return
         segment = self._audio_history[start:end].astype(np.float32)
 
@@ -237,7 +228,7 @@ class TimbreAnalyser:
             return
 
         attack_sec = float(10 ** log_attack)
-        print(f"[attack debug] ATTACK SENT: {attack_sec:.4f}s", flush=True)
+        
         self.osc.send_message(f"/timbre/{self.instrument_name}/attack", attack_sec)
 
     def _send_continuous(self, name, value):
