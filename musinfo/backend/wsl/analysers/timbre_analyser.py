@@ -52,6 +52,8 @@ class TimbreAnalyser:
         self._rolloff = es.RollOff(sampleRate=sample_rate)
         self._flatness = es.Flatness()
 
+        self._flux_per_instrument = {}
+
         # EMA state for continuous values, keyed "instrument/descriptor"
         self._ema = {}
 
@@ -78,9 +80,15 @@ class TimbreAnalyser:
         rolloff = self._rolloff(spectrum)
         flatness = self._flatness(spectrum)
 
+        flux_algo = self._flux_per_instrument.setdefault(
+            instrument_name, es.Flux()
+        )
+        flux = flux_algo(spectrum)
+
         self._send_continuous(instrument_name, "centroid", centroid)
         self._send_continuous(instrument_name, "rolloff", rolloff)
         self._send_continuous(instrument_name, "flatness", flatness)
+        self._send_continuous(instrument_name, "flux", flux)
 
     def _send_continuous(self, instrument_name: str, name: str, value: float):
         key = f"{instrument_name}/{name}"
