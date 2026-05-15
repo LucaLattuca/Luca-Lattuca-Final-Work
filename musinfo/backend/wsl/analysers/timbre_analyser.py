@@ -1,35 +1,26 @@
-"""
-timbre_analyser.py — WSL analyser for spectral timbre features.
+import os
+os.environ['ESSENTIA_LOG_LEVEL'] = 'error'
 
-Instantiate with the sample rate of the incoming audio stream:
-    TimbreAnalyser(sample_rate=48000)
-
-Outputs over OSC (per instrument):
-  /{instrument}/timbre/centroid     brightness            (float, Hz)
-  /{instrument}/timbre/flux         texture busyness      (float)
-  /{instrument}/timbre/flatness     tonal vs noisy        (float, 0–1)
-  /{instrument}/timbre/rolloff      spectral weight       (float, Hz)
-  /{instrument}/timbre/mfcc_delta   timbral change        (float)
-  /{instrument}/timbre/mfcc         raw 13-coeff vector   (float[13])
-  /{instrument}/timbre/attack       attack sharpness      (float, sec, event)
-"""
-
+import sys
 import subprocess
+
 import numpy as np
 import essentia.standard as es
-from pythonosc.udp_client import SimpleUDPClient
+from pythonosc import udp_client
+
 
 SILENCE_THRESHOLD = 0.01
 
 FRAME_SIZE = 2048
 HOP_SIZE = 1024
 
+# EMA smoothing for continuous descriptors
 EMA_ALPHA = 0.3
 
 # Attack window: how much audio after an onset to feed LogAttackTime
 ATTACK_WINDOW_SEC = 0.15
 
-# Minimum gap between attack events per instrument (avoid double-fires)
+# Minimum gap between attack events (avoid double-fires)
 ATTACK_MIN_GAP_SEC = 0.08
 
 
@@ -49,8 +40,21 @@ OSC_PORT = 9000
 
 
 class TimbreAnalyser:
-    def __init__(self, sample_rate: int, host=OSC_HOST, port=OSC_PORT):
-        self.osc = SimpleUDPClient(host, port)
+    """
+    Per-instrument spectral feature extractor.
+
+    Outputs over OSC:
+      /timbre/{instrument}/centroid     brightness            (float, Hz)
+      /timbre/{instrument}/flux         texture busyness      (float)
+      /timbre/{instrument}/flatness     tonal vs noisy        (float, 0–1)
+      /timbre/{instrument}/rolloff      spectral weight       (float, Hz)
+      /timbre/{instrument}/mfcc_delta   timbral change        (float)
+      /timbre/{instrument}/mfcc         raw 13-coeff vector   (float[13])
+      /timbre/{instrument}/attack       attack sharpness      (float, sec, event)
+    """
+
+    def __init__(self, instrument_name="unknown", sample_rate=48000):
+        self.instrument_name = instrument_name
         self.sample_rate = sample_rate
 
         self._buffer = np.zeros(0, dtype=np.float32)
@@ -61,9 +65,7 @@ class TimbreAnalyser:
         self._centroid = es.Centroid(range=sample_rate / 2)
         self._rolloff = es.RollOff(sampleRate=sample_rate)
         self._flatness = es.Flatness()
-        # Flux keeps internal previous-spectrum state — one instance per
-        # instrument so their histories don't interleave.
-        self._flux_per_instrument = {}
+        self._flux = es.Flux()
         self._mfcc = es.MFCC(inputSize=FRAME_SIZE // 2 + 1,
                              sampleRate=sample_rate,
                              numberCoefficients=13)
@@ -78,33 +80,37 @@ class TimbreAnalyser:
         self._attack_window_samples = int(sample_rate * ATTACK_WINDOW_SEC)
         self._odf_buffer_frames = int(sample_rate / HOP_SIZE)  # ~1s of ODF history
 
-        # EMA state for continuous values, keyed "instrument/descriptor"
+        # EMA state for continuous values
         self._ema = {}
 
-        # Previous-frame MFCC vector per instrument (for delta)
-        self._prev_mfcc = {}
+        # Previous-frame MFCC (for delta)
+        self._prev_mfcc = None
 
-        # Per-instrument state for the onset detection chain
-        self._odf_buffer = {}            # rolling ODF history
-        self._audio_history = {}         # raw audio ring for post-onset slicing
-        self._samples_seen = {}          # per-instrument sample clock
-        self._last_attack_sample = {}    # debounce across attack events
+        # Onset detection state
+        self._odf_buffer = []
+        self._audio_history = np.zeros(0, dtype=np.float32)
+        self._samples_seen = 0
+        self._last_attack_sample = -10 ** 9
 
-    def push(self, audio: np.ndarray, instrument_name: str):
+        self.osc = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
+
+        print(f"[timbre] Ready for '{instrument_name}' @ {sample_rate}Hz")
+        print(f"[timbre] OSC target: {OSC_HOST}:{OSC_PORT}")
+        sys.stdout.flush()
+
+    def push(self, audio):
         if audio.dtype != np.float32:
             audio = audio.astype(np.float32)
 
         if np.sqrt(np.mean(audio ** 2)) < SILENCE_THRESHOLD:
             return
 
-        # Per-instrument raw-audio ring (capped — only need enough for the
-        # post-onset slice + a couple of frames of slack)
-        history = self._audio_history.get(instrument_name, np.zeros(0, dtype=np.float32))
-        history = np.concatenate([history, audio])
+        # Raw-audio ring (capped — only need enough for the post-onset slice
+        # plus a couple of frames of slack)
+        self._audio_history = np.concatenate([self._audio_history, audio])
         max_history = self._attack_window_samples + FRAME_SIZE * 2
-        if len(history) > max_history:
-            history = history[-max_history:]
-        self._audio_history[instrument_name] = history
+        if len(self._audio_history) > max_history:
+            self._audio_history = self._audio_history[-max_history:]
 
         self._buffer = np.concatenate([self._buffer, audio])
 
@@ -115,55 +121,48 @@ class TimbreAnalyser:
             windowed = self._window(frame)
             spectrum = self._spectrum(windowed)
 
-            self._process_frame(spectrum, instrument_name)
+            self._process_frame(spectrum)
+            self._samples_seen += HOP_SIZE
 
-            self._samples_seen[instrument_name] = (
-                self._samples_seen.get(instrument_name, 0) + HOP_SIZE
-            )
-
-    def _process_frame(self, spectrum: np.ndarray, instrument_name: str):
+    def _process_frame(self, spectrum):
         centroid = self._centroid(spectrum)
         rolloff = self._rolloff(spectrum)
         flatness = self._flatness(spectrum)
-
-        flux_algo = self._flux_per_instrument.setdefault(
-            instrument_name, es.Flux()
-        )
-        flux = flux_algo(spectrum)
+        flux = self._flux(spectrum)
 
         _, mfcc = self._mfcc(spectrum)
-        prev = self._prev_mfcc.get(instrument_name)
-        mfcc_delta = float(np.linalg.norm(mfcc - prev)) if prev is not None else 0.0
-        self._prev_mfcc[instrument_name] = mfcc
+        if self._prev_mfcc is not None:
+            mfcc_delta = float(np.linalg.norm(mfcc - self._prev_mfcc))
+        else:
+            mfcc_delta = 0.0
+        self._prev_mfcc = mfcc
 
         # Onset detection function — HFC ignores phase, so feed zeros
         phase = np.zeros_like(spectrum)
         odf = self._onset_detection(spectrum, phase)
-        self._detect_onset(instrument_name, odf)
+        self._detect_onset(odf)
 
-        self._send_continuous(instrument_name, "centroid", centroid)
-        self._send_continuous(instrument_name, "rolloff", rolloff)
-        self._send_continuous(instrument_name, "flatness", flatness)
-        self._send_continuous(instrument_name, "flux", flux)
-        self._send_continuous(instrument_name, "mfcc_delta", mfcc_delta)
+        self._send_continuous("centroid", centroid)
+        self._send_continuous("rolloff", rolloff)
+        self._send_continuous("flatness", flatness)
+        self._send_continuous("flux", flux)
+        self._send_continuous("mfcc_delta", mfcc_delta)
 
         # Raw MFCC vector — unsmoothed, so TD sees the fingerprint as-is
         self.osc.send_message(
-            f"/{instrument_name}/timbre/mfcc", mfcc.tolist()
+            f"/timbre/{self.instrument_name}/mfcc", mfcc.tolist()
         )
 
-    def _detect_onset(self, instrument_name: str, odf: float):
-        buf = self._odf_buffer.get(instrument_name, [])
-        buf.append(float(odf))
-        if len(buf) > self._odf_buffer_frames:
-            buf = buf[-self._odf_buffer_frames:]
-        self._odf_buffer[instrument_name] = buf
+    def _detect_onset(self, odf):
+        self._odf_buffer.append(float(odf))
+        if len(self._odf_buffer) > self._odf_buffer_frames:
+            self._odf_buffer = self._odf_buffer[-self._odf_buffer_frames:]
 
         # Need enough history for Onsets to peak-pick meaningfully
-        if len(buf) < 8:
+        if len(self._odf_buffer) < 8:
             return
 
-        odf_matrix = np.array([buf], dtype=np.float32)
+        odf_matrix = np.array([self._odf_buffer], dtype=np.float32)
         try:
             onsets = es.Onsets()(odf_matrix, [1.0])
         except RuntimeError:
@@ -174,33 +173,30 @@ class TimbreAnalyser:
         # Onsets returns times in seconds relative to start of the ODF buffer.
         # We only act on the most recent one, and only if it just appeared.
         latest_onset_sec = float(onsets[-1])
-        buffer_duration_sec = len(buf) * HOP_SIZE / self.sample_rate
+        buffer_duration_sec = len(self._odf_buffer) * HOP_SIZE / self.sample_rate
         sec_from_end = buffer_duration_sec - latest_onset_sec
 
         if sec_from_end > 2 * HOP_SIZE / self.sample_rate:
             return
 
         # Debounce: don't fire two events too close together
-        current_sample = self._samples_seen.get(instrument_name, 0)
-        last = self._last_attack_sample.get(instrument_name, -10 ** 9)
-        if (current_sample - last) / self.sample_rate < ATTACK_MIN_GAP_SEC:
+        if (self._samples_seen - self._last_attack_sample) / self.sample_rate < ATTACK_MIN_GAP_SEC:
             return
-        self._last_attack_sample[instrument_name] = current_sample
+        self._last_attack_sample = self._samples_seen
 
-        self._fire_attack(instrument_name, sec_from_end)
+        self._fire_attack(sec_from_end)
 
-    def _fire_attack(self, instrument_name: str, sec_from_end: float):
-        history = self._audio_history.get(instrument_name)
-        if history is None or len(history) < self._attack_window_samples:
+    def _fire_attack(self, sec_from_end):
+        if len(self._audio_history) < self._attack_window_samples:
             return
 
         # Slice the post-onset window from the raw audio history
         onset_offset_samples = int(sec_from_end * self.sample_rate)
-        start = max(0, len(history) - onset_offset_samples - 1)
+        start = max(0, len(self._audio_history) - onset_offset_samples - 1)
         end = start + self._attack_window_samples
-        if end > len(history):
+        if end > len(self._audio_history):
             return
-        segment = history[start:end].astype(np.float32)
+        segment = self._audio_history[start:end].astype(np.float32)
 
         try:
             envelope = self._envelope(segment)
@@ -210,12 +206,15 @@ class TimbreAnalyser:
 
         # LogAttackTime returns log10 of attack time in seconds — convert back
         attack_sec = float(10 ** log_attack)
-        self.osc.send_message(f"/{instrument_name}/timbre/attack", attack_sec)
+        self.osc.send_message(
+            f"/timbre/{self.instrument_name}/attack", attack_sec
+        )
 
-    def _send_continuous(self, instrument_name: str, name: str, value: float):
-        key = f"{instrument_name}/{name}"
-        smoothed = self._smooth(key, float(value))
-        self.osc.send_message(f"/{instrument_name}/timbre/{name}", smoothed)
+    def _send_continuous(self, name, value):
+        smoothed = self._smooth(name, float(value))
+        self.osc.send_message(
+            f"/timbre/{self.instrument_name}/{name}", smoothed
+        )
 
     def _smooth(self, key, value):
         prev = self._ema.get(key, value)
