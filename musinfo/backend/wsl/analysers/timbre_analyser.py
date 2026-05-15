@@ -62,9 +62,11 @@ class TimbreAnalyser:
                              sampleRate=sample_rate,
                              numberCoefficients=13)
 
-         # Onset detection (drives the attack-time chain in the next step)
-        self._onset_detection = es.OnsetDetection(method="hfc",
-                                                  sampleRate=sample_rate)
+        # Onset detection
+        self._onset_detection = es.OnsetDetection(method="hfc", sampleRate=sample_rate)
+        self._envelope = es.Envelope(sampleRate=sample_rate)
+        self._log_attack = es.LogAttackTime(sampleRate=sample_rate)
+
 
         # Rate-dependent buffer sizes
         self._attack_window_samples = int(sample_rate * ATTACK_WINDOW_SEC)
@@ -151,10 +153,33 @@ class TimbreAnalyser:
         last = self._last_attack_sample.get(instrument_name, -10 ** 9)
         if (current_sample - last) / self.sample_rate < ATTACK_MIN_GAP_SEC:
             return
+
         self._last_attack_sample[instrument_name] = current_sample
 
-        # TODO (next commit): compute attack time on post-onset audio
-        _ = sec_from_end  # placeholder — used in next commit
+        self._fire_attack(instrument_name, sec_from_end)
+
+    def _fire_attack(self, instrument_name: str, sec_from_end: float):
+        history = self._audio_history.get(instrument_name)
+        if history is None or len(history) < self._attack_window_samples:
+            return
+
+        # Slice the post-onset window from the raw audio history
+        onset_offset_samples = int(sec_from_end * self.sample_rate)
+        start = max(0, len(history) - onset_offset_samples - 1)
+        end = start + self._attack_window_samples
+        if end > len(history):
+            return
+        segment = history[start:end].astype(np.float32)
+
+        try:
+            envelope = self._envelope(segment)
+            log_attack, _, _ = self._log_attack(envelope)
+        except RuntimeError:
+            return
+
+        # LogAttackTime returns log10 of attack time in seconds — convert back
+        attack_sec = float(10 ** log_attack)
+        self.osc.send_message(f"/{instrument_name}/timbre/attack", attack_sec)
 
     def _process_frame(self, spectrum: np.ndarray, instrument_name: str):
         centroid = self._centroid(spectrum)
