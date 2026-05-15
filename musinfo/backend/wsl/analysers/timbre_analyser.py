@@ -51,11 +51,17 @@ class TimbreAnalyser:
         self._centroid = es.Centroid(range=sample_rate / 2)
         self._rolloff = es.RollOff(sampleRate=sample_rate)
         self._flatness = es.Flatness()
-
+        self._mfcc = es.MFCC(inputSize=FRAME_SIZE // 2 + 1,
+                             sampleRate=sample_rate,
+                             numberCoefficients=13)
+        
         self._flux_per_instrument = {}
 
         # EMA state for continuous values, keyed "instrument/descriptor"
         self._ema = {}
+
+        #  Previous-frame MFCC vector per instrument (for delta)
+        self._prev_mfcc = {}
 
     def push(self, audio: np.ndarray, instrument_name: str):
         if audio.dtype != np.float32:
@@ -85,10 +91,21 @@ class TimbreAnalyser:
         )
         flux = flux_algo(spectrum)
 
+        _, mfcc = self._mfcc(spectrum)
+        prev = self._prev_mfcc.get(instrument_name)
+        mfcc_delta = float(np.linalg.norm(mfcc - prev)) if prev is not None else 0.0
+        self._prev_mfcc[instrument_name] = mfcc
+
         self._send_continuous(instrument_name, "centroid", centroid)
         self._send_continuous(instrument_name, "rolloff", rolloff)
         self._send_continuous(instrument_name, "flatness", flatness)
         self._send_continuous(instrument_name, "flux", flux)
+        self._send_continuous(instrument_name, "mfcc_delta", mfcc_delta)
+
+        # Raw MFCC vector — unsmoothed, so TD sees the fingerprint as-is
+        self.osc.send_message(
+            f"/{instrument_name}/timbre/mfcc", mfcc.tolist()
+        )
 
     def _send_continuous(self, instrument_name: str, name: str, value: float):
         key = f"{instrument_name}/{name}"
