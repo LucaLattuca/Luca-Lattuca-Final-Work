@@ -12,7 +12,7 @@ import os
 import sys
 
 from analysers.pitch_analyser import PitchAnalyser
-from analysers.bpm_analyser import BpmAnalyser
+from analysers.tempo_analyser import TempoAnalyser
 
 
 TCP_HOST = "0.0.0.0"
@@ -52,7 +52,7 @@ SAMPLE_RATES = load_sample_rates()
 # ─── ANALYSERS ────────────────────────────────────────────────────────────────
 AVAILABLE_ANALYSERS = {
     "pitch": PitchAnalyser,
-    "bpm": BpmAnalyser,
+    "tempo": TempoAnalyser,
 }
 
 # holds every instance of each analyser (piano : pitch, guitar : pitch, genre...)

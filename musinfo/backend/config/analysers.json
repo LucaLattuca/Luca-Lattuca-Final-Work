@@ -20,15 +20,20 @@
             "description": "Pitch detection via CREPE",
             "explanation": "More accurate pitch tracking using a neural network, especially for vocals with vibrato or subtle inflections. Heavier than classic pitch detection (Aubio YIN)."
         },
-        "bpm": {
+        "tempo": {
             "target": "both",
-            "description": "BPM estimation via Aubio + TempoCNN",
-            "explanation": "Dual tempo output: a classic algorithm (Aubio) for instant beat tracking, and a neural network (TempoCNN) for stable long-term accuracy. Useful for syncing visuals to rhythm."
+            "description": "Tempo and BPM estimation via Aubio + TempoCNN",
+            "explanation": "Dual tempo output: a classic algorithm (Aubio) for instant beat tracking and pulse generation, and a neural network (TempoCNN) for stable long-term accuracy and tempo feel. Useful for syncing visuals to rhythm."
         },
         "dynamics": {
             "target": "wsl",
             "description": "Onset and amplitude detection via Essentia",
             "explanation": "Tracks when individual notes and hits start, and how loud they are in real time, using a lightweight signal processing algorithm. Best for per-instrument triggering of visual effects."
+        },
+        "timbre": {
+            "target": "wsl",
+            "description": "Spectral feature extraction via Essentia",
+            "explanation": "Analyses the colour and texture of each instrument's sound in real time using spectral descriptors : brightness, noisiness, weight, sharpness and timbral movement."
         }
     }
 }

@@ -18,7 +18,7 @@ const OutputPanel = ({
             const parts = address.split('/').filter(Boolean);
 
             // Pattern A: /analyser/instrument         (e.g. /genre/vocals, /pitch/vocals)
-            // Pattern B: /analyser/instrument/subkey  (e.g. /dynamics/piano/rms, /mood/mix/top)
+            // Pattern B: /analyser/instrument/subkey  (e.g. /dynamics/piano/rms, /tempo/mix/pulse)
             if (parts.length === 2) {
                 const [analyser, instrument] = parts;
 
@@ -51,8 +51,9 @@ const OutputPanel = ({
                     }
                 }));
 
-                // Reset onset pulse after 150ms so it flashes rather than staying lit
-                if (subkey === 'onset') {
+                // Flash-and-clear for trigger-style subkeys (onset, pulse, attack).
+                // After 150ms reset to '0' so the dot disappears and reappears on next beat.
+                if (subkey === 'onset' || subkey === 'pulse' || subkey === 'attack') {
                     setTimeout(() => {
                         setAnalyserData(prev => ({
                             ...prev,
@@ -60,7 +61,7 @@ const OutputPanel = ({
                                 ...prev[instrument],
                                 [analyser]: {
                                     ...prev[instrument]?.[analyser],
-                                    onset: '0'
+                                    [subkey]: '0'
                                 }
                             }
                         }));
@@ -99,13 +100,15 @@ const OutputPanel = ({
     };
     
 
-    const renderBpm = (bpmData) => {
-        if (!bpmData) return '—';
-        const { estimation, accurate } = bpmData;
+    const renderTempo = (tempoData) => {
+        if (!tempoData) return '—';
+        const { bpm, bpm_accurate, feel, pulse } = tempoData;
         return (
             <div>
-                {estimation != null && <div>estimation: {estimation} bpm</div>}
-                {accurate   != null && <div>accurate: {accurate} bpm</div>}
+                {pulse        != null && <div>pulse: {Number(pulse) === 1 ? '●' : '○'}</div>}
+                {bpm          != null && <div>bpm: {bpm}</div>}
+                {bpm_accurate != null && <div>bpm (accurate): {bpm_accurate}</div>}
+                {feel         != null && <div>feel: {feel}</div>}
             </div>
         );
     };
@@ -125,13 +128,29 @@ const OutputPanel = ({
         );
     };
 
+    const renderTimbre = (timbreData) => {
+        if (!timbreData) return '—';
+        const { centroid, flux, flatness, rolloff, mfcc_delta, attack } = timbreData;
+        return (
+            <div>
+                {centroid   != null && <div>brightness: {Number(centroid).toFixed(0)} Hz</div>}
+                {rolloff    != null && <div>weight: {Number(rolloff).toFixed(0)} Hz</div>}
+                {flatness   != null && <div>tonal/noisy: {Number(flatness).toFixed(3)}</div>}
+                {flux       != null && <div>busyness: {Number(flux).toFixed(3)}</div>}
+                {mfcc_delta != null && <div>change: {Number(mfcc_delta).toFixed(3)}</div>}
+                {attack     != null && <div>attack: {Number(attack) === 0 ? '·' : `${(Number(attack) * 1000).toFixed(0)}ms ▮`}</div>}
+            </div>
+        );
+    };
+
     // Safe fallback — always converts to string, never passes an object to JSX
     const renderValue = (analyser, instrument) => {
         const data = analyserData[instrument]?.[analyser];
         if (analyser === 'genre')    return renderGenre(data);
         if (analyser === 'mood')     return renderMood(data);
-        if (analyser === 'bpm')      return renderBpm(data);
+        if (analyser === 'tempo')    return renderTempo(data);
         if (analyser === 'dynamics') return renderDynamics(data);
+        if (analyser === 'timbre')   return renderTimbre(data);
         if (analyser === 'pitch_crepe') return data != null ? String(data) : '—';
         // Default: always stringify — prevents any object from slipping through to JSX
         return data != null ? String(data) : '—';
