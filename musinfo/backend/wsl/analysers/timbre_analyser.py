@@ -22,6 +22,12 @@ HOP_SIZE = 1024
 
 EMA_ALPHA = 0.3
 
+# Attack window: how much audio after an onset to feed LogAttackTime
+ATTACK_WINDOW_SEC = 0.15
+
+# Minimum gap between attack events per instrument (avoid double-fires)
+ATTACK_MIN_GAP_SEC = 0.08
+
 
 def get_windows_host_ip():
     result = subprocess.run(
@@ -51,10 +57,20 @@ class TimbreAnalyser:
         self._centroid = es.Centroid(range=sample_rate / 2)
         self._rolloff = es.RollOff(sampleRate=sample_rate)
         self._flatness = es.Flatness()
+    
         self._mfcc = es.MFCC(inputSize=FRAME_SIZE // 2 + 1,
                              sampleRate=sample_rate,
                              numberCoefficients=13)
-        
+
+         # Onset detection (drives the attack-time chain in the next step)
+        self._onset_detection = es.OnsetDetection(method="hfc",
+                                                  sampleRate=sample_rate)
+
+        # Rate-dependent buffer sizes
+        self._attack_window_samples = int(sample_rate * ATTACK_WINDOW_SEC)
+        self._odf_buffer_frames = int(sample_rate / HOP_SIZE)  # ~1s of ODF history
+
+
         self._flux_per_instrument = {}
 
         # EMA state for continuous values, keyed "instrument/descriptor"
@@ -63,12 +79,29 @@ class TimbreAnalyser:
         #  Previous-frame MFCC vector per instrument (for delta)
         self._prev_mfcc = {}
 
+
+        # Per-instrument state for the onset detection chain
+        self._odf_buffer = {}            # rolling ODF history
+        self._audio_history = {}         # raw audio ring for post-onset slicing
+        self._samples_seen = {}          # per-instrument sample clock
+        self._last_attack_sample = {}    # debounce across attack events
+        
+
     def push(self, audio: np.ndarray, instrument_name: str):
         if audio.dtype != np.float32:
             audio = audio.astype(np.float32)
 
         if np.sqrt(np.mean(audio ** 2)) < SILENCE_THRESHOLD:
             return
+
+        # Per-instrument raw-audio ring (capped — only need enough for the
+        # post-onset slice + a couple of frames of slack)
+        history = self._audio_history.get(instrument_name, np.zeros(0, dtype=np.float32))
+        history = np.concatenate([history, audio])
+        max_history = self._attack_window_samples + FRAME_SIZE * 2
+        if len(history) > max_history:
+            history = history[-max_history:]
+        self._audio_history[instrument_name] = history
 
         self._buffer = np.concatenate([self._buffer, audio])
 
@@ -80,6 +113,48 @@ class TimbreAnalyser:
             spectrum = self._spectrum(windowed)
 
             self._process_frame(spectrum, instrument_name)
+
+            self._samples_seen[instrument_name] = (
+                self._samples_seen.get(instrument_name, 0) + HOP_SIZE
+            )
+
+    def _update_odf_and_maybe_fire_attack(self, instrument_name: str, odf: float):
+        buf = self._odf_buffer.get(instrument_name, [])
+        buf.append(float(odf))
+        if len(buf) > self._odf_buffer_frames:
+            buf = buf[-self._odf_buffer_frames:]
+        self._odf_buffer[instrument_name] = buf
+
+        # Need enough history for Onsets to peak-pick meaningfully
+        if len(buf) < 8:
+            return
+
+        odf_matrix = np.array([buf], dtype=np.float32)
+        try:
+            onsets = es.Onsets()(odf_matrix, [1.0])
+        except RuntimeError:
+            return
+        if len(onsets) == 0:
+            return
+
+        # Onsets returns times in seconds relative to start of the ODF buffer.
+        # We only act on the most recent one, and only if it just appeared.
+        latest_onset_sec = float(onsets[-1])
+        buffer_duration_sec = len(buf) * HOP_SIZE / self.sample_rate
+        sec_from_end = buffer_duration_sec - latest_onset_sec
+
+        if sec_from_end > 2 * HOP_SIZE / self.sample_rate:
+            return
+
+        # Debounce: don't fire two events too close together
+        current_sample = self._samples_seen.get(instrument_name, 0)
+        last = self._last_attack_sample.get(instrument_name, -10 ** 9)
+        if (current_sample - last) / self.sample_rate < ATTACK_MIN_GAP_SEC:
+            return
+        self._last_attack_sample[instrument_name] = current_sample
+
+        # TODO (next commit): compute attack time on post-onset audio
+        _ = sec_from_end  # placeholder — used in next commit
 
     def _process_frame(self, spectrum: np.ndarray, instrument_name: str):
         centroid = self._centroid(spectrum)
@@ -95,6 +170,13 @@ class TimbreAnalyser:
         prev = self._prev_mfcc.get(instrument_name)
         mfcc_delta = float(np.linalg.norm(mfcc - prev)) if prev is not None else 0.0
         self._prev_mfcc[instrument_name] = mfcc
+
+
+        # Onset detection function — HFC ignores phase, so feed zeros
+        phase = np.zeros_like(spectrum)
+        odf = self._onset_detection(spectrum, phase)
+        self._update_odf_and_maybe_fire_attack(instrument_name, odf)
+
 
         self._send_continuous(instrument_name, "centroid", centroid)
         self._send_continuous(instrument_name, "rolloff", rolloff)
