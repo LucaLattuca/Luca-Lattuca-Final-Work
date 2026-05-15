@@ -12,6 +12,14 @@ MODEL_SR      = 11025
 SMOOTHING     = 3
 SEND_INTERVAL = 4.0
 
+# Tempo feel buckets (BPM thresholds — inclusive lower bound)
+TEMPO_FEEL_BUCKETS = [
+    (0,   "ballad"),
+    (60,  "slow"),
+    (90,  "medium"),
+    (120, "uptempo"),
+    (160, "fast"),
+]
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _get_windows_host_ip():
@@ -31,26 +39,30 @@ _MODEL_DIR = os.path.join(_HERE, "..", "models", "bpm_models")
 MODEL_FILE = os.path.join(_MODEL_DIR, "deepsquare-k16-3.pb")
 
 
-# Accurate BPM via Essentia TempoCNN (deepsquare-k16-3).
-# # Runs on WSL. Outputs to /bpm/{instrument}/accurate
-class BpmTempoCNNAnalyser:
+# Accurate tempo via Essentia TempoCNN (deepsquare-k16-3).
+# Runs on WSL. Outputs:
+#   /tempo/{instrument}/bpm_accurate -> smoothed BPM from neural network
+#   /tempo/{instrument}/feel         -> tempo feel label derived from BPM
+class TempoCNNAnalyser:
 
     def __init__(self, instrument_name: str, sample_rate: int = 48000):
         self.instrument_name = instrument_name
         self.input_sr        = sample_rate
         self.osc             = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
-        self.address = f"/bpm/{instrument_name}/accurate"
+        self.bpm_address     = f"/tempo/{instrument_name}/bpm_accurate"
+        self.feel_address    = f"/tempo/{instrument_name}/feel"
 
         self._model       = None
         self._audio_buf   = np.array([], dtype=np.float32)
         self._predictions = deque(maxlen=SMOOTHING)
         self._last_send   = 0.0
+        self._last_feel   = None
 
-        print(f"[bpm_tempo_cnn] '{instrument_name}' ready")
+        print(f"[tempo_cnn] '{instrument_name}' ready")
 
     def stop(self):
         self._model = None
-        print(f"[bpm_tempo_cnn] '{self.instrument_name}' stopped")
+        print(f"[tempo_cnn] '{self.instrument_name}' stopped")
     
     # Resample to 11025Hz and accumulate — Essentia TempoCNN needs 11025Hz input.
     def push(self, audio: np.ndarray):
@@ -72,7 +84,7 @@ class BpmTempoCNNAnalyser:
         import essentia.standard as es
         # patchHopSize=128 -> inference every ~6s; batchSize=1 for streaming
         self._model = es.TempoCNN(graphFilename=MODEL_FILE, patchHopSize=128, batchSize=1)
-        print(f"[bpm_tempo_cnn] model loaded: {MODEL_FILE}")
+        print(f"[tempo_cnn] model loaded: {MODEL_FILE}")
 
     # Run inference once we have enough audio (~12s at 11025Hz = 132300 samples).
     # TempoCNN returns (globalTempo, localTempos, localProbabilities).
@@ -91,20 +103,36 @@ class BpmTempoCNNAnalyser:
             for b in valid:
                 self._predictions.append(b)
         except Exception as e:
-            print(f"[bpm_tempo_cnn] inference error: {e}")
+            print(f"[tempo_cnn] inference error: {e}")
             return
         finally:
             # Slide buffer forward by 50% for overlap on next inference
             self._audio_buf = self._audio_buf[len(self._audio_buf) // 2:]
 
         smoothed = round(float(np.median(self._predictions)), 1)
+        feel = _bpm_to_feel(smoothed)
 
         now = time.time()
         if (now - self._last_send) >= SEND_INTERVAL:
-            self.osc.send_message(self.address, smoothed)
-            print(f"[bpm_tempo_cnn] {self.instrument_name}: {smoothed} BPM -> {self.address}")
+            self.osc.send_message(self.bpm_address, smoothed)
+            print(f"[tempo_cnn] {self.instrument_name}: {smoothed} BPM -> {self.bpm_address}")
             self._last_send = now
 
+        # Feel only sends when the bucket changes — avoids spamming the same label
+        if feel != self._last_feel:
+            self.osc.send_message(self.feel_address, feel)
+            print(f"[tempo_cnn] {self.instrument_name}: {feel} -> {self.feel_address}")
+            self._last_feel = feel
+
+
+
+# Map a BPM value to a tempo feel label.
+def _bpm_to_feel(bpm: float) -> str:
+    label = TEMPO_FEEL_BUCKETS[0][1]
+    for threshold, name in TEMPO_FEEL_BUCKETS:
+        if bpm >= threshold:
+            label = name
+    return label
 
 
 # Polyphase resample — exact rational ratio, no quality loss.

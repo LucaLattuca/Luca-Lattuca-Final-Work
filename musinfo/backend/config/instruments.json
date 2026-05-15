@@ -2,12 +2,13 @@
   "instruments": {
     "background_track": {
       "analysers": [
-        "mood"
+        "genre",
+        "tempo"
       ],
       "audio_device": {
         "channel": 0,
         "connected": true,
-        "device_id": 35,
+        "device_id": 32,
         "host_api": "Windows WASAPI",
         "max_input_channels": 2,
         "name": "Stereo Mix (Realtek(R) Audio)",
@@ -17,41 +18,13 @@
       "type": "audio"
     },
     "mix": {
-      "analysers": [
-        "pitch",
-        "bpm",
-        "dynamics",
-        "genre",
-        "pitch_crepe",
-        "mood"
-      ],
+      "analysers": [],
       "enabled": true,
       "mix_source": "internal",
       "source_instruments": [
         "backingtrack"
       ],
       "type": "mix"
-    },
-    "piano": {
-      "analysers": [
-        "dynamics",
-        "pitch",
-        "mood",
-        "bpm",
-        "pitch_crepe",
-        "genre"
-      ],
-      "audio_device": {
-        "channel": 0,
-        "connected": true,
-        "device_id": 1,
-        "host_api": "MME",
-        "max_input_channels": 2,
-        "name": "Microphone Array (Realtek(R) Au",
-        "sample_rate": 44100
-      },
-      "enabled": true,
-      "type": "audio"
     }
   }
 }
