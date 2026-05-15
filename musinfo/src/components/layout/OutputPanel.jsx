@@ -51,9 +51,9 @@ const OutputPanel = ({
                     }
                 }));
 
-                // Flash-and-clear for trigger-style subkeys (onset, pulse).
+                // Flash-and-clear for trigger-style subkeys (onset, pulse, attack).
                 // After 150ms reset to '0' so the dot disappears and reappears on next beat.
-                if (subkey === 'onset' || subkey === 'pulse') {
+                if (subkey === 'onset' || subkey === 'pulse' || subkey === 'attack') {
                     setTimeout(() => {
                         setAnalyserData(prev => ({
                             ...prev,
@@ -128,6 +128,21 @@ const OutputPanel = ({
         );
     };
 
+    const renderTimbre = (timbreData) => {
+        if (!timbreData) return '—';
+        const { centroid, flux, flatness, rolloff, mfcc_delta, attack } = timbreData;
+        return (
+            <div>
+                {centroid   != null && <div>brightness: {Number(centroid).toFixed(0)} Hz</div>}
+                {rolloff    != null && <div>weight: {Number(rolloff).toFixed(0)} Hz</div>}
+                {flatness   != null && <div>tonal/noisy: {Number(flatness).toFixed(3)}</div>}
+                {flux       != null && <div>busyness: {Number(flux).toFixed(3)}</div>}
+                {mfcc_delta != null && <div>change: {Number(mfcc_delta).toFixed(3)}</div>}
+                {attack     != null && <div>attack: {Number(attack) === 0 ? '·' : `${(Number(attack) * 1000).toFixed(0)}ms ▮`}</div>}
+            </div>
+        );
+    };
+
     // Safe fallback — always converts to string, never passes an object to JSX
     const renderValue = (analyser, instrument) => {
         const data = analyserData[instrument]?.[analyser];
@@ -135,6 +150,7 @@ const OutputPanel = ({
         if (analyser === 'mood')     return renderMood(data);
         if (analyser === 'tempo')    return renderTempo(data);
         if (analyser === 'dynamics') return renderDynamics(data);
+        if (analyser === 'timbre')   return renderTimbre(data);
         if (analyser === 'pitch_crepe') return data != null ? String(data) : '—';
         // Default: always stringify — prevents any object from slipping through to JSX
         return data != null ? String(data) : '—';

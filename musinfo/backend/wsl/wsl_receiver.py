@@ -16,6 +16,7 @@ from analysers.mood_analyser import MoodAnalyser
 from analysers.pitch_crepe_analyser import PitchCREPEAnalyser  
 from analysers.tempo_cnn_analyser import TempoCNNAnalyser
 from analysers.dynamics_analyser import DynamicsAnalyser
+from analysers.timbre_analyser import TimbreAnalyser
 
 TCP_HOST = "0.0.0.0"
 TCP_PORT = 5006
@@ -62,6 +63,7 @@ AVAILABLE_ANALYSERS = {
     "pitch_crepe": PitchCREPEAnalyser,
     "tempo": TempoCNNAnalyser,
     "dynamics": DynamicsAnalyser,
+    "timbre": TimbreAnalyser,
 }
 
 # holds every instance of each analyser (piano : pitch, guitar : pitch, genre...)
