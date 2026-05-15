@@ -12,6 +12,14 @@ MODEL_SR      = 11025
 SMOOTHING     = 3
 SEND_INTERVAL = 4.0
 
+# Tempo feel buckets (BPM thresholds — inclusive lower bound)
+TEMPO_FEEL_BUCKETS = [
+    (0,   "ballad"),
+    (60,  "slow"),
+    (90,  "medium"),
+    (120, "uptempo"),
+    (160, "fast"),
+]
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _get_windows_host_ip():
@@ -42,11 +50,13 @@ class TempoCNNAnalyser:
         self.input_sr        = sample_rate
         self.osc             = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
         self.bpm_address     = f"/tempo/{instrument_name}/bpm_accurate"
+        self.feel_address    = f"/tempo/{instrument_name}/feel"
 
         self._model       = None
         self._audio_buf   = np.array([], dtype=np.float32)
         self._predictions = deque(maxlen=SMOOTHING)
         self._last_send   = 0.0
+        self._last_feel   = None
 
         print(f"[tempo_cnn] '{instrument_name}' ready")
 
@@ -100,13 +110,29 @@ class TempoCNNAnalyser:
             self._audio_buf = self._audio_buf[len(self._audio_buf) // 2:]
 
         smoothed = round(float(np.median(self._predictions)), 1)
+        feel = _bpm_to_feel(smoothed)
 
         now = time.time()
         if (now - self._last_send) >= SEND_INTERVAL:
-            self.osc.send_message(self.address, smoothed)
-            print(f"[bpm_tempo_cnn] {self.instrument_name}: {smoothed} BPM -> {self.address}")
+            self.osc.send_message(self.bpm_address, smoothed)
+            print(f"[tempo_cnn] {self.instrument_name}: {smoothed} BPM -> {self.bpm_address}")
             self._last_send = now
 
+        # Feel only sends when the bucket changes — avoids spamming the same label
+        if feel != self._last_feel:
+            self.osc.send_message(self.feel_address, feel)
+            print(f"[tempo_cnn] {self.instrument_name}: {feel} -> {self.feel_address}")
+            self._last_feel = feel
+
+
+
+# Map a BPM value to a tempo feel label.
+def _bpm_to_feel(bpm: float) -> str:
+    label = TEMPO_FEEL_BUCKETS[0][1]
+    for threshold, name in TEMPO_FEEL_BUCKETS:
+        if bpm >= threshold:
+            label = name
+    return label
 
 
 # Polyphase resample — exact rational ratio, no quality loss.
