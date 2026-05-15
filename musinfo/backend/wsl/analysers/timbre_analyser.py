@@ -6,8 +6,12 @@ Instantiate with the sample rate of the incoming audio stream:
 
 Outputs over OSC (per instrument):
   /{instrument}/timbre/centroid     brightness            (float, Hz)
+  /{instrument}/timbre/flux         texture busyness      (float)
   /{instrument}/timbre/flatness     tonal vs noisy        (float, 0–1)
   /{instrument}/timbre/rolloff      spectral weight       (float, Hz)
+  /{instrument}/timbre/mfcc_delta   timbral change        (float)
+  /{instrument}/timbre/mfcc         raw 13-coeff vector   (float[13])
+  /{instrument}/timbre/attack       attack sharpness      (float, sec, event)
 """
 
 import subprocess
@@ -57,37 +61,34 @@ class TimbreAnalyser:
         self._centroid = es.Centroid(range=sample_rate / 2)
         self._rolloff = es.RollOff(sampleRate=sample_rate)
         self._flatness = es.Flatness()
-    
+        # Flux keeps internal previous-spectrum state — one instance per
+        # instrument so their histories don't interleave.
+        self._flux_per_instrument = {}
         self._mfcc = es.MFCC(inputSize=FRAME_SIZE // 2 + 1,
                              sampleRate=sample_rate,
                              numberCoefficients=13)
 
-        # Onset detection
-        self._onset_detection = es.OnsetDetection(method="hfc", sampleRate=sample_rate)
+        # Onset detection chain (drives the attack-time measurement)
+        self._onset_detection = es.OnsetDetection(method="hfc",
+                                                  sampleRate=sample_rate)
         self._envelope = es.Envelope(sampleRate=sample_rate)
         self._log_attack = es.LogAttackTime(sampleRate=sample_rate)
-
 
         # Rate-dependent buffer sizes
         self._attack_window_samples = int(sample_rate * ATTACK_WINDOW_SEC)
         self._odf_buffer_frames = int(sample_rate / HOP_SIZE)  # ~1s of ODF history
 
-
-        self._flux_per_instrument = {}
-
         # EMA state for continuous values, keyed "instrument/descriptor"
         self._ema = {}
 
-        #  Previous-frame MFCC vector per instrument (for delta)
+        # Previous-frame MFCC vector per instrument (for delta)
         self._prev_mfcc = {}
-
 
         # Per-instrument state for the onset detection chain
         self._odf_buffer = {}            # rolling ODF history
         self._audio_history = {}         # raw audio ring for post-onset slicing
         self._samples_seen = {}          # per-instrument sample clock
         self._last_attack_sample = {}    # debounce across attack events
-        
 
     def push(self, audio: np.ndarray, instrument_name: str):
         if audio.dtype != np.float32:
@@ -120,7 +121,38 @@ class TimbreAnalyser:
                 self._samples_seen.get(instrument_name, 0) + HOP_SIZE
             )
 
-    def _update_odf_and_maybe_fire_attack(self, instrument_name: str, odf: float):
+    def _process_frame(self, spectrum: np.ndarray, instrument_name: str):
+        centroid = self._centroid(spectrum)
+        rolloff = self._rolloff(spectrum)
+        flatness = self._flatness(spectrum)
+
+        flux_algo = self._flux_per_instrument.setdefault(
+            instrument_name, es.Flux()
+        )
+        flux = flux_algo(spectrum)
+
+        _, mfcc = self._mfcc(spectrum)
+        prev = self._prev_mfcc.get(instrument_name)
+        mfcc_delta = float(np.linalg.norm(mfcc - prev)) if prev is not None else 0.0
+        self._prev_mfcc[instrument_name] = mfcc
+
+        # Onset detection function — HFC ignores phase, so feed zeros
+        phase = np.zeros_like(spectrum)
+        odf = self._onset_detection(spectrum, phase)
+        self._detect_onset(instrument_name, odf)
+
+        self._send_continuous(instrument_name, "centroid", centroid)
+        self._send_continuous(instrument_name, "rolloff", rolloff)
+        self._send_continuous(instrument_name, "flatness", flatness)
+        self._send_continuous(instrument_name, "flux", flux)
+        self._send_continuous(instrument_name, "mfcc_delta", mfcc_delta)
+
+        # Raw MFCC vector — unsmoothed, so TD sees the fingerprint as-is
+        self.osc.send_message(
+            f"/{instrument_name}/timbre/mfcc", mfcc.tolist()
+        )
+
+    def _detect_onset(self, instrument_name: str, odf: float):
         buf = self._odf_buffer.get(instrument_name, [])
         buf.append(float(odf))
         if len(buf) > self._odf_buffer_frames:
@@ -153,7 +185,6 @@ class TimbreAnalyser:
         last = self._last_attack_sample.get(instrument_name, -10 ** 9)
         if (current_sample - last) / self.sample_rate < ATTACK_MIN_GAP_SEC:
             return
-
         self._last_attack_sample[instrument_name] = current_sample
 
         self._fire_attack(instrument_name, sec_from_end)
@@ -180,39 +211,6 @@ class TimbreAnalyser:
         # LogAttackTime returns log10 of attack time in seconds — convert back
         attack_sec = float(10 ** log_attack)
         self.osc.send_message(f"/{instrument_name}/timbre/attack", attack_sec)
-
-    def _process_frame(self, spectrum: np.ndarray, instrument_name: str):
-        centroid = self._centroid(spectrum)
-        rolloff = self._rolloff(spectrum)
-        flatness = self._flatness(spectrum)
-
-        flux_algo = self._flux_per_instrument.setdefault(
-            instrument_name, es.Flux()
-        )
-        flux = flux_algo(spectrum)
-
-        _, mfcc = self._mfcc(spectrum)
-        prev = self._prev_mfcc.get(instrument_name)
-        mfcc_delta = float(np.linalg.norm(mfcc - prev)) if prev is not None else 0.0
-        self._prev_mfcc[instrument_name] = mfcc
-
-
-        # Onset detection function — HFC ignores phase, so feed zeros
-        phase = np.zeros_like(spectrum)
-        odf = self._onset_detection(spectrum, phase)
-        self._update_odf_and_maybe_fire_attack(instrument_name, odf)
-
-
-        self._send_continuous(instrument_name, "centroid", centroid)
-        self._send_continuous(instrument_name, "rolloff", rolloff)
-        self._send_continuous(instrument_name, "flatness", flatness)
-        self._send_continuous(instrument_name, "flux", flux)
-        self._send_continuous(instrument_name, "mfcc_delta", mfcc_delta)
-
-        # Raw MFCC vector — unsmoothed, so TD sees the fingerprint as-is
-        self.osc.send_message(
-            f"/{instrument_name}/timbre/mfcc", mfcc.tolist()
-        )
 
     def _send_continuous(self, instrument_name: str, name: str, value: float):
         key = f"{instrument_name}/{name}"
