@@ -25,6 +25,7 @@ class TempoAnalyser:
         self.instrument_name = instrument_name
         self.sample_rate     = sample_rate
         self.osc             = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
+        self.pulse_address   = f"/tempo/{instrument_name}/pulse"
         self.bpm_address     = f"/tempo/{instrument_name}/bpm"
 
         self._tempo = aubio.tempo("default", HOP_SIZE, HOP_SIZE, sample_rate)
@@ -50,12 +51,15 @@ class TempoAnalyser:
     def stop(self):
         print(f"[tempo_analyser] '{self.instrument_name}' stopped")
 
+    # Feed one hop to aubio, fire pulse on every beat, smooth + send BPM.
     def _process_hop(self, hop: np.ndarray):
         is_beat = self._tempo(hop)
         self._sample_count += HOP_SIZE
 
         if is_beat[0]:
-            now = self._sample_count / SAMPLE_RATE
+            # Pulse fires on every detected beat — no smoothing, no rate limit
+            self.osc.send_message(self.pulse_address, 1)
+
             now = self._sample_count / self.sample_rate
             if self._last_beat is not None:
                 interval = now - self._last_beat
@@ -69,4 +73,6 @@ class TempoAnalyser:
 
         now_wall = time.time()
         if self._current_bpm and (now_wall - self._last_send) >= SEND_INTERVAL:
+            self.osc.send_message(self.bpm_address, self._current_bpm)
+            print(f"[tempo_analyser] {self.instrument_name}: {self._current_bpm} BPM -> {self.bpm_address}")
             self._last_send = now_wall
