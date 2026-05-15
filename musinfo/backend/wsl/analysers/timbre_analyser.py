@@ -70,6 +70,8 @@ class TimbreAnalyser:
                              sampleRate=sample_rate,
                              numberCoefficients=13)
 
+        self._last_onset_time = -1.0
+
         # Onset detection chain (drives the attack-time measurement)
         self._onset_detection = es.OnsetDetection(method="hfc",
                                                   sampleRate=sample_rate)
@@ -126,7 +128,7 @@ class TimbreAnalyser:
 
     def _process_frame(self, spectrum):
         centroid = self._centroid(spectrum)
-        rolloff = self._rolloff(spectrum)
+        rolloff = self._rolloff(np.sqrt(spectrum + 1e-12))
         flatness = self._flatness(spectrum)
         flux = self._flux(spectrum)
         print(f"[timbre debug] centroid={centroid:.1f} rolloff={rolloff:.1f} "
@@ -158,7 +160,20 @@ class TimbreAnalyser:
     def _detect_onset(self, odf):
         self._odf_buffer.append(float(odf))
         if len(self._odf_buffer) > self._odf_buffer_frames:
+            trim_count = len(self._odf_buffer) - self._odf_buffer_frames
+            trim_seconds = trim_count * HOP_SIZE / self.sample_rate
             self._odf_buffer = self._odf_buffer[-self._odf_buffer_frames:]
+            # Shift last-onset time to match the new buffer origin
+            self._last_onset_time -= trim_seconds
+            # If it went negative, it's now off the buffer; reset
+            if self._last_onset_time < 0:
+                self._last_onset_time = -1.0
+
+        if len(self._odf_buffer) % 20 == 0:
+            recent = self._odf_buffer[-5:]
+            print(f"[attack debug] ODF last 5: {[f'{x:.3f}' for x in recent]} "
+                  f"(buf_len={len(self._odf_buffer)})", flush=True)
+    
 
         # Need enough history for Onsets to peak-pick meaningfully
         if len(self._odf_buffer) < 8:
@@ -168,51 +183,62 @@ class TimbreAnalyser:
         try:
             onsets = es.Onsets()(odf_matrix, [1.0])
         except RuntimeError:
+            print(f"[attack debug] Onsets RuntimeError: {e}", flush=True)
             return
+        
         if len(onsets) == 0:
+            if len(self._odf_buffer) % 50 == 0:
+                print(f"[attack debug] no onsets in buffer (buf len={len(self._odf_buffer)}, "
+                      f"max ODF={max(self._odf_buffer):.3f})", flush=True)
             return
 
         # Onsets returns times in seconds relative to start of the ODF buffer.
         # We only act on the most recent one, and only if it just appeared.
         latest_onset_sec = float(onsets[-1])
-        buffer_duration_sec = len(self._odf_buffer) * HOP_SIZE / self.sample_rate
-        sec_from_end = buffer_duration_sec - latest_onset_sec
 
-        if sec_from_end > 2 * HOP_SIZE / self.sample_rate:
+        # Has this onset already been processed? Onsets() returns the same onsets
+        # repeatedly as the buffer grows, so we track which we've fired on.
+        if latest_onset_sec <= self._last_onset_time + 0.01:  # 10ms tolerance for jitter
             return
 
-        # Debounce: don't fire two events too close together
+        self._last_onset_time = latest_onset_sec
+
+        # Debounce against the previous fired attack
         if (self._samples_seen - self._last_attack_sample) / self.sample_rate < ATTACK_MIN_GAP_SEC:
             return
         self._last_attack_sample = self._samples_seen
-        print(f"[timbre debug] onset detected, sec_from_end={sec_from_end:.4f}", flush=True)
+
+        # Compute sec_from_end for _fire_attack
+        buffer_duration_sec = len(self._odf_buffer) * HOP_SIZE / self.sample_rate
+        sec_from_end = buffer_duration_sec - latest_onset_sec
+
         self._fire_attack(sec_from_end)
 
     def _fire_attack(self, sec_from_end):
-        print(f"[timbre debug] _fire_attack called, history_len={len(self._audio_history)}, "
-          f"need={self._attack_window_samples}", flush=True)
         if len(self._audio_history) < self._attack_window_samples:
+            print(f"[attack debug] _fire_attack: history too short "
+                  f"({len(self._audio_history)} < {self._attack_window_samples})", flush=True)
             return
 
-        # Slice the post-onset window from the raw audio history
         onset_offset_samples = int(sec_from_end * self.sample_rate)
         start = max(0, len(self._audio_history) - onset_offset_samples - 1)
         end = start + self._attack_window_samples
         if end > len(self._audio_history):
+            print(f"[attack debug] _fire_attack: end past history "
+                  f"(start={start}, end={end}, hist_len={len(self._audio_history)})", flush=True)
             return
         segment = self._audio_history[start:end].astype(np.float32)
 
         try:
             envelope = self._envelope(segment)
             log_attack, _, _ = self._log_attack(envelope)
-        except RuntimeError:
+        except RuntimeError as e:
+            print(f"[attack debug] LogAttackTime RuntimeError: {e}", flush=True)
             return
 
-        # LogAttackTime returns log10 of attack time in seconds — convert back
         attack_sec = float(10 ** log_attack)
-        self.osc.send_message(
-            f"/timbre/{self.instrument_name}/attack", attack_sec
-        )
+        print(f"[attack debug] ATTACK SENT: {attack_sec:.4f}s", flush=True)
+        self.osc.send_message(f"/timbre/{self.instrument_name}/attack", attack_sec)
 
     def _send_continuous(self, name, value):
         smoothed = self._smooth(name, float(value))
