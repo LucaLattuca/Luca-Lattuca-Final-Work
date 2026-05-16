@@ -62,6 +62,10 @@ FORCED_KEY_ENABLED = False
 FORCED_KEY_ROOT    = "C"
 FORCED_KEY_SCALE   = "major"
 
+# How many HPCP frames we accumulate before running chord detection.
+# More frames = more context = stabler chords, but slightly more latency.
+CHORD_DETECTION_WINDOW = 10
+
 
 class HarmonyAnalyser:
     """One instance per instrument. Holds that stream's audio and history."""
@@ -77,7 +81,7 @@ class HarmonyAnalyser:
         # We collect them here until there's enough for a full frame.
         self._accumulator = np.array([], dtype=np.float32)
 
-        self._chord_history = deque(maxlen=SMOOTHING_WINDOW)
+        self._hpcp_buffer = deque(maxlen=SMOOTHING_WINDOW)
 
         # Last frame's chroma, kept so we can measure how much the harmony
         # changed between this frame and the previous one.
@@ -87,6 +91,10 @@ class HarmonyAnalyser:
         self._hpss_context = np.zeros(HPSS_CONTEXT_SIZE, dtype=np.float32)
 
         self.osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
+
+        # Chord label history for smoothing — separate from the HPCP history
+        # that ChordsDetection reads.
+        self._chord_history_labels = deque(maxlen=SMOOTHING_WINDOW)
 
         self._init_algorithms()
 
@@ -125,6 +133,17 @@ class HarmonyAnalyser:
             weightType  = 'cosine',
         )
 
+        # ChordsDetection expects a sequence of HPCP frames, not one at a time.
+        # It matches the sequence against chord templates and returns the best fit.
+        self._chords = es.ChordsDetection(
+            sampleRate  = self.sample_rate,
+            hopSize     = HOP_SIZE,
+            windowSize  = 0.5,   # seconds of context it uses internally
+        )
+
+
+
+
     # Called by the receiver with each incoming audio chunk. We buffer the
     # audio and pull out FRAME_SIZE-long frames as they become available.
     def push(self, audio):
@@ -135,6 +154,9 @@ class HarmonyAnalyser:
             self._accumulator = self._accumulator[HOP_SIZE:]
             result = self.analyse(frame)
             self._handle_result(result)
+
+
+
 
     # Strips drum/percussive energy from a frame before harmonic analysis.
     # HPSS works by separating horizontal lines (steady pitches = harmonic)
@@ -150,6 +172,44 @@ class HarmonyAnalyser:
         # Return only the harmonic version of the current frame,
         # which is the tail end of the context window.
         return harmonic[-len(frame):]
+
+
+
+    # Splits a chord string like "C#m" into ("C#", "minor").
+    # Essentia's quality labels: "" = major, "m" = minor, "7", "maj7", etc.
+    def _parse_chord(self, chord_str: str) -> tuple:
+        if not chord_str or chord_str == "N":
+            return None, None
+
+        QUALITY_MAP = {
+            "m":    "minor",
+            "M":    "major",
+            "7":    "dominant7",
+            "m7":   "minor7",
+            "M7":   "major7",
+            "sus2": "sus2",
+            "sus4": "sus4",
+            "":     "major",
+        }
+
+        # Root is one character (e.g. "C") or two if it has an accidental ("C#", "Bb").
+        if len(chord_str) > 1 and chord_str[1] in ("#", "b"):
+            root    = chord_str[:2]
+            quality = chord_str[2:]
+        else:
+            root    = chord_str[:1]
+            quality = chord_str[1:]
+
+        return root, QUALITY_MAP.get(quality, quality)
+
+    # Returns the most common chord seen across the smoothing window.
+    # Prevents the reported chord from flickering on every frame.
+    def _smooth_chord_labels(self) -> str:
+        if not self._chord_history_labels:
+            return None
+        labels = list(self._chord_history_labels)
+        return max(set(labels), key=labels.count)
+    
 
 
     # Computes three descriptors from the HPCP vector.
@@ -197,8 +257,27 @@ class HarmonyAnalyser:
         result["chroma_spread"]   = spread
         result["harmonic_change"] = harmonic_change
 
+        # Accumulate HPCP frames and run chord detection across the window.
+        self._hpcp_buffer.append(hpcp)
+
+        if len(self._hpcp_buffer) >= 2:
+            hpcp_matrix          = np.array(self._hpcp_buffer)
+            chords, strengths    = self._chords(hpcp_matrix)
+
+            raw_chord            = chords[-1]   # most recent frame's detection
+            strength             = float(strengths[-1])
+
+            self._chord_history_labels.append(raw_chord)
+
+            chord                = self._smooth_chord_labels()
+            root, quality        = self._parse_chord(chord)
+
+            result["chord"]          = chord
+            result["chord_root"]     = root
+            result["chord_quality"]  = quality
+            result["chord_strength"] = strength
+
         return result
-    
 
     # Sends results over OSC and prints them. Filled in once analysis works.
     def _handle_result(self, result: dict):
