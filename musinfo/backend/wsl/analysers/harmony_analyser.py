@@ -98,7 +98,32 @@ class HarmonyAnalyser:
     # Essentia algorithms are created once and reused — building them per
     # frame would be wasteful. Each is told the device's sample rate here.
     def _init_algorithms(self):
-        pass  # filled in step by step
+        # Windowing reduces spectral leakage — without it, a pure sine wave
+        # smears energy across neighbouring frequencies in the FFT.
+        self._window    = es.Windowing(type='hann', size=FRAME_SIZE)
+        self._spectrum  = es.Spectrum(size=FRAME_SIZE)
+
+        # SpectralPeaks picks the loudest, most prominent frequencies out of
+        # the spectrum. Only these are passed to HPCP — feeding the raw
+        # spectrum would let noise and harmonics pollute the pitch classes.
+        self._peaks     = es.SpectralPeaks(
+            sampleRate       = self.sample_rate,
+            magnitudeThreshold = 0.001,  # ignore peaks quieter than this
+            minFrequency     = 40.0,     # below this is mostly bass/noise
+            maxFrequency     = 5000.0,   # above this are high overtones we don't need
+            orderBy          = 'magnitude',
+        )
+
+        # HPCP maps each peak frequency to its pitch class, summing energy
+        # across all octaves. size=12 gives one value per semitone (C–B).
+        self._hpcp      = es.HPCP(
+            size        = HPCP_SIZE,
+            sampleRate  = self.sample_rate,
+            minFrequency = 40.0,
+            maxFrequency = 5000.0,
+            harmonics   = 8,   # how many overtones of each peak to consider
+            weightType  = 'cosine',
+        )
 
     # Called by the receiver with each incoming audio chunk. We buffer the
     # audio and pull out FRAME_SIZE-long frames as they become available.
@@ -128,8 +153,17 @@ class HarmonyAnalyser:
 
     # Runs the full chord/key/dissonance analysis on a single frame.
     def analyse(self, frame: np.ndarray) -> dict:
-        frame = self._filter_percussive(frame)
-        return self._empty_result()
+        frame  = self._filter_percussive(frame)
+        result = self._empty_result()
+
+        windowed  = self._window(frame)
+        spectrum  = self._spectrum(windowed)
+        freqs, mags = self._peaks(spectrum)
+        hpcp      = self._hpcp(freqs, mags)
+
+        result["hpcp"] = hpcp.tolist()
+
+        return result
 
     # Sends results over OSC and prints them. Filled in once analysis works.
     def _handle_result(self, result: dict):
