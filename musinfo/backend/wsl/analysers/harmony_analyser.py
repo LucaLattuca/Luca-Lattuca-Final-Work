@@ -18,6 +18,7 @@ import numpy as np
 import librosa
 import essentia.standard as es
 from pythonosc import udp_client
+import json 
 
 
 # --- OSC config --------------------------------------------------------------
@@ -184,6 +185,9 @@ class HarmonyAnalyser:
             # profileType = 'edma',  # works well with jazz
         )
 
+        # Dissonance measures perceptual roughness from the spectral peaks.
+        # Based on the Plomp-Levelt model — 0 is consonant, 1 is maximally rough.
+        self._dissonance = es.Dissonance()
 
 
 
@@ -325,6 +329,12 @@ class HarmonyAnalyser:
         freqs, mags     = self._peaks(spectrum)
         hpcp            = self._hpcp(freqs, mags)
 
+        # Dissonance needs the peaks sorted by frequency, not magnitude.
+        sorted_indices  = np.argsort(freqs)
+        sorted_freqs    = freqs[sorted_indices]
+        sorted_mags     = mags[sorted_indices]
+        result["dissonance"] = float(self._dissonance(sorted_freqs, sorted_mags))
+
         result["hpcp"]  = hpcp.tolist()
 
         centroid, spread, harmonic_change = self._chroma_descriptors(hpcp)
@@ -369,7 +379,35 @@ class HarmonyAnalyser:
 
     # Sends results over OSC and prints them. Filled in once analysis works.
     def _handle_result(self, result: dict):
-        pass
+        self._display(result)
+
+        # Full result for TouchDesigner — everything the analyser produces.
+        self.osc_client.send_message(
+            f"/harmony/{self.instrument_name}",
+            json.dumps(result)
+        )
+
+        # Frontend subset — only the six fields the UI reads.
+        self.osc_client.send_message(
+            f"/harmony/{self.instrument_name}/frontend",
+            json.dumps(self.frontend_view(result))
+        )
+
+    def _display(self, result: dict):
+        chord   = result["chord"] or "—"
+        key     = f"{result['key']} {result['scale']}" if result["key"] else "—"
+        roman   = result["roman_degree"] or "—"
+        quality = result["chord_quality"] or "—"
+        conf    = f"{result['key_confidence']*100:.0f}%"
+        diss    = f"{result['dissonance']:.2f}"
+        forced  = " (forced)" if result["key_forced"] else ""
+
+        print(f"\n[harmony/{self.instrument_name}] ──────────────────────────────")
+        print(f"  chord      {chord}  ({quality})  {roman}")
+        print(f"  key        {key}{forced}  confidence {conf}")
+        print(f"  dissonance {diss}   change {result['harmonic_change']:.2f}")
+        print("──────────────────────────────────────────────────────────────")
+        sys.stdout.flush()
 
     # The shape of every result this analyser produces. Every code path
     # returns this exact set of keys, so nothing downstream sees a missing field.
