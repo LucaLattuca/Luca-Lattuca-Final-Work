@@ -15,6 +15,7 @@ import subprocess
 from collections import deque
 
 import numpy as np
+import librosa
 import essentia.standard as es
 from pythonosc import udp_client
 
@@ -51,6 +52,10 @@ HPCP_SIZE        = 12  # one value per pitch class: C, C#, D, ... B
 # the most common one so the reported chord is stable.
 SMOOTHING_WINDOW = 5
 
+# HPSS needs surrounding context to distinguish harmonic from percussive energy.
+# This is how many samples of recent audio we feed it — roughly 0.34s at 48kHz.
+HPSS_CONTEXT_SIZE = 16384
+
 # When forced key is on, we skip key detection and assume this key instead.
 # This narrows chord detection to that key's chords. Off by default.
 FORCED_KEY_ENABLED = False
@@ -78,6 +83,9 @@ class HarmonyAnalyser:
         # changed between this frame and the previous one.
         self._hpcp_prev = None
 
+        # Rolling window of recent audio that HPSS runs across.
+        self._hpss_context = np.zeros(HPSS_CONTEXT_SIZE, dtype=np.float32)
+
         self.osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
 
         self._init_algorithms()
@@ -103,8 +111,24 @@ class HarmonyAnalyser:
             result = self.analyse(frame)
             self._handle_result(result)
 
+    # Strips drum/percussive energy from a frame before harmonic analysis.
+    # HPSS works by separating horizontal lines (steady pitches = harmonic)
+    # from vertical lines (short bursts = percussive) in the spectrogram.
+    # margin=3.0 means energy has to look clearly harmonic to be kept.
+    def _filter_percussive(self, frame: np.ndarray) -> np.ndarray:
+        self._hpss_context = np.concatenate([
+            self._hpss_context[len(frame):], frame
+        ]).astype(np.float32)
+
+        harmonic = librosa.effects.harmonic(self._hpss_context, margin=3.0)
+
+        # Return only the harmonic version of the current frame,
+        # which is the tail end of the context window.
+        return harmonic[-len(frame):]
+
     # Runs the full chord/key/dissonance analysis on a single frame.
     def analyse(self, frame: np.ndarray) -> dict:
+        frame = self._filter_percussive(frame)
         return self._empty_result()
 
     # Sends results over OSC and prints them. Filled in once analysis works.
