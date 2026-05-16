@@ -116,7 +116,7 @@ class HarmonyAnalyser:
         # We collect them here until there's enough for a full frame.
         self._accumulator = np.array([], dtype=np.float32)
 
-        self._hpcp_buffer = deque(maxlen=SMOOTHING_WINDOW)
+        self._hpcp_buffer = deque(maxlen=CHORD_DETECTION_WINDOW)
 
         # Last frame's chroma, kept so we can measure how much the harmony
         # changed between this frame and the previous one.
@@ -259,14 +259,14 @@ class HarmonyAnalyser:
     
 
 
-    # Detects the musical key from the current HPCP vector, or returns the
+    # Detects the musical key from the audio frame, or returns the
     # forced key if that override is active.
-    def _detect_key(self, hpcp: np.ndarray) -> tuple:
+    def _detect_key(self, frame: np.ndarray) -> tuple:
         if self.forced_key is not None:
             root, scale = self.forced_key
             return root, scale, 1.0, True
 
-        key, scale, confidence = self._key_extractor(hpcp)
+        key, scale, confidence = self._key_extractor(frame)
         return key, scale, float(confidence), False
 
     # Works out where the chord root sits in the key's scale and returns
@@ -362,7 +362,7 @@ class HarmonyAnalyser:
             result["chord_strength"] = strength
 
         # Key detection runs on the single HPCP frame — fast, no buffer needed.
-        key, scale, confidence, forced = self._detect_key(hpcp)
+        key, scale, confidence, forced = self._detect_key(frame)
 
         result["key"]            = key
         result["scale"]          = scale
@@ -377,7 +377,7 @@ class HarmonyAnalyser:
 
         return result
 
-    # Sends results over OSC and prints them. Filled in once analysis works.
+    # Sends results over OSC
     def _handle_result(self, result: dict):
         self._display(result)
 
