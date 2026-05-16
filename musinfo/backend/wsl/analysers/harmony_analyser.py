@@ -151,19 +151,54 @@ class HarmonyAnalyser:
         # which is the tail end of the context window.
         return harmonic[-len(frame):]
 
+
+    # Computes three descriptors from the HPCP vector.
+    # These describe the shape and movement of the harmony without naming a chord.
+    def _chroma_descriptors(self, hpcp: np.ndarray) -> tuple:
+        indices = np.arange(HPCP_SIZE)
+        total   = hpcp.sum()
+
+        if total < 1e-6:
+            # Frame is silent or near-silent — return neutral values.
+            return 0.0, 0.0, 0.0
+
+        # Weighted average of pitch class indices by their energy.
+        centroid = float(np.sum(indices * hpcp) / total)
+
+        # Weighted standard deviation around the centroid — how spread out the energy is.
+        spread   = float(np.sqrt(np.sum(((indices - centroid) ** 2) * hpcp) / total))
+
+        # Euclidean distance between this frame's HPCP and the previous one.
+        # A large value means the harmony just changed significantly.
+        if self._hpcp_prev is not None:
+            harmonic_change = float(np.linalg.norm(hpcp - self._hpcp_prev))
+        else:
+            harmonic_change = 0.0
+
+        self._hpcp_prev = hpcp.copy()
+
+        return centroid, spread, harmonic_change
+    
+
     # Runs the full chord/key/dissonance analysis on a single frame.
     def analyse(self, frame: np.ndarray) -> dict:
         frame  = self._filter_percussive(frame)
         result = self._empty_result()
 
-        windowed  = self._window(frame)
-        spectrum  = self._spectrum(windowed)
-        freqs, mags = self._peaks(spectrum)
-        hpcp      = self._hpcp(freqs, mags)
+        windowed        = self._window(frame)
+        spectrum        = self._spectrum(windowed)
+        freqs, mags     = self._peaks(spectrum)
+        hpcp            = self._hpcp(freqs, mags)
 
-        result["hpcp"] = hpcp.tolist()
+        result["hpcp"]  = hpcp.tolist()
+
+        centroid, spread, harmonic_change = self._chroma_descriptors(hpcp)
+        result["chroma_centroid"] = centroid
+        result["chroma_spread"]   = spread
+        result["harmonic_change"] = harmonic_change
 
         return result
+    
 
     # Sends results over OSC and prints them. Filled in once analysis works.
     def _handle_result(self, result: dict):
