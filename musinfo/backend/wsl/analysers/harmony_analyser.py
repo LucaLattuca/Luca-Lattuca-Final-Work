@@ -63,6 +63,12 @@ FORCED_KEY_ENABLED = False
 FORCED_KEY_ROOT    = "C"
 FORCED_KEY_SCALE   = "major"
 
+# Key detection needs more context than chord detection to be stable.
+# We run it less frequently and smooth the result.
+KEY_DETECTION_WINDOW = 20  # frames before re-evaluating the key
+KEY_SMOOTHING_WINDOW = 5   # keep last N key results and take the most common
+
+
 # How many HPCP frames we accumulate before running chord detection.
 # More frames = more context = stabler chords, but slightly more latency.
 CHORD_DETECTION_WINDOW = 10
@@ -111,6 +117,10 @@ class HarmonyAnalyser:
         self.instrument_name = instrument_name
         self.sample_rate     = sample_rate
         self.forced_key      = forced_key
+
+        self._key_buffer        = deque(maxlen=KEY_DETECTION_WINDOW)
+        self._key_history       = deque(maxlen=KEY_SMOOTHING_WINDOW)
+        self._last_key_result   = (None, None, 0.0, False)  # cached between updates
 
         # Audio chunks from the receiver are whatever size the device sends.
         # We collect them here until there's enough for a full frame.
@@ -177,12 +187,9 @@ class HarmonyAnalyser:
         )
 
 
-        # KeyExtractor runs on the HPCP profile and returns the most likely
-        # key, scale (major/minor), and a confidence score.
-        self._key_extractor = es.KeyExtractor(
-            profileType = 'temperley',  # well-tested profile for Western tonal music
-            # profileType = 'krumhansl',  # well-tested profile for Western tonal music
-            # profileType = 'edma',  # works well with jazz
+        # Key takes a mean HPCP vector and returns key/scale/confidence.
+        self._key_extractor = es.Key(
+            profileType = 'temperley',
         )
 
         # Dissonance measures perceptual roughness from the spectral peaks.
@@ -259,15 +266,35 @@ class HarmonyAnalyser:
     
 
 
-    # Detects the musical key from the audio frame, or returns the
-    # forced key if that override is active.
-    def _detect_key(self, frame: np.ndarray) -> tuple:
+    # Detects key from a window of recent HPCP frames rather than a single frame.
+    # KeyExtractor is only re-run when the buffer is full, then the result is
+    # smoothed across the last few detections so the key doesn't flicker.
+    def _detect_key(self, hpcp: np.ndarray) -> tuple:
         if self.forced_key is not None:
             root, scale = self.forced_key
             return root, scale, 1.0, True
 
-        key, scale, confidence = self._key_extractor(frame)
-        return key, scale, float(confidence), False
+        self._key_buffer.append(hpcp)
+
+        # Only re-run detection when the buffer is full.
+        if len(self._key_buffer) < KEY_DETECTION_WINDOW:
+            return self._last_key_result
+
+        # Average the HPCP frames in the buffer into one profile and detect key.
+        mean_hpcp           = np.mean(np.array(self._key_buffer), axis=0).astype(np.float32)
+        key, scale, conf    = self._key_extractor(mean_hpcp)
+        self._key_buffer.clear()
+
+        self._key_history.append((key, scale, float(conf)))
+
+        # Most common key across recent detections.
+        keys   = [(k, s) for k, s, _ in self._key_history]
+        best   = max(set(keys), key=keys.count)
+        avg_conf = float(np.mean([c for k, s, c in self._key_history if (k, s) == best]))
+
+        self._last_key_result = (best[0], best[1], avg_conf, False)
+        return self._last_key_result
+
 
     # Works out where the chord root sits in the key's scale and returns
     # the Roman numeral and a plain-word description.
@@ -361,8 +388,8 @@ class HarmonyAnalyser:
             result["chord_quality"]  = quality
             result["chord_strength"] = strength
 
-        # Key detection runs on the single HPCP frame — fast, no buffer needed.
-        key, scale, confidence, forced = self._detect_key(frame)
+        # Key detection runs on hpcp buffer
+        key, scale, confidence, forced = self._detect_key(hpcp)
 
         result["key"]            = key
         result["scale"]          = scale
