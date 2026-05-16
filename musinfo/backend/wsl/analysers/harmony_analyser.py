@@ -66,6 +66,40 @@ FORCED_KEY_SCALE   = "major"
 # More frames = more context = stabler chords, but slightly more latency.
 CHORD_DETECTION_WINDOW = 10
 
+# Chromatic map 
+
+# Semitone position of each note name, used to compute intervals between roots.
+NOTE_SEMITONES = {
+    "C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3,
+    "E": 4, "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8,
+    "Ab": 8, "A": 9, "A#": 10, "Bb": 10, "B": 11
+}
+
+
+# Scale degree templates: interval in semitones -> (roman numeral, plain name).
+# Major and minor have different sets of diatonic degrees.
+# Chords whose root falls outside these intervals are non-diatonic.
+SCALE_DEGREES = {
+    "major": {
+        0:  ("I",   "tonic"),
+        2:  ("II",  "supertonic"),
+        4:  ("III", "mediant"),
+        5:  ("IV",  "subdominant"),
+        7:  ("V",   "dominant"),
+        9:  ("VI",  "submediant"),
+        11: ("VII", "leading tone"),
+    },
+    "minor": {
+        0:  ("i",   "tonic"),
+        2:  ("ii",  "supertonic"),
+        3:  ("III", "mediant"),
+        5:  ("iv",  "subdominant"),
+        7:  ("v",   "dominant"),
+        8:  ("VI",  "submediant"),
+        10: ("VII", "subtonic"),
+    },
+}
+
 
 class HarmonyAnalyser:
     """One instance per instrument. Holds that stream's audio and history."""
@@ -142,6 +176,15 @@ class HarmonyAnalyser:
         )
 
 
+        # KeyExtractor runs on the HPCP profile and returns the most likely
+        # key, scale (major/minor), and a confidence score.
+        self._key_extractor = es.KeyExtractor(
+            profileType = 'temperley',  # well-tested profile for Western tonal music
+            # profileType = 'krumhansl',  # well-tested profile for Western tonal music
+            # profileType = 'edma',  # works well with jazz
+        )
+
+
 
 
     # Called by the receiver with each incoming audio chunk. We buffer the
@@ -212,6 +255,38 @@ class HarmonyAnalyser:
     
 
 
+    # Detects the musical key from the current HPCP vector, or returns the
+    # forced key if that override is active.
+    def _detect_key(self, hpcp: np.ndarray) -> tuple:
+        if self.forced_key is not None:
+            root, scale = self.forced_key
+            return root, scale, 1.0, True
+
+        key, scale, confidence = self._key_extractor(hpcp)
+        return key, scale, float(confidence), False
+
+    # Works out where the chord root sits in the key's scale and returns
+    # the Roman numeral and a plain-word description.
+    # Returns (None, None) for non-diatonic chords rather than guessing.
+    def _roman_numeral(self, chord_root: str, key: str, scale: str) -> tuple:
+        if not chord_root or not key or not scale:
+            return None, None
+
+        if chord_root not in NOTE_SEMITONES or key not in NOTE_SEMITONES:
+            return None, None
+
+        # How many semitones above the key root is the chord root?
+        interval = (NOTE_SEMITONES[chord_root] - NOTE_SEMITONES[key]) % 12
+
+        degrees  = SCALE_DEGREES.get(scale, {})
+        if interval not in degrees:
+            # Chord root is outside the scale — non-diatonic, don't guess.
+            return None, None
+
+        return degrees[interval]
+    
+
+
     # Computes three descriptors from the HPCP vector.
     # These describe the shape and movement of the harmony without naming a chord.
     def _chroma_descriptors(self, hpcp: np.ndarray) -> tuple:
@@ -257,25 +332,38 @@ class HarmonyAnalyser:
         result["chroma_spread"]   = spread
         result["harmonic_change"] = harmonic_change
 
-        # Accumulate HPCP frames and run chord detection across the window.
         self._hpcp_buffer.append(hpcp)
 
         if len(self._hpcp_buffer) >= 2:
-            hpcp_matrix          = np.array(self._hpcp_buffer)
-            chords, strengths    = self._chords(hpcp_matrix)
+            hpcp_matrix       = np.array(self._hpcp_buffer)
+            chords, strengths = self._chords(hpcp_matrix)
 
-            raw_chord            = chords[-1]   # most recent frame's detection
-            strength             = float(strengths[-1])
+            raw_chord         = chords[-1]
+            strength          = float(strengths[-1])
 
             self._chord_history_labels.append(raw_chord)
 
-            chord                = self._smooth_chord_labels()
-            root, quality        = self._parse_chord(chord)
+            chord             = self._smooth_chord_labels()
+            root, quality     = self._parse_chord(chord)
 
             result["chord"]          = chord
             result["chord_root"]     = root
             result["chord_quality"]  = quality
             result["chord_strength"] = strength
+
+        # Key detection runs on the single HPCP frame — fast, no buffer needed.
+        key, scale, confidence, forced = self._detect_key(hpcp)
+
+        result["key"]            = key
+        result["scale"]          = scale
+        result["key_confidence"] = confidence
+        result["key_forced"]     = forced
+
+        # Roman numeral is only computable once we have both a chord root and a key.
+        if result["chord_root"] and key:
+            roman, relation      = self._roman_numeral(result["chord_root"], key, scale)
+            result["roman_degree"] = roman
+            result["relation"]     = relation
 
         return result
 
