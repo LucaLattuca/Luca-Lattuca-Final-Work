@@ -21,6 +21,8 @@ LISTEN_HOST = "127.0.0.1"
 LISTEN_PORT = 9002
 
 
+
+
 # ── Generation config ──────────────────────────────────────────────────────────
 # Change RESOLUTION to switch between speed and quality.
 # "512" targets ~2s per frame on RTX 4060
@@ -39,6 +41,63 @@ GUIDANCE_SCALE      = 0.0  # CFG-free for Turbo
 _width, _height = RESOLUTION_MAP.get(RESOLUTION, (512, 512))
 
 
+
+# ── NDI output ─────────────────────────────────────────────────────────────────
+# NDI runtime required: https://ndi.video/for-developers/ndi-sdk/
+# Once installed: pip install ndi-python
+# Then uncomment the real implementation below and remove the stub.
+
+NDI_SOURCE_NAME = "MUSINFO_Background"
+_ndi_send = None
+
+def _init_ndi():
+    global _ndi_send
+    # ── STUB — uncomment when NDI runtime is installed ─────────────────────────
+    # import NDIlib as ndi
+    # if not ndi.initialize():
+    #     print("[gen_image] NDI init failed — is the runtime installed?", flush=True)
+    #     return
+    # send_settings            = ndi.SendCreate()
+    # send_settings.p_ndi_name = NDI_SOURCE_NAME
+    # _ndi_send = ndi.send_create(send_settings)
+    # print(f"[gen_image] NDI sender ready — '{NDI_SOURCE_NAME}'", flush=True)
+    print(f"[gen_image] NDI stub active — frames will not be sent until runtime is installed", flush=True)
+
+def _send_ndi_frame(image):
+    if _ndi_send is None:
+        # ── STUB — just confirm the image is ready ─────────────────────────────
+        print(f"[gen_image] NDI stub — frame ready ({image.width}×{image.height})", flush=True)
+        return
+
+    # ── REAL — uncomment alongside _init_ndi above ────────────────────────────
+    # import NDIlib as ndi
+    # import numpy as np
+    # rgb  = np.array(image.convert("RGB"), dtype=np.uint8)
+    # h, w, _ = rgb.shape
+    # bgra = np.zeros((h, w, 4), dtype=np.uint8)
+    # bgra[:, :, 0] = rgb[:, :, 2]
+    # bgra[:, :, 1] = rgb[:, :, 1]
+    # bgra[:, :, 2] = rgb[:, :, 0]
+    # bgra[:, :, 3] = 255
+    # frame                      = ndi.VideoFrameV2()
+    # frame.xres                 = w
+    # frame.yres                 = h
+    # frame.FourCC               = ndi.FOURCC_VIDEO_TYPE_BGRA
+    # frame.p_data               = bgra.tobytes()
+    # frame.line_stride_in_bytes = w * 4
+    # ndi.send_send_video_v2(_ndi_send, frame)
+
+
+
+# ── Prompt store ───────────────────────────────────────────────────────────────
+_prompt_lock      = threading.Lock()
+_pending_positive = None
+_pending_negative = None
+_new_prompt_event = threading.Event()
+
+
+
+
 # ── Pipeline ───────────────────────────────────────────────────────────────────
 def _load_pipeline():
     print("[gen_image] Loading SDXL Turbo pipeline...", flush=True)
@@ -51,15 +110,6 @@ def _load_pipeline():
     pipe.enable_attention_slicing()
     print(f"[gen_image] Pipeline ready — {_width}×{_height} @ {NUM_INFERENCE_STEPS} step(s)", flush=True)
     return pipe
-
-
-
-# ── Prompt store ───────────────────────────────────────────────────────────────
-_prompt_lock      = threading.Lock()
-_pending_positive = None
-_pending_negative = None
-_new_prompt_event = threading.Event()
-
 
 
 
@@ -113,12 +163,14 @@ def _generation_loop(pipe):
             image   = result.images[0]
             elapsed = time.time() - t0
             print(f"[gen_image] Done in {elapsed:.2f}s", flush=True)
+            _send_ndi_frame(image)
 
         except Exception as e:
             print(f"[gen_image] Generation error: {e}", flush=True)
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 _pipe = _load_pipeline()
+_init_ndi()
 
 gen_thread = threading.Thread(target=_generation_loop, args=(_pipe,), daemon=True)
 gen_thread.start()
