@@ -38,7 +38,7 @@ const OutputPanel = ({
             } else if (parts.length === 3) {
                 const [analyser, instrument, subkey] = parts;
 
-                const parsedPayload = payload;
+                let parsedPayload = payload;
 
                 // harmony/frontend arrives as a JSON string
                 if (analyser === 'harmony' && subkey === 'frontend') {

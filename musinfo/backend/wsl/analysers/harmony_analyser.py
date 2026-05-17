@@ -40,7 +40,7 @@ OSC_PORT = 9000
 
 # Only send OSC output every N frames. At 48kHz with HOP_SIZE=2048,
 # one frame is ~43ms, so 5 frames = ~215ms between updates.
-OSC_THROTTLE_FRAMES = 5
+OSC_THROTTLE_FRAMES = 10
 
 # --- analysis configuration --------------------------------------------------
 
@@ -54,7 +54,7 @@ HPCP_SIZE        = 12  # one value per pitch class: C, C#, D, ... B
 
 # Raw per-frame chord guesses jitter a lot. We keep the last few and take
 # the most common one so the reported chord is stable.
-SMOOTHING_WINDOW = 5
+SMOOTHING_WINDOW = 9
 
 # HPSS needs surrounding context to distinguish harmonic from percussive energy.
 # This is how many samples of recent audio we feed it — roughly 0.34s at 48kHz.
@@ -68,13 +68,13 @@ FORCED_KEY_SCALE   = "major"
 
 # Key detection needs more context than chord detection to be stable.
 # We run it less frequently and smooth the result.
-KEY_DETECTION_WINDOW = 20  # frames before re-evaluating the key
-KEY_SMOOTHING_WINDOW = 5   # keep last N key results and take the most common
+KEY_DETECTION_WINDOW = 100  # frames before re-evaluating the key
+KEY_SMOOTHING_WINDOW = 10   # keep last N key results and take the most common
 
 
 # How many HPCP frames we accumulate before running chord detection.
 # More frames = more context = stabler chords, but slightly more latency.
-CHORD_DETECTION_WINDOW = 10
+CHORD_DETECTION_WINDOW = 20
 
 # Chromatic map 
 
@@ -189,7 +189,7 @@ class HarmonyAnalyser:
         self._chords = es.ChordsDetection(
             sampleRate  = self.sample_rate,
             hopSize     = HOP_SIZE,
-            windowSize  = 0.5,   # seconds of context it uses internally
+            windowSize  = 1.5,   # seconds of context it uses internally
         )
 
 
@@ -293,12 +293,20 @@ class HarmonyAnalyser:
 
         self._key_history.append((key, scale, float(conf)))
 
-        # Most common key across recent detections.
-        keys   = [(k, s) for k, s, _ in self._key_history]
-        best   = max(set(keys), key=keys.count)
-        avg_conf = float(np.mean([c for k, s, c in self._key_history if (k, s) == best]))
+        # Weight recent detections but strongly favour consistency —
+        # a key needs to appear in the majority of recent windows to displace
+        # the current established key.
+        keys     = [(k, s) for k, s, _ in self._key_history]
+        counts   = {k: keys.count(k) for k in set(keys)}
+        best     = max(counts, key=counts.get)
 
-        self._last_key_result = (best[0], best[1], avg_conf, False)
+        # Only change the established key if the new candidate appears in
+        # at least 60% of recent detections, prevents key hasty switches 
+        threshold = len(self._key_history) * 0.6
+        if counts[best] >= threshold:
+            avg_conf = float(np.mean([c for k, s, c in self._key_history if (k, s) == best]))
+            self._last_key_result = (best[0], best[1], avg_conf, False)
+
         return self._last_key_result
 
 
