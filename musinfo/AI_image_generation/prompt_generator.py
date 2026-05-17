@@ -32,6 +32,121 @@ _state = {
 }
 
 
+# ── Prompt assembly ────────────────────────────────────────────────────────────
+NEGATIVE_PROMPT = (
+    "photorealistic, faces, text, letters, words, numbers, logos, watermark, "
+    "blurry, low quality"
+)
+
+GENRE_LANDSCAPE = {
+    "Jazz":         "intimate jazz club atmosphere, smoky room, warm stage light",
+    "Blues":        "dusty southern landscape, rustic crossroads, moonlit bayou",
+    "Classical":    "grand concert hall, ornate architecture, ethereal cathedral light",
+    "Folk":         "rolling countryside, forest clearing, campfire under stars",
+    "Rock":         "electric cityscape, urban rooftop, industrial concrete",
+    "Metal":        "volcanic landscape, dark fortress, stormy mountain peak",
+    "Pop":          "vibrant neon cityscape, colourful abstract geometry",
+    "Soul / R&B":   "soulful city nightscape, warm street light, velvet curtains",
+    "Hip-Hop":      "urban street mural, graffiti walls, city skyline at dusk",
+    "Electronic":   "futuristic grid, glowing data streams, infinite digital space",
+    "Reggae":       "tropical beach sunset, lush island coastline, palm silhouettes",
+    "Country":      "open prairie sunset, barn wood, golden wheat field",
+    "Latin":        "vibrant plaza at night, festive lanterns, cobblestone streets",
+    "Experimental": "abstract void, surreal geometry, fractal dreamscape",
+    "_default":     "atmospheric abstract landscape, soft gradients",
+}
+
+MOOD_COLOR = {
+    "aggressive": "harsh red and black contrast, sharp angular forms",
+    "happy":      "bright warm palette, cheerful golden tones, light and airy",
+    "party":      "vivid saturated colours, dynamic shapes, celebratory energy",
+    "relaxed":    "soft muted tones, gentle curves, peaceful atmosphere",
+    "sad":        "cool blue and grey palette, melancholic stillness, misty light",
+    "_default":   "balanced neutral palette, calm composition",
+}
+
+TEMPO_DYNAMICS = {
+    "ballad":   "slow dissolving transitions, dreamlike languor",
+    "slow":     "unhurried drift, long gentle exposure",
+    "medium":   "balanced pace, steady organic flow",
+    "uptempo":  "lively vibrant energy, quickening pulse",
+    "fast":     "intense rapid movement, electric momentum",
+    "_default": "natural flowing pace",
+}
+
+KNOWN_TAG_MAP = {
+    "film":        "cinematic film aesthetic",
+    "dark":        "dark moody atmosphere",
+    "emotional":   "deeply emotional atmosphere",
+    "positive":    "uplifting positive energy",
+    "epic":        "epic grand scale",
+    "melancholic": "melancholic introspective tone",
+    "dramatic":    "dramatic high contrast",
+    "ambiental":   "ambient environmental atmosphere",
+    "motivational":"inspiring motivational energy",
+    "nature":      "natural organic environment",
+}
+
+def _clean_tags(raw_tags: str) -> str:
+    if not raw_tags:
+        return ""
+    phrases = []
+    for tag in [t.strip() for t in raw_tags.split(",") if t.strip()]:
+        phrases.append(KNOWN_TAG_MAP.get(tag.lower(), tag))
+    return ", ".join(phrases)
+
+def _dance_phrase(danceability: float) -> str:
+    if danceability >= 75:
+        return "energetic flowing motion, dynamic movement"
+    elif danceability >= 50:
+        return "gentle rhythmic flow, subtle motion"
+    elif danceability >= 25:
+        return "slow drifting movement, peaceful stillness"
+    else:
+        return "serene stillness, contemplative quiet"
+
+def assemble_prompt(state: dict) -> str:
+    parts = []
+
+    # Genre — landscape and scene
+    if state["genre"]:
+        top = state["genre"][:3]
+        genre_names = [g["genre"] for g in top]
+        primary = genre_names[0]
+        parts.append(f"{primary} music atmosphere")
+        parts.append(GENRE_LANDSCAPE.get(primary, GENRE_LANDSCAPE["_default"]))
+        if len(genre_names) > 1:
+            parts.append(f"hints of {' and '.join(genre_names[1:])}")
+    else:
+        parts.append(GENRE_LANDSCAPE["_default"])
+
+    # Mood — structure and colour
+    if state["mood"]:
+        parts.append(f"{state['mood']} mood")
+        parts.append(MOOD_COLOR.get(state["mood"], MOOD_COLOR["_default"]))
+    else:
+        parts.append(MOOD_COLOR["_default"])
+
+    # Mood tags — context modifiers
+    if state["mood_tags"]:
+        cleaned = _clean_tags(state["mood_tags"])
+        if cleaned:
+            parts.append(cleaned)
+
+    # Danceability — movement
+    dance_val = state["danceability"] if state["danceability"] is not None else 50.0
+    parts.append(_dance_phrase(dance_val))
+
+    # Tempo feel — dynamics
+    feel = state["tempo_feel"] if state["tempo_feel"] else "_default"
+    parts.append(TEMPO_DYNAMICS.get(feel, TEMPO_DYNAMICS["_default"]))
+
+    # Closing style tokens
+    parts.append("abstract visual art, no text")
+
+    return ", ".join(parts)
+
+
 # ── OSC config ─────────────────────────────────────────────────────────────────
 LISTEN_HOST = "0.0.0.0"
 LISTEN_PORT = 9001
