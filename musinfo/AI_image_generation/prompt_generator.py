@@ -18,6 +18,20 @@ import json
 import threading
 from pythonosc import dispatcher, osc_server
 
+
+# ── State store ────────────────────────────────────────────────────────────────
+# None = not yet received from analyser. Defaults are applied at prompt assembly.
+_state_lock = threading.Lock()
+_state = {
+    "genre":        None,   # list of dicts [{"genre": str, "confidence": float}]
+    "mood":         None,   # str
+    "mood_tags":    None,   # str (comma-separated)
+    "danceability": None,   # float 0–100
+    "bpm":          None,   # float
+    "tempo_feel":   None,   # str
+}
+
+
 # ── OSC config ─────────────────────────────────────────────────────────────────
 LISTEN_HOST = "0.0.0.0"
 LISTEN_PORT = 9001
@@ -28,21 +42,29 @@ def _on_genre(address, *args):
     raw = args[0] if args else "[]"
     try:
         genres = json.loads(raw)
+        with _state_lock:
+            _state["genre"] = genres
         print(f"[prompt_gen] genre: {[g['genre'] for g in genres[:3]]}", flush=True)
     except Exception as e:
         print(f"[prompt_gen] genre parse error: {e}", flush=True)
 
 def _on_mood(address, *args):
     value = str(args[0]) if args else ""
+    with _state_lock:
+        _state["mood"] = value
     print(f"[prompt_gen] mood: {value}", flush=True)
 
 def _on_mood_tags(address, *args):
     value = str(args[0]) if args else ""
+    with _state_lock:
+        _state["mood_tags"] = value
     print(f"[prompt_gen] mood_tags: {value}", flush=True)
 
 def _on_danceability(address, *args):
     try:
         value = float(args[0]) if args else 0.0
+        with _state_lock:
+            _state["danceability"] = value
         print(f"[prompt_gen] danceability: {value:.1f}", flush=True)
     except Exception as e:
         print(f"[prompt_gen] danceability parse error: {e}", flush=True)
@@ -50,14 +72,17 @@ def _on_danceability(address, *args):
 def _on_bpm(address, *args):
     try:
         value = float(args[0]) if args else 0.0
+        with _state_lock:
+            _state["bpm"] = value
         print(f"[prompt_gen] bpm: {value:.1f}", flush=True)
     except Exception as e:
         print(f"[prompt_gen] bpm parse error: {e}", flush=True)
 
 def _on_tempo_feel(address, *args):
     value = str(args[0]) if args else ""
+    with _state_lock:
+        _state["tempo_feel"] = value
     print(f"[prompt_gen] tempo_feel: {value}", flush=True)
-
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 d = dispatcher.Dispatcher()
