@@ -43,49 +43,41 @@ _width, _height = RESOLUTION_MAP.get(RESOLUTION, (512, 512))
 
 
 # ── NDI output ─────────────────────────────────────────────────────────────────
-# NDI runtime required: https://ndi.video/for-developers/ndi-sdk/
-# Once installed: pip install ndi-python
-# Then uncomment the real implementation below and remove the stub.
-
 NDI_SOURCE_NAME = "MUSINFO_Background"
 _ndi_send = None
 
 def _init_ndi():
     global _ndi_send
-    # ── STUB — uncomment when NDI runtime is installed ─────────────────────────
-    # import NDIlib as ndi
-    # if not ndi.initialize():
-    #     print("[gen_image] NDI init failed — is the runtime installed?", flush=True)
-    #     return
-    # send_settings            = ndi.SendCreate()
-    # send_settings.p_ndi_name = NDI_SOURCE_NAME
-    # _ndi_send = ndi.send_create(send_settings)
-    # print(f"[gen_image] NDI sender ready — '{NDI_SOURCE_NAME}'", flush=True)
-    print(f"[gen_image] NDI stub active — frames will not be sent until runtime is installed", flush=True)
+    import NDIlib as ndi
+    if not ndi.initialize():
+        print("[gen_image] NDI init failed — is the runtime installed?", flush=True)
+        return
+    send_settings            = ndi.SendCreate()
+    send_settings.p_ndi_name = NDI_SOURCE_NAME
+    _ndi_send                = ndi.send_create(send_settings)
+    print(f"[gen_image] NDI sender ready — '{NDI_SOURCE_NAME}'", flush=True)
 
 def _send_ndi_frame(image):
     if _ndi_send is None:
-        # ── STUB — just confirm the image is ready ─────────────────────────────
-        print(f"[gen_image] NDI stub — frame ready ({image.width}×{image.height})", flush=True)
+        print("[gen_image] NDI sender not initialised — skipping frame", flush=True)
         return
-
-    # ── REAL — uncomment alongside _init_ndi above ────────────────────────────
-    # import NDIlib as ndi
-    # import numpy as np
-    # rgb  = np.array(image.convert("RGB"), dtype=np.uint8)
-    # h, w, _ = rgb.shape
-    # bgra = np.zeros((h, w, 4), dtype=np.uint8)
-    # bgra[:, :, 0] = rgb[:, :, 2]
-    # bgra[:, :, 1] = rgb[:, :, 1]
-    # bgra[:, :, 2] = rgb[:, :, 0]
-    # bgra[:, :, 3] = 255
-    # frame                      = ndi.VideoFrameV2()
-    # frame.xres                 = w
-    # frame.yres                 = h
-    # frame.FourCC               = ndi.FOURCC_VIDEO_TYPE_BGRA
-    # frame.p_data               = bgra.tobytes()
-    # frame.line_stride_in_bytes = w * 4
-    # ndi.send_send_video_v2(_ndi_send, frame)
+    import NDIlib as ndi
+    import numpy as np
+    rgb  = np.array(image.convert("RGB"), dtype=np.uint8)
+    h, w, _ = rgb.shape
+    bgra = np.zeros((h, w, 4), dtype=np.uint8)
+    bgra[:, :, 0] = rgb[:, :, 2]
+    bgra[:, :, 1] = rgb[:, :, 1]
+    bgra[:, :, 2] = rgb[:, :, 0]
+    bgra[:, :, 3] = 255
+    frame                      = ndi.VideoFrameV2()
+    frame.xres                 = w
+    frame.yres                 = h
+    frame.FourCC               = ndi.FOURCC_VIDEO_TYPE_BGRA
+    frame.p_data               = bgra.tobytes()
+    frame.line_stride_in_bytes = w * 4
+    ndi.send_send_video_v2(_ndi_send, frame)
+    print(f"[gen_image] NDI frame sent ({w}×{h})", flush=True)
 
 
 
