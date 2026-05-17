@@ -159,8 +159,12 @@ class GenreAnalyser:
             for genre, conf in results[:3]
         ]
         message = json.dumps(top_3)
+
         self.osc_client.send_message(f"/genre/{self.instrument_name}", message)
         print(f"[genre] OSC SENT: /genre/{self.instrument_name} → {message}")
+        
+        self.prompt_osc_client.send_message("/prompt/genre", message)
+        print(f"[genre] OSC PROMPT SENT: /prompt/genre → {message}")
         sys.stdout.flush()
 
     def _display(self, results):

@@ -53,7 +53,7 @@ class TempoCNNAnalyser:
 
         self.osc             = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
         self.prompt_osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PROMPT_PORT)
-        
+
         self.bpm_address     = f"/tempo/{instrument_name}/bpm_accurate"
         self.feel_address    = f"/tempo/{instrument_name}/feel"
 
@@ -120,12 +120,14 @@ class TempoCNNAnalyser:
         now = time.time()
         if (now - self._last_send) >= SEND_INTERVAL:
             self.osc.send_message(self.bpm_address, smoothed)
+            self.prompt_osc_client.send_message("/prompt/bpm", smoothed)
             print(f"[tempo_cnn] {self.instrument_name}: {smoothed} BPM -> {self.bpm_address}")
             self._last_send = now
 
         # Feel only sends when the bucket changes — avoids spamming the same label
         if feel != self._last_feel:
             self.osc.send_message(self.feel_address, feel)
+            self.prompt_osc_client.send_message("/prompt/tempo_feel", feel)
             print(f"[tempo_cnn] {self.instrument_name}: {feel} -> {self.feel_address}")
             self._last_feel = feel
 
