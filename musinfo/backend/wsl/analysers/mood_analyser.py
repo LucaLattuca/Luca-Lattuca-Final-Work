@@ -62,6 +62,7 @@ def get_windows_host_ip():
 
 OSC_HOST = get_windows_host_ip()
 OSC_PORT = 9000
+OSC_PROMPT_PORT = 9001
 
 # ─── Audio helpers ────────────────────────────────────────────────────────────
 def resample(audio, from_rate, to_rate):
@@ -180,10 +181,12 @@ class MoodAnalyser:
         self.jamendo_buffer = AudioBuffer(self.sender_rate, JAMENDO_DURATION)
 
         self.osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
+        self.prompt_osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PROMPT_PORT)
 
         print(f"[mood] Ready for '{instrument_name}' @ {sample_rate}Hz")
         print(f"[mood] Windows — mood: {MOOD_DURATION}s  dance: {DANCE_DURATION}s  jamendo: {JAMENDO_DURATION}s")
         print(f"[mood] OSC target: {OSC_HOST}:{OSC_PORT}")
+        print(f"[mood] OSC Prompt target: {OSC_HOST}:{OSC_PROMPT_PORT}")
         sys.stdout.flush()
 
     def push(self, audio):
@@ -209,19 +212,27 @@ class MoodAnalyser:
     def _send_mood(self, top_mood, mood_scores):
         inst = self.instrument_name
         scores_str = "  ".join(f"{k}={v*100:.1f}%" for k, v in sorted(mood_scores.items(), key=lambda x: x[1], reverse=True))
+        
         self.osc_client.send_message(f"/mood/{inst}/top", top_mood)
+        self.prompt_osc_client.send_message("/prompt/mood", top_mood)
         print(f"[mood/{inst}] {scores_str}")
         print(f"[mood/{inst}] mood: {top_mood}")
         sys.stdout.flush()
 
     def _send_danceability(self, danceability):
         inst = self.instrument_name
-        self.osc_client.send_message(f"/mood/{inst}/danceability", str(round(danceability * 100, 1)))
-        print(f"[mood/{inst}] danceability: {round(danceability * 100, 1)}%")
+        
+        value = round(danceability * 100, 1)
+        self.osc_client.send_message(f"/mood/{inst}/danceability", str(value))
+        self.prompt_osc_client.send_message("/prompt/danceability", value)
+        print(f"[mood/{inst}] danceability: {value}%")
         sys.stdout.flush()
 
     def _send_jamendo(self, jamendo_tags):
         inst = self.instrument_name
-        self.osc_client.send_message(f"/mood/{inst}/tags", ", ".join(jamendo_tags))
-        print(f"[mood/{inst}] tags: {', '.join(jamendo_tags) or 'none'}")
+        
+        tags_str = ", ".join(jamendo_tags)
+        self.osc_client.send_message(f"/mood/{inst}/tags", tags_str)
+        self.prompt_osc_client.send_message("/prompt/mood_tags", tags_str)
+        print(f"[mood/{inst}] tags: {tags_str or 'none'}")
         sys.stdout.flush()

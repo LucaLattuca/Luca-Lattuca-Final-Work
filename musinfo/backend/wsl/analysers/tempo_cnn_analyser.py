@@ -30,7 +30,9 @@ def _get_windows_host_ip():
     return "172.29.16.1"
 
 OSC_HOST = _get_windows_host_ip()
-OSC_PORT      = 9000
+OSC_PORT        = 9000
+OSC_PROMPT_PORT = 9001
+
 
 # .pb frozen graph lives at models/bpm_models/deepsquare-k16-3.pb
 # Download from: https://essentia.upf.edu/models/tempo/tempocnn/deepsquare-k16-3.pb
@@ -48,7 +50,10 @@ class TempoCNNAnalyser:
     def __init__(self, instrument_name: str, sample_rate: int = 48000):
         self.instrument_name = instrument_name
         self.input_sr        = sample_rate
+
         self.osc             = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
+        self.prompt_osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PROMPT_PORT)
+
         self.bpm_address     = f"/tempo/{instrument_name}/bpm_accurate"
         self.feel_address    = f"/tempo/{instrument_name}/feel"
 
@@ -115,12 +120,14 @@ class TempoCNNAnalyser:
         now = time.time()
         if (now - self._last_send) >= SEND_INTERVAL:
             self.osc.send_message(self.bpm_address, smoothed)
+            self.prompt_osc_client.send_message("/prompt/bpm", smoothed)
             print(f"[tempo_cnn] {self.instrument_name}: {smoothed} BPM -> {self.bpm_address}")
             self._last_send = now
 
         # Feel only sends when the bucket changes — avoids spamming the same label
         if feel != self._last_feel:
             self.osc.send_message(self.feel_address, feel)
+            self.prompt_osc_client.send_message("/prompt/tempo_feel", feel)
             print(f"[tempo_cnn] {self.instrument_name}: {feel} -> {self.feel_address}")
             self._last_feel = feel
 
