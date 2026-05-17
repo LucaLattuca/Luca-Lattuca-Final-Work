@@ -62,6 +62,7 @@ def get_windows_host_ip():
 
 OSC_HOST = get_windows_host_ip()
 OSC_PORT = 9000
+OSC_PROMPT_PORT = 9001
 
 # ─── Audio helpers ────────────────────────────────────────────────────────────
 def resample(audio, from_rate, to_rate):
@@ -180,10 +181,12 @@ class MoodAnalyser:
         self.jamendo_buffer = AudioBuffer(self.sender_rate, JAMENDO_DURATION)
 
         self.osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
+        self.prompt_osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PROMPT_PORT)
 
         print(f"[mood] Ready for '{instrument_name}' @ {sample_rate}Hz")
         print(f"[mood] Windows — mood: {MOOD_DURATION}s  dance: {DANCE_DURATION}s  jamendo: {JAMENDO_DURATION}s")
         print(f"[mood] OSC target: {OSC_HOST}:{OSC_PORT}")
+        print(f"[mood] OSC Prompt target: {OSC_HOST}:{OSC_PROMPT_PORT}")
         sys.stdout.flush()
 
     def push(self, audio):

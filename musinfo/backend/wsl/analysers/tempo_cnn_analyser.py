@@ -30,7 +30,9 @@ def _get_windows_host_ip():
     return "172.29.16.1"
 
 OSC_HOST = _get_windows_host_ip()
-OSC_PORT      = 9000
+OSC_PORT        = 9000
+OSC_PROMPT_PORT = 9001
+
 
 # .pb frozen graph lives at models/bpm_models/deepsquare-k16-3.pb
 # Download from: https://essentia.upf.edu/models/tempo/tempocnn/deepsquare-k16-3.pb
@@ -48,7 +50,10 @@ class TempoCNNAnalyser:
     def __init__(self, instrument_name: str, sample_rate: int = 48000):
         self.instrument_name = instrument_name
         self.input_sr        = sample_rate
+
         self.osc             = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
+        self.prompt_osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PROMPT_PORT)
+        
         self.bpm_address     = f"/tempo/{instrument_name}/bpm_accurate"
         self.feel_address    = f"/tempo/{instrument_name}/feel"
 

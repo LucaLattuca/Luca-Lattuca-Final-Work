@@ -44,7 +44,7 @@ def get_windows_host_ip():
 # OSC config
 OSC_HOST = get_windows_host_ip()
 OSC_PORT = 9000
-
+OSC_PROMPT_PORT = 9001
 
 def load_model():
     with open(MODEL_JSON, "r") as f:
@@ -130,10 +130,16 @@ class GenreAnalyser:
         self.sender_rate = sample_rate  # Use the provided sample rate
         self.model, self.labels = load_model()
         self.buffer = AudioBuffer(self.sender_rate)
+
         self.osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
+        self.prompt_osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PROMPT_PORT)
+
+        
+
         print(f"[genre] Ready for '{instrument_name}' @ {sample_rate}Hz")
         sys.stdout.flush() 
         print(f"[genre] OSC target: {OSC_HOST}:{OSC_PORT}")
+        print(f"[genre] OSC Prompt target: {OSC_HOST}:{OSC_PROMPT_PORT}")
         sys.stdout.flush()
         
     def push(self, audio):
