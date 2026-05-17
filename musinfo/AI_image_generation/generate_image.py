@@ -11,6 +11,7 @@ Listens on port 9002 for prompts from prompt_generator.py:
 
 import sys
 import threading
+import time
 from pythonosc import dispatcher, osc_server, udp_client
 import torch
 from diffusers import AutoPipelineForText2Image
@@ -52,22 +53,75 @@ def _load_pipeline():
     return pipe
 
 
+
+# ── Prompt store ───────────────────────────────────────────────────────────────
+_prompt_lock      = threading.Lock()
+_pending_positive = None
+_pending_negative = None
+_new_prompt_event = threading.Event()
+
+
+
+
 # ── OSC handlers ───────────────────────────────────────────────────────────────
 def _on_positive_prompt(address, *args):
+    global _pending_positive
     value = str(args[0]) if args else ""
     if not value:
         return
+    with _prompt_lock:
+        _pending_positive = value
+    _new_prompt_event.set()
     print(f"[gen_image] positive prompt received ({len(value)} chars)", flush=True)
 
 def _on_negative_prompt(address, *args):
+    global _pending_negative
     value = str(args[0]) if args else ""
     if not value:
         return
+    with _prompt_lock:
+        _pending_negative = value
     print(f"[gen_image] negative prompt received ({len(value)} chars)", flush=True)
 
 
+
+# ── Generation loop ────────────────────────────────────────────────────────────
+def _generation_loop(pipe):
+    while True:
+        _new_prompt_event.wait()
+        _new_prompt_event.clear()
+
+        with _prompt_lock:
+            positive = _pending_positive
+            negative = _pending_negative or ""
+
+        if not positive:
+            continue
+
+        print(f"[gen_image] Generating... ({_width}×{_height}, {NUM_INFERENCE_STEPS} step)", flush=True)
+        t0 = time.time()
+
+        try:
+            result = pipe(
+                prompt              = positive,
+                negative_prompt     = negative,
+                width               = _width,
+                height              = _height,
+                num_inference_steps = NUM_INFERENCE_STEPS,
+                guidance_scale      = GUIDANCE_SCALE,
+            )
+            image   = result.images[0]
+            elapsed = time.time() - t0
+            print(f"[gen_image] Done in {elapsed:.2f}s", flush=True)
+
+        except Exception as e:
+            print(f"[gen_image] Generation error: {e}", flush=True)
+
 # ── Main ───────────────────────────────────────────────────────────────────────
 _pipe = _load_pipeline()
+
+gen_thread = threading.Thread(target=_generation_loop, args=(_pipe,), daemon=True)
+gen_thread.start()
 
 d = dispatcher.Dispatcher()
 d.map("/image/prompt/positive", _on_positive_prompt)
