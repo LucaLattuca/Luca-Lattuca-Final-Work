@@ -53,7 +53,7 @@ def _init_ndi():
         print("[gen_image] NDI init failed — is the runtime installed?", flush=True)
         return
     send_settings            = ndi.SendCreate()
-    send_settings.p_ndi_name = NDI_SOURCE_NAME
+    send_settings.ndi_name = NDI_SOURCE_NAME
     _ndi_send                = ndi.send_create(send_settings)
     print(f"[gen_image] NDI sender ready — '{NDI_SOURCE_NAME}'", flush=True)
 
@@ -63,21 +63,16 @@ def _send_ndi_frame(image):
         return
     import NDIlib as ndi
     import numpy as np
-    rgb  = np.array(image.convert("RGB"), dtype=np.uint8)
-    h, w, _ = rgb.shape
-    bgra = np.zeros((h, w, 4), dtype=np.uint8)
-    bgra[:, :, 0] = rgb[:, :, 2]
-    bgra[:, :, 1] = rgb[:, :, 1]
-    bgra[:, :, 2] = rgb[:, :, 0]
-    bgra[:, :, 3] = 255
-    frame                      = ndi.VideoFrameV2()
-    frame.xres                 = w
-    frame.yres                 = h
-    frame.FourCC               = ndi.FOURCC_VIDEO_TYPE_BGRA
-    frame.p_data               = bgra.tobytes()
-    frame.line_stride_in_bytes = w * 4
+
+    # Convert PIL → numpy RGBA and assign directly to frame.data
+    rgba = np.array(image.convert("RGBA"), dtype=np.uint8)
+
+    frame        = ndi.VideoFrameV2()
+    frame.data   = rgba
+    frame.FourCC = ndi.FOURCC_VIDEO_TYPE_RGBA
+
     ndi.send_send_video_v2(_ndi_send, frame)
-    print(f"[gen_image] NDI frame sent ({w}×{h})", flush=True)
+    print(f"[gen_image] NDI frame sent ({image.width}×{image.height})", flush=True)
 
 
 
