@@ -38,6 +38,9 @@ def get_windows_host_ip():
 OSC_HOST = get_windows_host_ip()
 OSC_PORT = 9000
 
+# Only send OSC output every N frames. At 48kHz with HOP_SIZE=2048,
+# one frame is ~43ms, so 5 frames = ~215ms between updates.
+OSC_THROTTLE_FRAMES = 5
 
 # --- analysis configuration --------------------------------------------------
 
@@ -114,6 +117,9 @@ class HarmonyAnalyser:
     # forced_key: None means detect the key normally; ("C", "major") overrides it.
     def __init__(self, instrument_name="unknown", sample_rate=48000,
                  forced_key=None):
+        
+        self._frame_count = 0
+
         self.instrument_name = instrument_name
         self.sample_rate     = sample_rate
         self.forced_key      = forced_key
@@ -406,15 +412,15 @@ class HarmonyAnalyser:
 
     # Sends results over OSC
     def _handle_result(self, result: dict):
-        self._display(result)
+        self._frame_count += 1
+        if self._frame_count % OSC_THROTTLE_FRAMES != 0:
+            return
 
-        # Full result for TouchDesigner — everything the analyser produces.
+        self._display(result)
         self.osc_client.send_message(
             f"/harmony/{self.instrument_name}",
             json.dumps(result)
         )
-
-        # Frontend subset — only the six fields the UI reads.
         self.osc_client.send_message(
             f"/harmony/{self.instrument_name}/frontend",
             json.dumps(self.frontend_view(result))
