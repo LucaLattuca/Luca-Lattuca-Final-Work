@@ -38,7 +38,12 @@ const OutputPanel = ({
             } else if (parts.length === 3) {
                 const [analyser, instrument, subkey] = parts;
 
-                const parsedPayload = payload;
+                let parsedPayload = payload;
+
+                // harmony/frontend arrives as a JSON string
+                if (analyser === 'harmony' && subkey === 'frontend') {
+                    try { parsedPayload = JSON.parse(payload); } catch (e) {}
+                }
 
                 setAnalyserData(prev => ({
                     ...prev,
@@ -143,6 +148,30 @@ const OutputPanel = ({
         );
     };
 
+    const renderHarmony = (harmonyData) => {
+        if (!harmonyData) return '—';
+        
+        // harmony arrives as a JSON string on the /frontend address
+        let data = harmonyData;
+        if (typeof data === 'string') {
+            try { data = JSON.parse(data); } catch (e) { return String(harmonyData); }
+        }
+
+        const { chord, root, relation_to_root, chord_quality, dissonance, key } = data;
+
+        return (
+            <div>
+                {chord            != null && <div>chord: {chord}</div>}
+                {root             != null && <div>root: {root}</div>}
+                {chord_quality    != null && <div>quality: {chord_quality}</div>}
+                {relation_to_root != null && <div>degree: {relation_to_root}</div>}
+                {key              != null && <div>key: {key}</div>}
+                {dissonance       != null && <div>dissonance: {Number(dissonance).toFixed(2)}</div>}
+            </div>
+        );
+    };
+
+
     // Safe fallback — always converts to string, never passes an object to JSX
     const renderValue = (analyser, instrument) => {
         const data = analyserData[instrument]?.[analyser];
@@ -151,6 +180,7 @@ const OutputPanel = ({
         if (analyser === 'tempo')    return renderTempo(data);
         if (analyser === 'dynamics') return renderDynamics(data);
         if (analyser === 'timbre')   return renderTimbre(data);
+        if (analyser === 'harmony')  return renderHarmony(data?.frontend);
         if (analyser === 'pitch_crepe') return data != null ? String(data) : '—';
         // Default: always stringify — prevents any object from slipping through to JSX
         return data != null ? String(data) : '—';

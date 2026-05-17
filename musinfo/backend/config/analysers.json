@@ -34,6 +34,11 @@
             "target": "wsl",
             "description": "Spectral feature extraction via Essentia",
             "explanation": "Analyses the colour and texture of each instrument's sound in real time using spectral descriptors : brightness, noisiness, weight, sharpness and timbral movement."
+        },
+        "harmony": {
+            "target": "wsl",
+            "description": "Chord, key and dissonance detection via Essentia HPCP and librosa HPSS",
+            "explanation": "Detects the current chord, its root and quality, and where it sits relative to the key (e.g. V chord). Also tracks the musical key with a confidence score, perceptual dissonance, and chroma descriptors that describe how the harmonic content is distributed and how much it changed since the last frame. Drum energy is filtered out before analysis using librosa HPSS."
         }
     }
 }
