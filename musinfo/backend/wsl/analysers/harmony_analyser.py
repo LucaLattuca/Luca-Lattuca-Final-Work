@@ -288,7 +288,7 @@ class HarmonyAnalyser:
 
         # Average the HPCP frames in the buffer into one profile and detect key.
         mean_hpcp           = np.mean(np.array(self._key_buffer), axis=0).astype(np.float32)
-        key, scale, conf    = self._key_extractor(mean_hpcp)
+        key, scale, conf, _ = self._key_extractor(mean_hpcp)
         self._key_buffer.clear()
 
         self._key_history.append((key, scale, float(conf)))
