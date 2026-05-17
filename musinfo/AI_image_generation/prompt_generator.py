@@ -16,7 +16,19 @@ Listens on port 9001 for incoming OSC from the WSL analysers:
 import sys
 import json
 import threading
+import time
 from pythonosc import dispatcher, osc_server
+
+
+
+# ── OSC config ─────────────────────────────────────────────────────────────────
+LISTEN_HOST = "0.0.0.0"
+LISTEN_PORT = 9001
+
+EMIT_HOST = "127.0.0.1"
+EMIT_PORT = 9002
+
+PROMPT_INTERVAL = 2.0  # seconds between prompt emissions
 
 
 # ── State store ────────────────────────────────────────────────────────────────
@@ -147,11 +159,6 @@ def assemble_prompt(state: dict) -> str:
     return ", ".join(parts)
 
 
-# ── OSC config ─────────────────────────────────────────────────────────────────
-LISTEN_HOST = "0.0.0.0"
-LISTEN_PORT = 9001
-
-
 # ── OSC handlers ───────────────────────────────────────────────────────────────
 def _on_genre(address, *args):
     raw = args[0] if args else "[]"
@@ -199,6 +206,22 @@ def _on_tempo_feel(address, *args):
         _state["tempo_feel"] = value
     print(f"[prompt_gen] tempo_feel: {value}", flush=True)
 
+
+# ── Emission loop ──────────────────────────────────────────────────────────────
+def _prompt_loop(emit_client):
+    while True:
+        time.sleep(PROMPT_INTERVAL)
+
+        with _state_lock:
+            snapshot = dict(_state)
+
+        positive = assemble_prompt(snapshot)
+
+        emit_client.send_message("/image/prompt/positive", positive)
+        emit_client.send_message("/image/prompt/negative", NEGATIVE_PROMPT)
+
+        print(f"[prompt_gen] PROMPT: {positive}", flush=True)
+
 # ── Main ───────────────────────────────────────────────────────────────────────
 d = dispatcher.Dispatcher()
 d.map("/prompt/genre",        _on_genre)
@@ -213,6 +236,9 @@ server_thread = threading.Thread(target=server.serve_forever, daemon=True)
 server_thread.start()
 
 print(f"[prompt_gen] OSC server listening on {LISTEN_HOST}:{LISTEN_PORT}", flush=True)
+print(f"[prompt_gen] Emitting prompts every {PROMPT_INTERVAL}s → {EMIT_HOST}:{EMIT_PORT}", flush=True)
 
-# Block main thread — Rust will terminate the process when shutting down
-server_thread.join()
+emit_client = udp_client.SimpleUDPClient(EMIT_HOST, EMIT_PORT)
+
+# Block main thread on prompt loop — Rust terminates the process on shutdown
+_prompt_loop(emit_client)
