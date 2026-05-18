@@ -231,6 +231,11 @@ def handle_connection(conn, addr):
     finally:
         print(f"[wsl_receiver] broadcaster disconnected.")
         sys.stdout.flush()
+        # stop all worker threads cleanly
+        for inst_analysers in analyser_registry.values():
+            for threaded in inst_analysers.values():
+                threaded.stop()
+        analyser_registry.clear()
         conn.close()
 
 
