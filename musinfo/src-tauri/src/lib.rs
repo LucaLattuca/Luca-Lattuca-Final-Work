@@ -29,6 +29,9 @@ struct BroadcasterProcess(Mutex<Option<Child>>);
 // holds the windows_receiver.py process handle so stop_pipeline can kill it
 struct WindowsReceiverProcess(Mutex<Option<Child>>);
 
+// DEBUGGING
+const OSC_DEBUG: bool = false;
+
 // HELPER FUNCTIONS
 
 // Resolves the path to instruments.json relative to the project root.
@@ -718,11 +721,16 @@ fn start_osc_listener(app_handle: AppHandle) {
         loop {
             match socket.recv_from(&mut buf) {
                 Ok((size, addr)) => {
-                    println!("[OSC] Packet received from {} ({} bytes)", addr, size);
+                    if OSC_DEBUG {
+                        println!("[OSC] Packet received from {} ({} bytes)", addr, size);
+                    }
 
                     match decode_udp(&buf[..size]) {
                         Ok((_, OscPacket::Message(msg))) => {
-                            println!("[OSC] Address: {}, Args: {:?}", msg.addr, msg.args);
+
+                            if OSC_DEBUG {
+                                println!("[OSC] Address: {}, Args: {:?}", msg.addr, msg.args);
+                            }
 
                             // Extract the message payload
                             let payload = msg

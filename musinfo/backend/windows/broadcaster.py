@@ -12,6 +12,11 @@ import time
 import numpy as np
 import sys
 import wave
+import hashlib
+
+# Debugging 
+DEBUG = False
+INFO = True
 
 # AUDIO DEBUGGING information
 _record_buffers = {}
@@ -61,8 +66,9 @@ def load_config():
             instruments = json.load(f)
         with open(analysers_path) as f:
             analysers = json.load(f)
-        print(f"[broadcaster] Config loaded.")
-        sys.stdout.flush()
+        if INFO : 
+            print(f"[broadcaster] Config loaded.")
+            sys.stdout.flush()
         return {
             "instruments": instruments.get("instruments", {}),
             "analysers":      analysers.get("analysers", {})
@@ -120,8 +126,9 @@ def build_channel_map(config):
 
         }
         
-        print(f"[broadcaster] Channel {channel_id} -> '{name}' | wsl: {channel_map[channel_id]['wsl_analysers']} | windows: {channel_map[channel_id]['windows_analysers']}")
-        sys.stdout.flush()
+        if DEBUG : 
+            print(f"[broadcaster] Channel {channel_id} -> '{name}' | wsl: {channel_map[channel_id]['wsl_analysers']} | windows: {channel_map[channel_id]['windows_analysers']}")
+            sys.stdout.flush()
 
     # Build mix configurations
     mix_configs = {}
@@ -145,7 +152,7 @@ def build_channel_map(config):
                     source_channels.append(ch_id)
                     break
                 
-        print(f"[broadcaster] Mix '{mix_name}' source_channels resolved: {source_channels}")
+        if INFO : print(f"[broadcaster] Mix '{mix_name}' source_channels resolved: {source_channels}")
         if not source_channels:
             print(f"[broadcaster] Mix '{mix_name}' has no valid source channels — skipping")
             sys.stdout.flush()
@@ -161,8 +168,9 @@ def build_channel_map(config):
             "windows_analysers": [a for a in mix_analysers if _target(analysers_config, a, "windows")],
         }
 
-        print(f"[broadcaster] Mix '{mix_name}' combines channels {source_channels} | wsl: {mix_configs[mix_name]['wsl_analysers']} | windows: {mix_configs[mix_name]['windows_analysers']}")
-        sys.stdout.flush()
+        if DEBUG : 
+            print(f"[broadcaster] Mix '{mix_name}' combines channels {source_channels} | wsl: {mix_configs[mix_name]['wsl_analysers']} | windows: {mix_configs[mix_name]['windows_analysers']}")
+            sys.stdout.flush()
     
     return channel_map, mix_configs
 
@@ -173,8 +181,9 @@ def connect_to_wsl():
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((WSL_HOST, WSL_PORT))
-            print(f"[broadcaster] Connected to WSL receiver at {WSL_HOST}:{WSL_PORT}")
-            sys.stdout.flush()
+            if INFO : 
+                print(f"[broadcaster] Connected to WSL receiver at {WSL_HOST}:{WSL_PORT}")
+                sys.stdout.flush()
             return s
         except ConnectionRefusedError:
             print(f"[broadcaster] WSL receiver not ready — retrying in 2s")
@@ -188,8 +197,9 @@ def connect_to_windows():
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((WINDOWS_HOST, WINDOWS_PORT))
-            print(f"[broadcaster] Connected to Windows receiver at {WINDOWS_HOST}:{WINDOWS_PORT}")
-            sys.stdout.flush()
+            if INFO : 
+                print(f"[broadcaster] Connected to Windows receiver at {WINDOWS_HOST}:{WINDOWS_PORT}")
+                sys.stdout.flush()
             return s
         except ConnectionRefusedError:
             print(f"[broadcaster] Windows receiver not ready — retrying in 2s")
@@ -260,14 +270,16 @@ def save_recording():
             wf.setframerate(_mix_sample_rate)
             wf.writeframes(int16_audio.tobytes())
         
-        print(f"[recorder] Saved {len(all_audio) / _mix_sample_rate:.1f}s -> {output_path}")
-        sys.stdout.flush()
+        if INFO : 
+            print(f"[recorder] Saved {len(all_audio) / _mix_sample_rate:.1f}s -> {output_path}")
+            sys.stdout.flush()
 
 
 # reads chunks from capture.py, looks up instrument routing, forwards to receivers
 def handle_capture_connection(conn, config_holder):
-    print("[broadcaster] capture.py connected.")
-    sys.stdout.flush()
+    if INFO : 
+        print("[broadcaster] capture.py connected.")
+        sys.stdout.flush()
     wsl_sock = connect_to_wsl()
     windows_sock = connect_to_windows()
 
@@ -299,8 +311,9 @@ def handle_capture_connection(conn, config_holder):
             # Log audio stats when audio is present
             rms, peak = get_audio_stats(audio_bytes)
             if rms > 0.01:  # Only log when there's actual audio
-                print(f"[audio] ch{channel_id} ({instrument_info['name']:8s}) RMS={rms:.4f} Peak={peak:.4f}")
-                sys.stdout.flush()
+                if DEBUG : 
+                    print(f"[audio] ch{channel_id} ({instrument_info['name']:8s}) RMS={rms:.4f} Peak={peak:.4f}")
+                    sys.stdout.flush()
  
 
             # Record this instrument's audio
@@ -353,27 +366,37 @@ def handle_capture_connection(conn, config_holder):
                         
 
     finally:
-        print("[broadcaster] capture.py disconnected.")
-        sys.stdout.flush()
+        if INFO : 
+            print("[broadcaster] capture.py disconnected.")
+            sys.stdout.flush()
         wsl_sock.close()
         windows_sock.close()
         conn.close()
 
 
-# reloads config files every CONFIG_POLL_INTERVAL seconds so changes take effect without restarting
+# compare current config 
+def config_hash(config):
+    return hashlib.md5(json.dumps(config, sort_keys=True).encode()).hexdigest()
+
+# only refresh config ig something changed. 
 def watch_config(config_holder):
+    last_hash = None
     while True:
         time.sleep(CONFIG_POLL_INTERVAL)
-        config_holder["config"] = load_config()
-        print("[broadcaster] Config refreshed.")
-        sys.stdout.flush()
+        new_config = load_config()
+        new_hash = config_hash(new_config)
+        if new_hash != last_hash:
+            config_holder["config"] = new_config
+            last_hash = new_hash
+            if INFO : print("[broadcaster] Config changed — rebuilt channel map.")
         
 
 
 # opens TCP server and accepts incoming capture.py connections
 def start_server(config_holder):
-    print(f"[broadcaster] Listening for capture.py on {LOCAL_HOST}:{LOCAL_PORT}")
-    sys.stdout.flush()
+    if INFO : 
+        print(f"[broadcaster] Listening for capture.py on {LOCAL_HOST}:{LOCAL_PORT}")
+        sys.stdout.flush()
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server.bind((LOCAL_HOST, LOCAL_PORT))
@@ -393,8 +416,9 @@ def watch_stop_sentinel():
     while True:
         time.sleep(0.5)
         if os.path.exists(STOP_SENTINEL):
-            print("[broadcaster] Stop sentinel detected — saving recording...")
-            sys.stdout.flush()
+            if INFO : 
+                print("[broadcaster] Stop sentinel detected — saving recording...")
+                sys.stdout.flush()
             try:
                 os.remove(STOP_SENTINEL)
             except OSError:
@@ -417,6 +441,7 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("[broadcaster] Stopped.")
-        sys.stdout.flush()
+        if INFO : 
+            print("[broadcaster] Stopped.")
+            sys.stdout.flush()
         save_recording()
