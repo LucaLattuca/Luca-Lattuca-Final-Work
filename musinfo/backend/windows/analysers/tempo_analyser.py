@@ -4,32 +4,34 @@ import aubio
 from collections import deque
 from pythonosc import udp_client
 
-# ── CONFIG ────────────────────────────────────────────────────────────────────
+# ── CONFIG ─────────────────────────────────────────────────────────────────────
 HOP_SIZE      = 512
-SMOOTHING     = 8        # beat intervals kept for median smoothing
-SEND_INTERVAL = 1.0      # seconds between BPM OSC sends
-OSC_HOST      = "127.0.0.1"
-OSC_PORT      = 9000
+SMOOTHING     = 8
+SEND_INTERVAL = 1.0
 
-MIN_BPM       = 40.0
-MAX_BPM       = 220.0
-# ─────────────────────────────────────────────────────────────────────────────
+OSC_HOST    = "127.0.0.1"
+OSC_PORT    = 9000
+OSC_TD_PORT = 9100
 
-# Fast tempo tracking via Aubio beat detection.
-# Runs on Windows. Outputs:
-#   /tempo/{instrument}/pulse  -> trigger (1) on every detected beat
-#   /tempo/{instrument}/bpm    -> smoothed BPM, rate-limited
+MIN_BPM = 40.0
+MAX_BPM = 220.0
+# ───────────────────────────────────────────────────────────────────────────────
+
 class TempoAnalyser:
 
     def __init__(self, instrument_name: str, sample_rate: int = 48000):
-        self.instrument_name = instrument_name
-        self.sample_rate     = sample_rate
-        self.osc             = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
-        self.pulse_address   = f"/tempo/{instrument_name}/pulse"
-        self.bpm_address     = f"/tempo/{instrument_name}/bpm"
+        self.instrument_name     = instrument_name
+        self.sample_rate         = sample_rate
+        self._beat_reset_pending = False
+
+        self.osc    = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
+        self.td_osc = udp_client.SimpleUDPClient(OSC_HOST, OSC_TD_PORT)
+
+        self.pulse_address = f"/tempo/{instrument_name}/pulse"
+        self.bpm_address   = f"/tempo/{instrument_name}/bpm"
 
         self._tempo = aubio.tempo("default", HOP_SIZE, HOP_SIZE, sample_rate)
-        self._tempo.set_threshold(0.3)
+        self._tempo.set_threshold(0.5)
 
         self._audio_buf    = []
         self._intervals    = deque(maxlen=SMOOTHING)
@@ -40,7 +42,6 @@ class TempoAnalyser:
 
         print(f"[tempo_analyser] '{instrument_name}' ready @ {sample_rate}Hz")
 
-    # Accumulate incoming audio and drain in HOP_SIZE slices.
     def push(self, audio: np.ndarray):
         self._audio_buf.extend(audio.flatten().astype(np.float32).tolist())
         while len(self._audio_buf) >= HOP_SIZE:
@@ -51,14 +52,18 @@ class TempoAnalyser:
     def stop(self):
         print(f"[tempo_analyser] '{self.instrument_name}' stopped")
 
-    # Feed one hop to aubio, fire pulse on every beat, smooth + send BPM.
     def _process_hop(self, hop: np.ndarray):
         is_beat = self._tempo(hop)
         self._sample_count += HOP_SIZE
 
+        if self._beat_reset_pending:
+            self.td_osc.send_message(self.pulse_address, 0)
+            self._beat_reset_pending = False
+
         if is_beat[0]:
-            # Pulse fires on every detected beat — no smoothing, no rate limit
             self.osc.send_message(self.pulse_address, 1)
+            self.td_osc.send_message(self.pulse_address, 1)
+            self._beat_reset_pending = True
 
             now = self._sample_count / self.sample_rate
             if self._last_beat is not None:
