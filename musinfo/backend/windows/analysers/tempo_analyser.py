@@ -4,6 +4,10 @@ import aubio
 from collections import deque
 from pythonosc import udp_client
 
+# Debugging
+DEBUG = False
+INFO = True
+
 # ── CONFIG ─────────────────────────────────────────────────────────────────────
 HOP_SIZE      = 512
 SMOOTHING     = 8
@@ -40,7 +44,8 @@ class TempoAnalyser:
         self._current_bpm  = None
         self._last_send    = 0.0
 
-        print(f"[tempo_analyser] '{instrument_name}' ready @ {sample_rate}Hz")
+        if INFO : 
+            print(f"[tempo_analyser] '{instrument_name}' ready @ {sample_rate}Hz")
 
     def push(self, audio: np.ndarray):
         self._audio_buf.extend(audio.flatten().astype(np.float32).tolist())
@@ -79,5 +84,8 @@ class TempoAnalyser:
         now_wall = time.time()
         if self._current_bpm and (now_wall - self._last_send) >= SEND_INTERVAL:
             self.osc.send_message(self.bpm_address, self._current_bpm)
-            print(f"[tempo_analyser] {self.instrument_name}: {self._current_bpm} BPM -> {self.bpm_address}")
+
+            if DEBUG : 
+                print(f"[tempo_analyser] {self.instrument_name}: {self._current_bpm} BPM -> {self.bpm_address}")
+            
             self._last_send = now_wall

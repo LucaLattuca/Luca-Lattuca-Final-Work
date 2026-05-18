@@ -7,6 +7,10 @@ from math import gcd
 from pythonosc import udp_client
 import subprocess
 
+# Debugging
+DEBUG = False
+INFO = True
+
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 MODEL_SR      = 11025
 SMOOTHING     = 3
@@ -63,11 +67,13 @@ class TempoCNNAnalyser:
         self._last_send   = 0.0
         self._last_feel   = None
 
-        print(f"[tempo_cnn] '{instrument_name}' ready")
+        if INFO : 
+            print(f"[tempo_cnn] '{instrument_name}' ready")
 
     def stop(self):
         self._model = None
-        print(f"[tempo_cnn] '{self.instrument_name}' stopped")
+        if INFO :
+            print(f"[tempo_cnn] '{self.instrument_name}' stopped")
     
     # Resample to 11025Hz and accumulate — Essentia TempoCNN needs 11025Hz input.
     def push(self, audio: np.ndarray):
@@ -89,7 +95,8 @@ class TempoCNNAnalyser:
         import essentia.standard as es
         # patchHopSize=128 -> inference every ~6s; batchSize=1 for streaming
         self._model = es.TempoCNN(graphFilename=MODEL_FILE, patchHopSize=128, batchSize=1)
-        print(f"[tempo_cnn] model loaded: {MODEL_FILE}")
+        if INFO : 
+            print(f"[tempo_cnn] model loaded: {MODEL_FILE}")
 
     # Run inference once we have enough audio (~12s at 11025Hz = 132300 samples).
     # TempoCNN returns (globalTempo, localTempos, localProbabilities).
@@ -121,14 +128,20 @@ class TempoCNNAnalyser:
         if (now - self._last_send) >= SEND_INTERVAL:
             self.osc.send_message(self.bpm_address, smoothed)
             self.prompt_osc_client.send_message("/prompt/bpm", smoothed)
-            print(f"[tempo_cnn] {self.instrument_name}: {smoothed} BPM -> {self.bpm_address}")
+            
+            if DEBUG : 
+                print(f"[tempo_cnn] {self.instrument_name}: {smoothed} BPM -> {self.bpm_address}")
+            
             self._last_send = now
 
         # Feel only sends when the bucket changes — avoids spamming the same label
         if feel != self._last_feel:
             self.osc.send_message(self.feel_address, feel)
             self.prompt_osc_client.send_message("/prompt/tempo_feel", feel)
-            print(f"[tempo_cnn] {self.instrument_name}: {feel} -> {self.feel_address}")
+            
+            if DEBUG : 
+                print(f"[tempo_cnn] {self.instrument_name}: {feel} -> {self.feel_address}")
+            
             self._last_feel = feel
 
 

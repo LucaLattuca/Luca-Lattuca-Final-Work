@@ -8,7 +8,7 @@
       "audio_device": {
         "channel": 0,
         "connected": true,
-        "device_id": 40,
+        "device_id": 43,
         "host_api": "Windows WASAPI",
         "max_input_channels": 2,
         "name": "Stereo Mix (Realtek(R) Audio)",

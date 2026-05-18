@@ -1,8 +1,13 @@
 import os
+
+# Debugging
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'      # suppresses C++ INFO/WARNING logs
 os.environ['CUDA_VISIBLE_DEVICES'] = ''         # tells TF no GPU → stops the whole probe loop
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'       # suppresses the oneDNN message
 os.environ['ESSENTIA_LOG_LEVEL'] = 'error'  # suppresses INFO from Essentia's C++ logger
+
+DEBUG = False
+INFO = True
 
 import json 
 
@@ -56,8 +61,9 @@ def load_model():
         output="PartitionedCall:0"
     )
 
-    print(f"[genre] Model loaded — {len(labels)} labels")
-    sys.stdout.flush() 
+    if INFO :
+        print(f"[genre] Model loaded — {len(labels)} labels")
+        sys.stdout.flush() 
     return model, labels
 
 def resample(audio, from_rate, to_rate):
@@ -135,12 +141,13 @@ class GenreAnalyser:
         self.prompt_osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PROMPT_PORT)
 
         
-
-        print(f"[genre] Ready for '{instrument_name}' @ {sample_rate}Hz")
-        sys.stdout.flush() 
-        print(f"[genre] OSC target: {OSC_HOST}:{OSC_PORT}")
-        print(f"[genre] OSC Prompt target: {OSC_HOST}:{OSC_PROMPT_PORT}")
-        sys.stdout.flush()
+        if INFO : 
+            print(f"[genre] Ready for '{instrument_name}' @ {sample_rate}Hz")
+            sys.stdout.flush() 
+        if INFO : 
+            print(f"[genre] OSC target: {OSC_HOST}:{OSC_PORT}")
+            print(f"[genre] OSC Prompt target: {OSC_HOST}:{OSC_PROMPT_PORT}")
+            sys.stdout.flush()
         
     def push(self, audio):
         self.buffer.push(audio)
@@ -151,7 +158,9 @@ class GenreAnalyser:
             self._handle_results(results)
 
     def _handle_results(self, results):
-        self._display(results)
+
+        if DEBUG:
+            self._display(results)
         
         # Send top 3 genres as JSON
         top_3 = [
@@ -160,13 +169,21 @@ class GenreAnalyser:
         ]
         message = json.dumps(top_3)
 
+        # send to frontend
         self.osc_client.send_message(f"/genre/{self.instrument_name}", message)
-        print(f"[genre] OSC SENT: /genre/{self.instrument_name} → {message}")
         
+        if DEBUG : 
+            print(f"[genre] OSC SENT: /genre/{self.instrument_name} → {message}")
+            sys.stdout.flush()
+        
+        # send to prompt generator
         self.prompt_osc_client.send_message("/prompt/genre", message)
-        print(f"[genre] OSC PROMPT SENT: /prompt/genre → {message}")
-        sys.stdout.flush()
 
+        if DEBUG : 
+            print(f"[genre] OSC PROMPT SENT: /prompt/genre → {message}")
+            sys.stdout.flush()
+
+    
     def _display(self, results):
         print(f"\n[genre/{self.instrument_name}] ──────────────────────────────────")
         sys.stdout.flush() 
