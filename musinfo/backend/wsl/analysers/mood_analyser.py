@@ -16,6 +16,10 @@ from pythonosc import udp_client
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+# Debugging
+DEBUG = False
+INFO = True
+
 # ─── Audio config ─────────────────────────────────────────────────────────────
 MODEL_RATE = 16000
 
@@ -95,8 +99,10 @@ def load_models():
         graphFilename=EFFNET_PB,
         output="PartitionedCall:1"
     )
-    print("[mood] Discogs-EffNet embedder loaded")
-    sys.stdout.flush()
+
+    if INFO :
+        print("[mood] Discogs-EffNet embedder loaded")
+        sys.stdout.flush()
 
     mood_classifiers = {}
     for mood, (pb_path, pos_idx) in MOOD_MODELS.items():
@@ -104,15 +110,17 @@ def load_models():
             TensorflowPredict2D(graphFilename=pb_path, output="model/Softmax"),
             pos_idx
         )
-        print(f"[mood] Loaded classifier: {mood} (positive class index: {pos_idx})")
-        sys.stdout.flush()
+        if INFO :
+            print(f"[mood] Loaded classifier: {mood} (positive class index: {pos_idx})")
+            sys.stdout.flush()
 
     danceability_clf = TensorflowPredict2D(
         graphFilename=DANCEABILITY_PB,
         output="model/Softmax"
     )
-    print("[mood] Loaded classifier: danceability")
-    sys.stdout.flush()
+    if INFO :
+        print("[mood] Loaded classifier: danceability")
+        sys.stdout.flush()
 
     jamendo_clf = TensorflowPredict2D(
         graphFilename=JAMENDO_PB,
@@ -120,15 +128,19 @@ def load_models():
     )
     with open(JAMENDO_JSON, "r") as f:
         jamendo_labels = json.load(f)["classes"]
-    print(f"[mood] Loaded MTG-Jamendo ({len(jamendo_labels)} tags)")
-    sys.stdout.flush()
+    
+    if INFO : 
+        print(f"[mood] Loaded MTG-Jamendo ({len(jamendo_labels)} tags)")
+        sys.stdout.flush()
 
     return embedder, mood_classifiers, danceability_clf, jamendo_clf, jamendo_labels
 
 
 # ─── Inference ────────────────────────────────────────────────────────────────
 def classify_moods(audio, embedder, mood_classifiers):
-    print(f"[mood] audio stats: min={audio.min():.3f} max={audio.max():.3f} rms={np.sqrt(np.mean(audio**2)):.4f}", flush=True)
+    if DEBUG : 
+        print(f"[mood] audio stats: min={audio.min():.3f} max={audio.max():.3f} rms={np.sqrt(np.mean(audio**2)):.4f}", flush=True)
+
     embeddings = embedder(audio)
     mood_scores = {}
     for mood, (clf, pos_idx) in mood_classifiers.items():
@@ -183,11 +195,12 @@ class MoodAnalyser:
         self.osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
         self.prompt_osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PROMPT_PORT)
 
-        print(f"[mood] Ready for '{instrument_name}' @ {sample_rate}Hz")
-        print(f"[mood] Windows — mood: {MOOD_DURATION}s  dance: {DANCE_DURATION}s  jamendo: {JAMENDO_DURATION}s")
-        print(f"[mood] OSC target: {OSC_HOST}:{OSC_PORT}")
-        print(f"[mood] OSC Prompt target: {OSC_HOST}:{OSC_PROMPT_PORT}")
-        sys.stdout.flush()
+        if INFO :
+            print(f"[mood] Ready for '{instrument_name}' @ {sample_rate}Hz")
+            print(f"[mood] Windows — mood: {MOOD_DURATION}s  dance: {DANCE_DURATION}s  jamendo: {JAMENDO_DURATION}s")
+            print(f"[mood] OSC target: {OSC_HOST}:{OSC_PORT}")
+            print(f"[mood] OSC Prompt target: {OSC_HOST}:{OSC_PROMPT_PORT}")
+            sys.stdout.flush()
 
     def push(self, audio):
         self.mood_buffer.push(audio)
@@ -215,9 +228,11 @@ class MoodAnalyser:
         
         self.osc_client.send_message(f"/mood/{inst}/top", top_mood)
         self.prompt_osc_client.send_message("/prompt/mood", top_mood)
-        print(f"[mood/{inst}] {scores_str}")
-        print(f"[mood/{inst}] mood: {top_mood}")
-        sys.stdout.flush()
+
+        if DEBUG : 
+            print(f"[mood/{inst}] {scores_str}")
+            print(f"[mood/{inst}] mood: {top_mood}")
+            sys.stdout.flush()
 
     def _send_danceability(self, danceability):
         inst = self.instrument_name
@@ -225,8 +240,10 @@ class MoodAnalyser:
         value = round(danceability * 100, 1)
         self.osc_client.send_message(f"/mood/{inst}/danceability", str(value))
         self.prompt_osc_client.send_message("/prompt/danceability", value)
-        print(f"[mood/{inst}] danceability: {value}%")
-        sys.stdout.flush()
+
+        if DEBUG : 
+            print(f"[mood/{inst}] danceability: {value}%")
+            sys.stdout.flush()
 
     def _send_jamendo(self, jamendo_tags):
         inst = self.instrument_name
@@ -234,5 +251,7 @@ class MoodAnalyser:
         tags_str = ", ".join(jamendo_tags)
         self.osc_client.send_message(f"/mood/{inst}/tags", tags_str)
         self.prompt_osc_client.send_message("/prompt/mood_tags", tags_str)
-        print(f"[mood/{inst}] tags: {tags_str or 'none'}")
-        sys.stdout.flush()
+
+        if DEBUG : 
+            print(f"[mood/{inst}] tags: {tags_str or 'none'}")
+            sys.stdout.flush()
