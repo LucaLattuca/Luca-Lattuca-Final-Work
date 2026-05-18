@@ -11,6 +11,9 @@ import numpy as np
 import os
 import sys
 
+import threading
+from queue import Queue, Full
+
 from analysers.genre_analyser import GenreAnalyser
 from analysers.mood_analyser import MoodAnalyser
 from analysers.pitch_crepe_analyser import PitchCREPEAnalyser  
@@ -21,6 +24,7 @@ from analysers.harmony_analyser import HarmonyAnalyser
 
 TCP_HOST = "0.0.0.0"
 TCP_PORT = 5006
+
 
 
 # ─── SAMPLE RATES ─────────────────────────────────────────────────────────────
@@ -55,6 +59,70 @@ def load_sample_rates():
 
 # Load sample rates at startup
 SAMPLE_RATES = load_sample_rates()
+
+
+
+
+import threading
+from queue import Queue, Full
+
+# ─── THREADED WRAPPER ─────────────────────────────────────────────────────────
+# Queue sizes per analyser — GPU-heavy get 1 (always fresh), CPU get 4
+ANALYSER_QUEUE_SIZES = {
+    "genre":       1,
+    "mood":        1,
+    "pitch_crepe": 2,
+    "tempo":       1,  # tempo_cnn
+    "dynamics":    4,
+    "timbre":      4,
+    "harmony":     4,
+}
+
+class ThreadedAnalyser:
+    """
+    Wraps any analyser instance in its own worker thread.
+    The main recv loop calls push() which drops into a queue and returns
+    immediately — the worker thread calls the real analyser.push() independently.
+    If the queue is full, the oldest chunk is dropped to stay current.
+    """
+    def __init__(self, analyser, queue_size=2):
+        self._analyser = analyser
+        self._queue    = Queue(maxsize=queue_size)
+        self._thread   = threading.Thread(
+            target=self._worker,
+            name=f"Analyser-{type(analyser).__name__}",
+            daemon=True
+        )
+        self._thread.start()
+
+    def _worker(self):
+        while True:
+            audio = self._queue.get()
+            if audio is None:       # shutdown signal
+                break
+            try:
+                self._analyser.push(audio)
+            except Exception as e:
+                print(f"[ThreadedAnalyser] {type(self._analyser).__name__} error: {e}",
+                      flush=True)
+
+    def push(self, audio):
+        try:
+            self._queue.put_nowait(audio)
+        except Full:
+            try:
+                self._queue.get_nowait()   # drop oldest
+            except Exception:
+                pass
+            try:
+                self._queue.put_nowait(audio)
+            except Full:
+                pass                       # still full, just drop
+
+    def stop(self):
+        self._queue.put(None)
+
+
 
 
 # ─── ANALYSERS ────────────────────────────────────────────────────────────────
@@ -107,20 +175,20 @@ def read_frame(conn):
 
 
 # creates one analyser instance per instrument+analyser combination
-def initialise_analyser(instrument, analyser):
+def initialise_analyser(instrument, analyser_name):
     if instrument not in analyser_registry:
         analyser_registry[instrument] = {}
-    if analyser not in analyser_registry[instrument]:
-        cls = AVAILABLE_ANALYSERS.get(analyser)
+    if analyser_name not in analyser_registry[instrument]:
+        cls = AVAILABLE_ANALYSERS.get(analyser_name)
         if cls:
             sample_rate = SAMPLE_RATES.get(instrument, 48000)
-
-            print(f"[wsl_receiver] Starting {analyser} analyser for {instrument} @ {sample_rate}Hz")
+            print(f"[wsl_receiver] Starting {analyser_name} for {instrument} @ {sample_rate}Hz")
             sys.stdout.flush()
 
-            analyser_registry[instrument][analyser] = cls(
-                instrument_name=instrument,
-                sample_rate=sample_rate
+            instance = cls(instrument_name=instrument, sample_rate=sample_rate)
+            queue_size = ANALYSER_QUEUE_SIZES.get(analyser_name, 2)
+            analyser_registry[instrument][analyser_name] = ThreadedAnalyser(
+                instance, queue_size=queue_size
             )
 
 # prints instrument/analyser combination
