@@ -8,6 +8,9 @@ import numpy as np
 import essentia.standard as es
 from pythonosc import udp_client
 
+# Debugging
+DEBUG = False
+INFO = True
 
 SILENCE_THRESHOLD = 0.01
 
@@ -96,9 +99,10 @@ class TimbreAnalyser:
 
         self.osc = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
 
-        print(f"[timbre] Ready for '{instrument_name}' @ {sample_rate}Hz")
-        print(f"[timbre] OSC target: {OSC_HOST}:{OSC_PORT}")
-        sys.stdout.flush()
+        if INFO :
+            print(f"[timbre] Ready for '{instrument_name}' @ {sample_rate}Hz")
+            print(f"[timbre] OSC target: {OSC_HOST}:{OSC_PORT}")
+            sys.stdout.flush()
 
     def push(self, audio):
         if audio.dtype != np.float32:
