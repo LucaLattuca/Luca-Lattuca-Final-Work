@@ -66,9 +66,6 @@ def load_config():
             instruments = json.load(f)
         with open(analysers_path) as f:
             analysers = json.load(f)
-        if INFO : 
-            print(f"[broadcaster] Config loaded.")
-            sys.stdout.flush()
         return {
             "instruments": instruments.get("instruments", {}),
             "analysers":      analysers.get("analysers", {})
@@ -82,6 +79,24 @@ def load_config():
         sys.stdout.flush()
         return {"instruments": {}, "analysers": {}}
 
+
+# compare current config 
+def config_hash(config):
+    return hashlib.md5(json.dumps(config, sort_keys=True).encode()).hexdigest()
+
+# only refresh config if config has changed 
+def watch_config(config_holder):
+    last_hash = None
+    while True:
+        time.sleep(CONFIG_POLL_INTERVAL)
+        new_config = load_config()
+        new_hash = config_hash(new_config)
+        if new_hash != last_hash:
+            config_holder["config"] = new_config
+            last_hash = new_hash
+            if INFO : 
+                print("[broadcaster] Config changed : reloaded.")
+                sys.stdout.flush()
 
 
 # Returns True if analyser should run on the given side ("wsl" or "windows", or "both").
@@ -241,6 +256,8 @@ def send_framed_chunk(sock, instrument_name, analysers, audio_bytes):
     )
     sock.sendall(frame)
 
+
+
 # Combine multiple audio chunks into a mixed chunk
 def combine_audio(mix_name, buffers):
     arrays = [np.frombuffer(b, dtype=np.float32) for b in buffers.values()]
@@ -248,6 +265,7 @@ def combine_audio(mix_name, buffers):
     with _mix_record_lock:
         _record_buffers.setdefault(mix_name, []).append(mixed.copy())
     return mixed.astype(np.float32).tobytes()
+
 
 # save broadcaster recording to audio_debug folder
 def save_recording():
@@ -374,23 +392,6 @@ def handle_capture_connection(conn, config_holder):
         conn.close()
 
 
-# compare current config 
-def config_hash(config):
-    return hashlib.md5(json.dumps(config, sort_keys=True).encode()).hexdigest()
-
-# only refresh config ig something changed. 
-def watch_config(config_holder):
-    last_hash = None
-    while True:
-        time.sleep(CONFIG_POLL_INTERVAL)
-        new_config = load_config()
-        new_hash = config_hash(new_config)
-        if new_hash != last_hash:
-            config_holder["config"] = new_config
-            last_hash = new_hash
-            if INFO : print("[broadcaster] Config changed — rebuilt channel map.")
-        
-
 
 # opens TCP server and accepts incoming capture.py connections
 def start_server(config_holder):
@@ -432,6 +433,10 @@ def main():
         os.remove(STOP_SENTINEL)
 
     config_holder = {"config": load_config()}
+    if INFO:
+        print("[broadcaster] Config loaded.")
+        sys.stdout.flush()
+
     threading.Thread(target=watch_config, args=(config_holder,), daemon=True).start()
     threading.Thread(target=watch_stop_sentinel, daemon=True).start()
     start_server(config_holder)
