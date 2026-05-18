@@ -18,6 +18,10 @@ from essentia.standard import PitchCREPE
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+# Debugging
+DEBUG = False
+INFO = True
+
 MODEL_RATE       = 16000
 CHUNK_DURATION   = 0.2
 CHUNK_SAMPLES    = int(MODEL_RATE * CHUNK_DURATION) # 1600 samples @ 0.1s
@@ -76,7 +80,8 @@ class AudioBuffer:
         window = self.buffer[:CHUNK_SAMPLES]
         # if we're more than 2 windows behind, skip ahead to current audio
         if len(self.buffer) > CHUNK_SAMPLES * 3:
-            print(f"[AudioBuffer] falling behind — dropping old audio", flush=True)
+            if INFO : 
+                print(f"[AudioBuffer] falling behind — dropping old audio", flush=True)
             self.buffer = self.buffer[-(CHUNK_SAMPLES):]  # keep only the most recent window
         else:
             self.buffer = self.buffer[int(CHUNK_SAMPLES * HOP_FRACTION):]
@@ -89,8 +94,11 @@ def load_model():
     if not os.path.exists(path):
         raise FileNotFoundError(f"[CREPE] model not found: {path}")
     model = PitchCREPE(graphFilename=path)
-    print(f"[CREPE] loaded: {MODEL_SIZE} ({path})")
-    sys.stdout.flush()
+    
+    if INFO :
+        print(f"[CREPE] loaded: {MODEL_SIZE} ({path})")
+        sys.stdout.flush()
+    
     return model
 
 _NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
@@ -129,8 +137,10 @@ class PitchCREPEAnalyser:
         self.buffer = AudioBuffer(sample_rate)  
         self.buffer.buffer = np.array([], dtype=np.float32)  # discard pre-load audio
         self.osc    = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
-        print(f"[Pitch_crepe] ready — {instrument_name} @ {sample_rate}Hz → OSC {OSC_HOST}:{OSC_PORT}")
-        sys.stdout.flush()
+
+        if INFO :
+            print(f"[Pitch_crepe] ready — {instrument_name} @ {sample_rate}Hz → OSC {OSC_HOST}:{OSC_PORT}")
+            sys.stdout.flush()
 
     def push(self, audio):
         self.buffer.push(audio)
@@ -150,10 +160,13 @@ class PitchCREPEAnalyser:
             sys.stdout.flush()
             return
 
-        self._display(best)
+        if DEBUG : 
+            self._display(best)
         self.osc.send_message(f"/pitch_crepe/{self.instrument_name}", best["note"])
-        print(f"[Pitch_crepe] → /pitch_crepe/{self.instrument_name}  {best['note']}  {best['freq_hz']}Hz  conf={best['confidence']:.3f}")
-        sys.stdout.flush()
+
+        if DEBUG :
+            print(f"[Pitch_crepe] → /pitch_crepe/{self.instrument_name}  {best['note']}  {best['freq_hz']}Hz  conf={best['confidence']:.3f}")
+            sys.stdout.flush()
 
     def _display(self, best):
         print(f"\n[pitch_crepe/{self.instrument_name}]")
