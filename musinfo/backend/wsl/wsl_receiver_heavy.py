@@ -1,8 +1,6 @@
-# wsl_receiver.py — WSL Audio Receiver
-# Opens a TCP socket for broadcaster to connect to.
-# On first connection, reads instrument/analyser config and initialises
-# one analyser instance per instrument per active analyser.
-# Then routes incoming audio chunks to the correct analyser instance.
+# wsl_receiver_heavy.py — WSL Heavy Model Receiver
+# Handles GPU-intensive analysers (genre, mood) in a separate process
+# so they cannot starve dynamics, timbre, harmony and tempo_cnn of CPU time.
 
 import socket
 import struct
@@ -10,78 +8,63 @@ import json
 import numpy as np
 import os
 import sys
-
 import threading
 from queue import Queue, Full
 
-from analysers.pitch_crepe_analyser import PitchCREPEAnalyser  
-from analysers.tempo_cnn_analyser import TempoCNNAnalyser
-from analysers.dynamics_analyser import DynamicsAnalyser
-from analysers.timbre_analyser import TimbreAnalyser
-from analysers.harmony_analyser import HarmonyAnalyser
+from analysers.genre_analyser import GenreAnalyser
+from analysers.mood_analyser  import MoodAnalyser
 
 TCP_HOST = "0.0.0.0"
-TCP_PORT = 5006
-
+TCP_PORT = 5008
 
 
 # ─── SAMPLE RATES ─────────────────────────────────────────────────────────────
 def load_sample_rates():
-    """Read sample rates directly from instruments.json audio_device config."""
-    base_dir = os.path.dirname(os.path.dirname(__file__))
+    base_dir    = os.path.dirname(os.path.dirname(__file__))
     config_path = os.path.join(base_dir, "config", "instruments.json")
-
     try:
         with open(config_path) as f:
             config = json.load(f)
-
         rates = {}
         for name, inst in config.get("instruments", {}).items():
             device_info = inst.get("audio_device", {})
             sample_rate = device_info.get("sample_rate")
             if sample_rate is not None:
                 rates[name] = sample_rate
-
-        print(f"[wsl_receiver] Loaded sample rates: {rates}")
+        print(f"[wsl_receiver_heavy] Loaded sample rates: {rates}")
         sys.stdout.flush()
         return rates
-
     except FileNotFoundError:
-        print(f"[wsl_receiver] instruments.json not found, using default 48000Hz")
+        print(f"[wsl_receiver_heavy] instruments.json not found, using default 48000Hz")
         sys.stdout.flush()
         return {}
     except json.JSONDecodeError as e:
-        print(f"[wsl_receiver] Failed to parse instruments.json: {e}")
+        print(f"[wsl_receiver_heavy] Failed to parse instruments.json: {e}")
         sys.stdout.flush()
         return {}
 
-# Load sample rates at startup
 SAMPLE_RATES = load_sample_rates()
 
 
+# ─── AVAILABLE ANALYSERS ──────────────────────────────────────────────────────
+AVAILABLE_ANALYSERS = {
+    "genre": GenreAnalyser,
+    "mood":  MoodAnalyser,
+}
+
 # ─── THREADED WRAPPER ─────────────────────────────────────────────────────────
-# Queue sizes per analyser — GPU-heavy get 1 (always fresh), CPU get 4
 ANALYSER_QUEUE_SIZES = {
-    "pitch_crepe": 2,
-    "tempo":       1,  # tempo_cnn
-    "dynamics":    4,
-    "timbre":      4,
-    "harmony":     4,
+    "genre": 1,
+    "mood":  1,
 }
 
 class ThreadedAnalyser:
-    """
-    Wraps any analyser instance in its own worker thread.
-    The main recv loop calls push() which drops into a queue and returns
-    immediately — the worker thread calls the real analyser.push() independently.
-    If the queue is full, the oldest chunk is dropped to stay current.
-    """
-    def __init__(self, analyser, queue_size=2):
+    def __init__(self, analyser, queue_size=1):
         self._analyser = analyser
         self._queue    = Queue(maxsize=queue_size)
         self._thread   = threading.Thread(
             target=self._worker,
-            name=f"Analyser-{type(analyser).__name__}",
+            name=f"Heavy-{type(analyser).__name__}",
             daemon=True
         )
         self._thread.start()
@@ -89,46 +72,33 @@ class ThreadedAnalyser:
     def _worker(self):
         while True:
             audio = self._queue.get()
-            if audio is None:       # shutdown signal
+            if audio is None:
                 break
             try:
                 self._analyser.push(audio)
             except Exception as e:
-                print(f"[ThreadedAnalyser] {type(self._analyser).__name__} error: {e}",
-                      flush=True)
+                print(f"[wsl_receiver_heavy] {type(self._analyser).__name__} error: {e}", flush=True)
 
     def push(self, audio):
         try:
             self._queue.put_nowait(audio)
         except Full:
             try:
-                self._queue.get_nowait()   # drop oldest
+                self._queue.get_nowait()
             except Exception:
                 pass
             try:
                 self._queue.put_nowait(audio)
             except Full:
-                pass                       # still full, just drop
+                pass
 
     def stop(self):
         self._queue.put(None)
 
 
-
-
-# ─── ANALYSERS ────────────────────────────────────────────────────────────────
-AVAILABLE_ANALYSERS = {
-    "pitch_crepe": PitchCREPEAnalyser,
-    "tempo": TempoCNNAnalyser,
-    "dynamics": DynamicsAnalyser,
-    "timbre": TimbreAnalyser,
-    "harmony": HarmonyAnalyser,
-}
-
-# holds every instance of each analyser (piano : pitch, guitar : pitch, genre...)
+# ─── REGISTRY ─────────────────────────────────────────────────────────────────
 analyser_registry = {}
 
-# reads exactly n bytes from the socket, looping until complete since TCP may split reads
 def recv_exact(conn, n):
     buf = b""
     while len(buf) < n:
@@ -138,7 +108,6 @@ def recv_exact(conn, n):
         buf += chunk
     return buf
 
-# unpacks one complete broadcaster frame into instrument metadata and a numpy audio array
 def read_frame(conn):
     raw_header_len = recv_exact(conn, 4)
     if raw_header_len is None:
@@ -162,8 +131,6 @@ def read_frame(conn):
 
     return instrument_info, audio
 
-
-# creates one analyser instance per instrument+analyser combination
 def initialise_analyser(instrument, analyser_name):
     if instrument not in analyser_registry:
         analyser_registry[instrument] = {}
@@ -171,32 +138,26 @@ def initialise_analyser(instrument, analyser_name):
         cls = AVAILABLE_ANALYSERS.get(analyser_name)
         if cls:
             sample_rate = SAMPLE_RATES.get(instrument, 48000)
-            print(f"[wsl_receiver] Starting {analyser_name} for {instrument} @ {sample_rate}Hz")
+            print(f"[wsl_receiver_heavy] Starting {analyser_name} for {instrument} @ {sample_rate}Hz")
             sys.stdout.flush()
-
-            instance = cls(instrument_name=instrument, sample_rate=sample_rate)
-            queue_size = ANALYSER_QUEUE_SIZES.get(analyser_name, 2)
+            instance   = cls(instrument_name=instrument, sample_rate=sample_rate)
+            queue_size = ANALYSER_QUEUE_SIZES.get(analyser_name, 1)
             analyser_registry[instrument][analyser_name] = ThreadedAnalyser(
                 instance, queue_size=queue_size
             )
 
-# prints instrument/analyser combination
 def log_routing(name, analysers):
-    analysers_str = ", ".join(analysers) if analysers else "none"
-    print(f"[wsl_receiver] {name:<16} -> {analysers_str}")
+    print(f"[wsl_receiver_heavy] {name:<16} -> {', '.join(analysers) if analysers else 'none'}")
     sys.stdout.flush()
 
-
-# Handles connection to broadcaster.py, initialises analysers, routes incoming audio chunks
 def handle_connection(conn, addr):
-    print(f"[wsl_receiver] broadcaster connected from {addr}")
+    print(f"[wsl_receiver_heavy] broadcaster connected from {addr}")
     sys.stdout.flush()
     logged_instruments = set()
 
     try:
         while True:
             instrument_info, audio = read_frame(conn)
-
             if instrument_info is None:
                 break
 
@@ -215,36 +176,31 @@ def handle_connection(conn, addr):
                     analyser_instance.push(audio)
 
     except Exception as e:
-        print(f"[wsl_receiver] Error: {e}")
+        print(f"[wsl_receiver_heavy] Error: {e}")
         sys.stdout.flush()
     finally:
-        print(f"[wsl_receiver] broadcaster disconnected.")
+        print(f"[wsl_receiver_heavy] broadcaster disconnected.")
         sys.stdout.flush()
-        # stop all worker threads cleanly
         for inst_analysers in analyser_registry.values():
             for threaded in inst_analysers.values():
                 threaded.stop()
         analyser_registry.clear()
         conn.close()
 
-
-# start TCP server loop
 def start_server():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server.bind((TCP_HOST, TCP_PORT))
         server.listen(1)
-        print(f"[wsl_receiver] Listening on {TCP_HOST}:{TCP_PORT}")
+        print(f"[wsl_receiver_heavy] Listening on {TCP_HOST}:{TCP_PORT}")
         sys.stdout.flush()
-
         while True:
             conn, addr = server.accept()
             handle_connection(conn, addr)
-
 
 if __name__ == "__main__":
     try:
         start_server()
     except KeyboardInterrupt:
-        print("[wsl_receiver] Stopped.")
+        print("[wsl_receiver_heavy] Stopped.")
         sys.stdout.flush()

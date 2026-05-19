@@ -2,11 +2,9 @@
   "instruments": {
     "backingtrack": {
       "analysers": [
-        "tempo",
-        "dynamics",
-        "timbre",
-        "harmony",
-        "genre"
+        "mood",
+        "genre",
+        "tempo"
       ],
       "audio_device": {
         "channel": 0,

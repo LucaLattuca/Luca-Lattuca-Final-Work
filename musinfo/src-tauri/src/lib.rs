@@ -23,6 +23,10 @@ struct CaptureProcess(Mutex<Option<Child>>);
 // holds the wsl_receiver.py process handle so stop_pipeline can kill it
 struct WslProcess(Mutex<Option<Child>>);
 
+
+// holds the wsl_receiver_heavy.py process handle so stop_pipeline can kill it
+struct WslHeavyProcess(Mutex<Option<Child>>);
+
 // holds the broadcaster.py process handle so stop_pipeline can kill it
 struct BroadcasterProcess(Mutex<Option<Child>>);
 
@@ -559,6 +563,7 @@ fn start_pipeline(
     app: AppHandle,
     capture_state: State<CaptureProcess>,
     wsl_state: State<WslProcess>,
+    wsl_heavy_state: State<WslHeavyProcess>,
     broadcaster_state: State<BroadcasterProcess>,
     windows_receiver_state: State<WindowsReceiverProcess>,
 ) -> Result<String, String> {
@@ -583,8 +588,6 @@ fn start_pipeline(
 
     let wsl_child = Command::new("wsl")
         .args(["-d", "Ubuntu", "/bin/bash", "-c", &bash_cmd])
-        // REMOVED: .stdout(Stdio::null())
-        // REMOVED: .stderr(Stdio::null())
         .spawn()
         .map_err(|e| format!("Failed to spawn wsl_receiver.py: {}", e))?;
 
@@ -592,6 +595,26 @@ fn start_pipeline(
     println!("[Tauri] wsl_receiver.py spawned.");
 
     std::thread::sleep(std::time::Duration::from_millis(1500));
+
+
+    // --- 1b. Spawn wsl_receiver_heavy.py inside WSL ---
+    let wsl_heavy_script = format!("{}/backend/wsl/wsl_receiver_heavy.py", project_root_wsl);
+    let bash_cmd_heavy = format!(
+        "source {}/backend/wsl/.venv/bin/activate && python3 {}",
+        project_root_wsl, wsl_heavy_script
+    );
+
+    println!("[Tauri] Spawning wsl_receiver_heavy.py...");
+
+    let wsl_heavy_child = Command::new("wsl")
+        .args(["-d", "Ubuntu", "/bin/bash", "-c", &bash_cmd_heavy])
+        .spawn()
+        .map_err(|e| format!("Failed to spawn wsl_receiver_heavy.py: {}", e))?;
+
+    *wsl_heavy_state.0.lock().unwrap() = Some(wsl_heavy_child);
+    println!("[Tauri] wsl_receiver_heavy.py spawned.");
+
+    std::thread::sleep(std::time::Duration::from_millis(500));
 
     // --- 2. Spawn windows_receiver.py on Windows ---
     let windows_receiver_script = project_root_windows.join("backend/windows/windows_receiver.py");
@@ -654,6 +677,7 @@ fn start_pipeline(
 fn stop_pipeline(
     capture_state: State<CaptureProcess>,
     wsl_state: State<WslProcess>,
+    wsl_heavy_state: State<WslHeavyProcess>,
     broadcaster_state: State<BroadcasterProcess>,
     windows_receiver_state: State<WindowsReceiverProcess>,
 ) -> Result<String, String> {
@@ -699,9 +723,17 @@ fn stop_pipeline(
     // if wsl_receiver.py is running, kill it
     if let Some(mut child) = wsl_state.0.lock().unwrap().take() {
         child
+        .kill()
+        .map_err(|e| format!("Failed to kill wsl_receiver.py: {}", e))?;
+    println!("[Tauri] receiver.py stopped.");
+    }
+
+    // if wsl_receiver_heavy.py is running, kill it
+    if let Some(mut child) = wsl_heavy_state.0.lock().unwrap().take() {
+        child
             .kill()
-            .map_err(|e| format!("Failed to kill wsl_receiver.py: {}", e))?;
-        println!("[Tauri] receiver.py stopped.");
+            .map_err(|e| format!("Failed to kill wsl_receiver_heavy.py: {}", e))?;
+    println!("[Tauri] wsl_receiver_heavy.py stopped.");
     }
 
     Ok("Pipeline stopped".to_string())
@@ -880,6 +912,7 @@ pub fn run() {
         .manage(TestProcess(Mutex::new(None)))
         .manage(MidiTestProcess(Mutex::new(None)))
         .manage(WslProcess(Mutex::new(None)))
+        .manage(WslHeavyProcess(Mutex::new(None)))
         .manage(WindowsReceiverProcess(Mutex::new(None)))
         .manage(BroadcasterProcess(Mutex::new(None)))
         .setup(|app| {

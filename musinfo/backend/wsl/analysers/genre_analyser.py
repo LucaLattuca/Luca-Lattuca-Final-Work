@@ -106,7 +106,11 @@ class GenreAnalyser:
             output="PartitionedCall:0"
         )
 
-        self.buffer            = AudioBuffer(self.sender_rate)
+        self.buffer = AudioBuffer(self.sender_rate)
+        # Offset genre slightly so it doesn't align with mood's first fire at t=3s
+        # Genre fires every 4s, first fire at t=4.5s
+        self.buffer.buffer = np.zeros(int(MODEL_RATE * 0.5), dtype=np.float32)
+
         self.osc_client        = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
         self.prompt_osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PROMPT_PORT)
 

@@ -6,12 +6,12 @@
             "explanation": "Tracks the current note and melody in real time using a classic algorithm. Lightweight and low latency. Best for melodic instruments like voice, guitar, or piano."
         },
         "genre": {
-            "target": "wsl",
+            "target": "wsl_heavy",
             "description": "Genre classification via Discogs-EffNet",
             "explanation": "Classifies the musical style of the audio using a neural network trained on millions of Discogs tracks. Best for full mixes or rhythm-heavy sources."
         },
         "mood": {
-            "target": "wsl",
+            "target": "wsl_heavy",
             "description": "Mood classification via Discogs-EffNet",
             "explanation": "Estimates the emotional character of the audio using a neural network: energy, danceability, and overall mood. Best for full mixes."
         },

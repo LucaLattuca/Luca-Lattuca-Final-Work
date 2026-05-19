@@ -157,6 +157,13 @@ def classify_jamendo(embeddings, jamendo_clf, jamendo_labels):
     return jamendo_tags
 
 
+# Stagger buffer start times by pre-filling with silence
+# so mood/dance/jamendo never fire simultaneously
+# All still run at their configured duration, just offset in time
+MOOD_OFFSET    = 0.0   # fires first
+DANCE_OFFSET   = 1.0   # fires 1s later
+JAMENDO_OFFSET = 2.0   # fires 2s later
+
 # ─── Analyser class ───────────────────────────────────────────────────────────
 class MoodAnalyser:
     def __init__(self, instrument_name="unknown", sample_rate=48000):
@@ -171,6 +178,16 @@ class MoodAnalyser:
         self.mood_buffer    = AudioBuffer(self.sender_rate, MOOD_DURATION)
         self.dance_buffer   = AudioBuffer(self.sender_rate, DANCE_DURATION)
         self.jamendo_buffer = AudioBuffer(self.sender_rate, JAMENDO_DURATION)
+
+        # Pre-fill with silence to stagger firing times
+        # Each offset is in seconds — converted to 16kHz samples
+        def silence_samples(seconds):
+            return np.zeros(int(MODEL_RATE * seconds), dtype=np.float32)
+
+        self.mood_buffer.buffer    = silence_samples(MOOD_OFFSET)
+        self.dance_buffer.buffer   = silence_samples(DANCE_OFFSET)
+        self.jamendo_buffer.buffer = silence_samples(JAMENDO_OFFSET)
+
 
         self.osc_client        = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
         self.prompt_osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PROMPT_PORT)
