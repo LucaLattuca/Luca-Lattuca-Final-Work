@@ -1,8 +1,10 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'      # suppresses C++ INFO/WARNING logs
-os.environ['CUDA_VISIBLE_DEVICES'] = ''         # tells TF no GPU → stops the whole probe loop
+os.environ['CUDA_VISIBLE_DEVICES'] = ''         # tells TF no GPU -> stops the whole probe loop
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'       # suppresses the oneDNN message
 os.environ['ESSENTIA_LOG_LEVEL'] = 'error'  # suppresses INFO from Essentia's C++ logger
+
+from analysers.shared_embedder import embedder as shared_embedder
 
 import json
 import sys
@@ -11,7 +13,7 @@ import subprocess
 import numpy as np
 from math import gcd
 from scipy.signal import resample_poly
-from essentia.standard import TensorflowPredictEffnetDiscogs, TensorflowPredict2D
+from essentia.standard import TensorflowPredict2D
 from pythonosc import udp_client
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -35,7 +37,6 @@ SCRIPT_DIR      = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR      = os.path.join(os.path.dirname(SCRIPT_DIR), "models")
 MOOD_MODELS_DIR = os.path.join(MODELS_DIR, "mood_models")
 
-EFFNET_PB = os.path.join(MODELS_DIR, "discogs-effnet-bs64-1.pb")
 
 # (pb_path, positive_class_index) — index of the positive/active class in model output
 MOOD_MODELS = {
@@ -95,30 +96,22 @@ class AudioBuffer:
 
 # ─── Model loading ────────────────────────────────────────────────────────────
 def load_models():
-    embedder = TensorflowPredictEffnetDiscogs(
-        graphFilename=EFFNET_PB,
-        output="PartitionedCall:1"
-    )
-
-    if INFO :
-        print("[mood] Discogs-EffNet embedder loaded")
-        sys.stdout.flush()
-
+    # shared_embedder handles EffNet — mood only loads its classification heads
     mood_classifiers = {}
     for mood, (pb_path, pos_idx) in MOOD_MODELS.items():
         mood_classifiers[mood] = (
             TensorflowPredict2D(graphFilename=pb_path, output="model/Softmax"),
             pos_idx
         )
-        if INFO :
-            print(f"[mood] Loaded classifier: {mood} (positive class index: {pos_idx})")
+        if INFO:
+            print(f"[mood] Loaded classifier: {mood}")
             sys.stdout.flush()
 
     danceability_clf = TensorflowPredict2D(
         graphFilename=DANCEABILITY_PB,
         output="model/Softmax"
     )
-    if INFO :
+    if INFO:
         print("[mood] Loaded classifier: danceability")
         sys.stdout.flush()
 
@@ -128,42 +121,32 @@ def load_models():
     )
     with open(JAMENDO_JSON, "r") as f:
         jamendo_labels = json.load(f)["classes"]
-    
-    if INFO : 
+
+    if INFO:
         print(f"[mood] Loaded MTG-Jamendo ({len(jamendo_labels)} tags)")
         sys.stdout.flush()
 
-    return embedder, mood_classifiers, danceability_clf, jamendo_clf, jamendo_labels
+    # returns without embedder — shared_embedder handles that
+    return mood_classifiers, danceability_clf, jamendo_clf, jamendo_labels
 
 
 # ─── Inference ────────────────────────────────────────────────────────────────
-def classify_moods(audio, embedder, mood_classifiers):
-    if DEBUG : 
-        print(f"[mood] audio stats: min={audio.min():.3f} max={audio.max():.3f} rms={np.sqrt(np.mean(audio**2)):.4f}", flush=True)
-
-    embeddings = embedder(audio)
+def classify_moods(embeddings, mood_classifiers):
     mood_scores = {}
     for mood, (clf, pos_idx) in mood_classifiers.items():
-        preds = clf(embeddings)                  # [frames, 2]
+        preds = clf(embeddings)
         mood_scores[mood] = float(np.mean(preds[:, pos_idx]))
-    top_mood = max(mood_scores, key=mood_scores.get)
-    return top_mood, mood_scores
+    return max(mood_scores, key=mood_scores.get), mood_scores
 
+def classify_danceability(embeddings, danceability_clf):
+    preds = danceability_clf(embeddings)
+    return float(np.mean(preds[:, DANCEABILITY_POSITIVE_IDX]))
 
-def classify_danceability(audio, embedder, danceability_clf):
-    embeddings   = embedder(audio)
-    preds        = danceability_clf(embeddings)  # [frames, 2]
-    danceability = float(np.mean(preds[:, DANCEABILITY_POSITIVE_IDX]))
-    return danceability
-
-
-def classify_jamendo(audio, embedder, jamendo_clf, jamendo_labels):
-    embeddings    = embedder(audio)
-    jamendo_preds = jamendo_clf(embeddings)      # [frames, 56]
+def classify_jamendo(embeddings, jamendo_clf, jamendo_labels):
+    jamendo_preds = jamendo_clf(embeddings)
     mean_preds    = np.mean(jamendo_preds, axis=0)
     top_indices   = np.argsort(mean_preds)[::-1]
-
-    jamendo_tags = []
+    jamendo_tags  = []
     for i in top_indices:
         conf = float(mean_preds[i])
         if conf < JAMENDO_MIN_CONFIDENCE:
@@ -171,7 +154,6 @@ def classify_jamendo(audio, embedder, jamendo_clf, jamendo_labels):
         jamendo_tags.append(jamendo_labels[i])
         if len(jamendo_tags) >= JAMENDO_TOP_N:
             break
-
     return jamendo_tags
 
 
@@ -181,25 +163,20 @@ class MoodAnalyser:
         self.instrument_name = instrument_name
         self.sender_rate     = sample_rate
 
-        (self.embedder,
-         self.mood_classifiers,
+        (self.mood_classifiers,
          self.danceability_clf,
          self.jamendo_clf,
          self.jamendo_labels) = load_models()
 
-        # separate buffer per classifier group
         self.mood_buffer    = AudioBuffer(self.sender_rate, MOOD_DURATION)
         self.dance_buffer   = AudioBuffer(self.sender_rate, DANCE_DURATION)
         self.jamendo_buffer = AudioBuffer(self.sender_rate, JAMENDO_DURATION)
 
-        self.osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
+        self.osc_client        = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
         self.prompt_osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PROMPT_PORT)
 
-        if INFO :
+        if INFO:
             print(f"[mood] Ready for '{instrument_name}' @ {sample_rate}Hz")
-            print(f"[mood] Windows — mood: {MOOD_DURATION}s  dance: {DANCE_DURATION}s  jamendo: {JAMENDO_DURATION}s")
-            print(f"[mood] OSC target: {OSC_HOST}:{OSC_PORT}")
-            print(f"[mood] OSC Prompt target: {OSC_HOST}:{OSC_PROMPT_PORT}")
             sys.stdout.flush()
 
     def push(self, audio):
@@ -208,18 +185,21 @@ class MoodAnalyser:
         self.jamendo_buffer.push(audio)
 
         if self.mood_buffer.ready():
-            window = self.mood_buffer.pop_window()
-            top_mood, mood_scores = classify_moods(window, self.embedder, self.mood_classifiers)
+            window     = self.mood_buffer.pop_window()
+            embeddings = shared_embedder.get_embeddings(window)
+            top_mood, mood_scores = classify_moods(embeddings, self.mood_classifiers)
             self._send_mood(top_mood, mood_scores)
 
         if self.dance_buffer.ready():
             window       = self.dance_buffer.pop_window()
-            danceability = classify_danceability(window, self.embedder, self.danceability_clf)
+            embeddings   = shared_embedder.get_embeddings(window)
+            danceability = classify_danceability(embeddings, self.danceability_clf)
             self._send_danceability(danceability)
 
         if self.jamendo_buffer.ready():
             window       = self.jamendo_buffer.pop_window()
-            jamendo_tags = classify_jamendo(window, self.embedder, self.jamendo_clf, self.jamendo_labels)
+            embeddings   = shared_embedder.get_embeddings(window)
+            jamendo_tags = classify_jamendo(embeddings, self.jamendo_clf, self.jamendo_labels)
             self._send_jamendo(jamendo_tags)
 
     def _send_mood(self, top_mood, mood_scores):
