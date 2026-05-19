@@ -7,13 +7,16 @@ import numpy as np
 import essentia.standard as es
 from pythonosc import udp_client
 
+# Debugging
+DEBUG = False
+INFO = True
 
 # Audio / frame config
 SAMPLE_RATE = 44100
 FRAME_SIZE = 1024
 HOP_SIZE = 512
 
-# Silence gate — hardcoded for now, wire to instruments.json later
+# Silence gate
 SILENCE_THRESHOLD = 0.01
 
 # RMS smoothing (higher α = snappier, lower α = smoother)
@@ -88,10 +91,11 @@ class DynamicsAnalyser:
         self.addr_strength  = f"/dynamics/{self.instrument_name}/onset_strength"
         self.addr_rms_onset = f"/dynamics/{self.instrument_name}/rms_at_onset"
 
-        print(f"[dynamics] Ready for '{instrument_name}' @ {sample_rate}Hz (method={method})")
-        sys.stdout.flush()
-        print(f"[dynamics] OSC target: {OSC_HOST}:{OSC_PORT}")
-        sys.stdout.flush()
+        if INFO : 
+            print(f"[dynamics] Ready for '{instrument_name}' @ {sample_rate}Hz (method={method})")
+            sys.stdout.flush()
+            print(f"[dynamics] OSC target: {OSC_HOST}:{OSC_PORT}")
+            sys.stdout.flush()
 
     def push(self, audio):
         chunk_rms = float(np.sqrt(np.mean(audio ** 2)))
@@ -182,6 +186,8 @@ class DynamicsAnalyser:
         self.osc_client.send_message(self.addr_onset, 1)
         self.osc_client.send_message(self.addr_strength, float(onset_strength))
         self.osc_client.send_message(self.addr_rms_onset, float(scaled_rms_at_onset))
-        print(f"[dynamics/{self.instrument_name}] onset "
-              f"strength={onset_strength:.3f} rms@onset={scaled_rms_at_onset:.1f}")
-        sys.stdout.flush()
+
+        if DEBUG : 
+            print(f"[dynamics/{self.instrument_name}] onset "
+                  f"strength={onset_strength:.3f} rms@onset={scaled_rms_at_onset:.1f}")
+            sys.stdout.flush()

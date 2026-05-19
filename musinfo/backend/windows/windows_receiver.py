@@ -11,6 +11,9 @@ import numpy as np
 import os
 import sys
 
+import threading
+from queue import Queue, Full
+
 from analysers.pitch_analyser import PitchAnalyser
 from analysers.tempo_analyser import TempoAnalyser
 
@@ -47,6 +50,59 @@ def load_sample_rates():
 
 # Load sample rates at startup
 SAMPLE_RATES = load_sample_rates()
+
+
+
+ANALYSER_QUEUE_SIZES = {
+    "pitch": 4,
+    "tempo": 2,  # aubio tempo — needs some beat continuity
+}
+
+
+class ThreadedAnalyser:
+    """
+    Wraps any analyser instance in its own worker thread.
+    The main recv loop calls push() which drops into a queue and returns
+    immediately — the worker thread calls the real analyser.push() independently.
+    If the queue is full, the oldest chunk is dropped to stay current.
+    """
+    def __init__(self, analyser, queue_size=2):
+        self._analyser = analyser
+        self._queue    = Queue(maxsize=queue_size)
+        self._thread   = threading.Thread(
+            target=self._worker,
+            name=f"Analyser-{type(analyser).__name__}",
+            daemon=True
+        )
+        self._thread.start()
+
+    def _worker(self):
+        while True:
+            audio = self._queue.get()
+            if audio is None:       # shutdown signal
+                break
+            try:
+                self._analyser.push(audio)
+            except Exception as e:
+                print(f"[ThreadedAnalyser] {type(self._analyser).__name__} error: {e}",
+                      flush=True)
+
+    def push(self, audio):
+        try:
+            self._queue.put_nowait(audio)
+        except Full:
+            try:
+                self._queue.get_nowait()   # drop oldest
+            except Exception:
+                pass
+            try:
+                self._queue.put_nowait(audio)
+            except Full:
+                pass                       # still full, just drop
+
+    def stop(self):
+        self._queue.put(None)
+
 
 
 # ─── ANALYSERS ────────────────────────────────────────────────────────────────
@@ -153,6 +209,11 @@ def handle_connection(conn, addr):
     finally:
         print(f"[windows_receiver] broadcaster disconnected.")
         sys.stdout.flush()
+        # stop all worker threads cleanly
+        for inst_analysers in analyser_registry.values():
+            for threaded in inst_analysers.values():
+                threaded.stop()
+        analyser_registry.clear()
         conn.close()
 
 

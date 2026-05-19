@@ -12,6 +12,11 @@ import time
 import numpy as np
 import sys
 import wave
+import hashlib
+
+# Debugging 
+DEBUG = False
+INFO = True
 
 # AUDIO DEBUGGING information
 _record_buffers = {}
@@ -32,6 +37,9 @@ LOCAL_PORT      = 5005
 
 WSL_HOST        = "172.29.28.224"
 WSL_PORT        = 5006
+
+WSL_HEAVY_HOST  = "172.29.28.224"
+WSL_HEAVY_PORT        = 5008
 
 WINDOWS_HOST = "127.0.0.1"
 WINDOWS_PORT = 5007
@@ -61,8 +69,6 @@ def load_config():
             instruments = json.load(f)
         with open(analysers_path) as f:
             analysers = json.load(f)
-        print(f"[broadcaster] Config loaded.")
-        sys.stdout.flush()
         return {
             "instruments": instruments.get("instruments", {}),
             "analysers":      analysers.get("analysers", {})
@@ -76,6 +82,24 @@ def load_config():
         sys.stdout.flush()
         return {"instruments": {}, "analysers": {}}
 
+
+# compare current config 
+def config_hash(config):
+    return hashlib.md5(json.dumps(config, sort_keys=True).encode()).hexdigest()
+
+# only refresh config if config has changed 
+def watch_config(config_holder):
+    last_hash = None
+    while True:
+        time.sleep(CONFIG_POLL_INTERVAL)
+        new_config = load_config()
+        new_hash = config_hash(new_config)
+        if new_hash != last_hash:
+            config_holder["config"] = new_config
+            last_hash = new_hash
+            if INFO : 
+                print("[broadcaster] Config changed : reloaded.")
+                sys.stdout.flush()
 
 
 # Returns True if analyser should run on the given side ("wsl" or "windows", or "both").
@@ -114,14 +138,15 @@ def build_channel_map(config):
         active_analysers = instrument.get("analysers", [])
 
         channel_map[channel_id] = {
-            "name":            name,
-            "wsl_analysers":     [m for m in active_analysers if _target(analysers_config, m, "wsl")],
-            "windows_analysers": [m for m in active_analysers if _target(analysers_config, m, "windows")],
-
+            "name":                name,
+            "wsl_analysers":       [m for m in active_analysers if _target(analysers_config, m, "wsl")],
+            "wsl_heavy_analysers": [m for m in active_analysers if _target(analysers_config, m, "wsl_heavy")],
+            "windows_analysers":   [m for m in active_analysers if _target(analysers_config, m, "windows")],
         }
         
-        print(f"[broadcaster] Channel {channel_id} -> '{name}' | wsl: {channel_map[channel_id]['wsl_analysers']} | windows: {channel_map[channel_id]['windows_analysers']}")
-        sys.stdout.flush()
+        if DEBUG : 
+            print(f"[broadcaster] Channel {channel_id} -> '{name}' | wsl: {channel_map[channel_id]['wsl_analysers']} | windows: {channel_map[channel_id]['windows_analysers']}")
+            sys.stdout.flush()
 
     # Build mix configurations
     mix_configs = {}
@@ -145,7 +170,7 @@ def build_channel_map(config):
                     source_channels.append(ch_id)
                     break
                 
-        print(f"[broadcaster] Mix '{mix_name}' source_channels resolved: {source_channels}")
+        if INFO : print(f"[broadcaster] Mix '{mix_name}' source_channels resolved: {source_channels}")
         if not source_channels:
             print(f"[broadcaster] Mix '{mix_name}' has no valid source channels — skipping")
             sys.stdout.flush()
@@ -154,15 +179,17 @@ def build_channel_map(config):
         # Split mix analysers by target
         mix_analysers = mix_inst.get("analysers", [])
         mix_configs[mix_name] = {
-            "source_channels": source_channels,
-            "buffer": {},
-            "analysers": mix_analysers,
-            "wsl_analysers":     [a for a in mix_analysers if _target(analysers_config, a, "wsl")],
-            "windows_analysers": [a for a in mix_analysers if _target(analysers_config, a, "windows")],
+            "source_channels":     source_channels,
+            "buffer":              {},
+            "analysers":           mix_analysers,
+            "wsl_analysers":       [a for a in mix_analysers if _target(analysers_config, a, "wsl")],
+            "wsl_heavy_analysers": [a for a in mix_analysers if _target(analysers_config, a, "wsl_heavy")],
+            "windows_analysers":   [a for a in mix_analysers if _target(analysers_config, a, "windows")],
         }
 
-        print(f"[broadcaster] Mix '{mix_name}' combines channels {source_channels} | wsl: {mix_configs[mix_name]['wsl_analysers']} | windows: {mix_configs[mix_name]['windows_analysers']}")
-        sys.stdout.flush()
+        if DEBUG : 
+            print(f"[broadcaster] Mix '{mix_name}' combines channels {source_channels} | wsl: {mix_configs[mix_name]['wsl_analysers']} | windows: {mix_configs[mix_name]['windows_analysers']}")
+            sys.stdout.flush()
     
     return channel_map, mix_configs
 
@@ -173,8 +200,9 @@ def connect_to_wsl():
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((WSL_HOST, WSL_PORT))
-            print(f"[broadcaster] Connected to WSL receiver at {WSL_HOST}:{WSL_PORT}")
-            sys.stdout.flush()
+            if INFO : 
+                print(f"[broadcaster] Connected to WSL receiver at {WSL_HOST}:{WSL_PORT}")
+                sys.stdout.flush()
             return s
         except ConnectionRefusedError:
             print(f"[broadcaster] WSL receiver not ready — retrying in 2s")
@@ -182,14 +210,30 @@ def connect_to_wsl():
             time.sleep(2)
 
 
+# opens TCP connection to heavy WSL receiver, retries until ready
+def connect_to_wsl_heavy():
+    while True:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect((WSL_HEAVY_HOST, WSL_HEAVY_PORT))
+            if INFO:
+                print(f"[broadcaster] Connected to WSL heavy receiver at {WSL_HEAVY_HOST}:{WSL_HEAVY_PORT}")
+                sys.stdout.flush()
+            return s
+        except ConnectionRefusedError:
+            print(f"[broadcaster] WSL heavy receiver not ready — retrying in 2s")
+            sys.stdout.flush()
+            time.sleep(2)
+
 # opens TCP connection to Windows receiver, retries until ready
 def connect_to_windows():
     while True:
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((WINDOWS_HOST, WINDOWS_PORT))
-            print(f"[broadcaster] Connected to Windows receiver at {WINDOWS_HOST}:{WINDOWS_PORT}")
-            sys.stdout.flush()
+            if INFO : 
+                print(f"[broadcaster] Connected to Windows receiver at {WINDOWS_HOST}:{WINDOWS_PORT}")
+                sys.stdout.flush()
             return s
         except ConnectionRefusedError:
             print(f"[broadcaster] Windows receiver not ready — retrying in 2s")
@@ -231,6 +275,8 @@ def send_framed_chunk(sock, instrument_name, analysers, audio_bytes):
     )
     sock.sendall(frame)
 
+
+
 # Combine multiple audio chunks into a mixed chunk
 def combine_audio(mix_name, buffers):
     arrays = [np.frombuffer(b, dtype=np.float32) for b in buffers.values()]
@@ -238,6 +284,7 @@ def combine_audio(mix_name, buffers):
     with _mix_record_lock:
         _record_buffers.setdefault(mix_name, []).append(mixed.copy())
     return mixed.astype(np.float32).tobytes()
+
 
 # save broadcaster recording to audio_debug folder
 def save_recording():
@@ -260,16 +307,19 @@ def save_recording():
             wf.setframerate(_mix_sample_rate)
             wf.writeframes(int16_audio.tobytes())
         
-        print(f"[recorder] Saved {len(all_audio) / _mix_sample_rate:.1f}s -> {output_path}")
-        sys.stdout.flush()
+        if INFO : 
+            print(f"[recorder] Saved {len(all_audio) / _mix_sample_rate:.1f}s -> {output_path}")
+            sys.stdout.flush()
 
 
 # reads chunks from capture.py, looks up instrument routing, forwards to receivers
 def handle_capture_connection(conn, config_holder):
-    print("[broadcaster] capture.py connected.")
-    sys.stdout.flush()
-    wsl_sock = connect_to_wsl()
-    windows_sock = connect_to_windows()
+    if INFO:
+        print("[broadcaster] capture.py connected.")
+        sys.stdout.flush()
+    wsl_sock        = connect_to_wsl()
+    wsl_heavy_sock  = connect_to_wsl_heavy()
+    windows_sock    = connect_to_windows()
 
     last_config = config_holder["config"]
     channel_map, mix_configs = build_channel_map(last_config)
@@ -279,36 +329,32 @@ def handle_capture_connection(conn, config_holder):
             header = recv_exact(conn, 5)
             if header is None:
                 break
-                
+
             channel_id, data_len = struct.unpack(">BI", header)
             audio_bytes = recv_exact(conn, data_len)
             if audio_bytes is None:
                 break
-            
+
             current_config = config_holder["config"]
             if current_config is not last_config:
                 last_config = current_config
                 channel_map, mix_configs = build_channel_map(last_config)
-            
-            instrument_info = channel_map.get(channel_id)
 
+            instrument_info = channel_map.get(channel_id)
             if instrument_info is None:
                 continue
 
-
-            # Log audio stats when audio is present
             rms, peak = get_audio_stats(audio_bytes)
-            if rms > 0.01:  # Only log when there's actual audio
-                print(f"[audio] ch{channel_id} ({instrument_info['name']:8s}) RMS={rms:.4f} Peak={peak:.4f}")
-                sys.stdout.flush()
- 
+            if rms > 0.01:
+                if DEBUG:
+                    print(f"[audio] ch{channel_id} ({instrument_info['name']:8s}) RMS={rms:.4f} Peak={peak:.4f}")
+                    sys.stdout.flush()
 
-            # Record this instrument's audio
             audio_array = np.frombuffer(audio_bytes, dtype=np.float32)
             with _mix_record_lock:
                 _record_buffers.setdefault(instrument_info["name"], []).append(audio_array.copy())
 
-            # ──── 1. Route individual instrument ────────────────────────────
+            # ── 1. Route individual instrument ──────────────────────────────
             if instrument_info["windows_analysers"]:
                 try:
                     send_framed_chunk(windows_sock, instrument_info["name"], instrument_info["windows_analysers"], audio_bytes)
@@ -325,16 +371,23 @@ def handle_capture_connection(conn, config_holder):
                     sys.stdout.flush()
                     wsl_sock = connect_to_wsl()
 
-            # ──── 2. Check if this channel is part of any mix ───────────────
+            if instrument_info["wsl_heavy_analysers"]:
+                try:
+                    send_framed_chunk(wsl_heavy_sock, instrument_info["name"], instrument_info["wsl_heavy_analysers"], audio_bytes)
+                except OSError:
+                    print("[broadcaster] Lost WSL heavy connection — reconnecting")
+                    sys.stdout.flush()
+                    wsl_heavy_sock = connect_to_wsl_heavy()
+
+            # ── 2. Mix routing ───────────────────────────────────────────────
             for mix_name, mix_config in mix_configs.items():
                 if channel_id in mix_config["source_channels"]:
                     mix_config["buffer"][channel_id] = audio_bytes
-            
-                    # Only flush when ALL source channels have contributed
+
                     if len(mix_config["buffer"]) == len(mix_config["source_channels"]):
                         mixed_audio = combine_audio(mix_name, mix_config["buffer"])
-                        mix_config["buffer"] = {}  # clear for next round
-            
+                        mix_config["buffer"] = {}
+
                         if mix_config["windows_analysers"]:
                             try:
                                 send_framed_chunk(windows_sock, mix_name, mix_config["windows_analysers"], mixed_audio)
@@ -342,7 +395,7 @@ def handle_capture_connection(conn, config_holder):
                                 print("[broadcaster] Lost Windows connection — reconnecting")
                                 sys.stdout.flush()
                                 windows_sock = connect_to_windows()
-            
+
                         if mix_config["wsl_analysers"]:
                             try:
                                 send_framed_chunk(wsl_sock, mix_name, mix_config["wsl_analysers"], mixed_audio)
@@ -350,30 +403,31 @@ def handle_capture_connection(conn, config_holder):
                                 print("[broadcaster] Lost WSL connection — reconnecting")
                                 sys.stdout.flush()
                                 wsl_sock = connect_to_wsl()
-                        
+
+                        if mix_config["wsl_heavy_analysers"]:
+                            try:
+                                send_framed_chunk(wsl_heavy_sock, mix_name, mix_config["wsl_heavy_analysers"], mixed_audio)
+                            except OSError:
+                                print("[broadcaster] Lost WSL heavy connection — reconnecting")
+                                sys.stdout.flush()
+                                wsl_heavy_sock = connect_to_wsl_heavy()
 
     finally:
-        print("[broadcaster] capture.py disconnected.")
-        sys.stdout.flush()
+        if INFO:
+            print("[broadcaster] capture.py disconnected.")
+            sys.stdout.flush()
         wsl_sock.close()
+        wsl_heavy_sock.close()
         windows_sock.close()
         conn.close()
 
 
-# reloads config files every CONFIG_POLL_INTERVAL seconds so changes take effect without restarting
-def watch_config(config_holder):
-    while True:
-        time.sleep(CONFIG_POLL_INTERVAL)
-        config_holder["config"] = load_config()
-        print("[broadcaster] Config refreshed.")
-        sys.stdout.flush()
-        
-
 
 # opens TCP server and accepts incoming capture.py connections
 def start_server(config_holder):
-    print(f"[broadcaster] Listening for capture.py on {LOCAL_HOST}:{LOCAL_PORT}")
-    sys.stdout.flush()
+    if INFO : 
+        print(f"[broadcaster] Listening for capture.py on {LOCAL_HOST}:{LOCAL_PORT}")
+        sys.stdout.flush()
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server.bind((LOCAL_HOST, LOCAL_PORT))
@@ -393,8 +447,9 @@ def watch_stop_sentinel():
     while True:
         time.sleep(0.5)
         if os.path.exists(STOP_SENTINEL):
-            print("[broadcaster] Stop sentinel detected — saving recording...")
-            sys.stdout.flush()
+            if INFO : 
+                print("[broadcaster] Stop sentinel detected — saving recording...")
+                sys.stdout.flush()
             try:
                 os.remove(STOP_SENTINEL)
             except OSError:
@@ -408,6 +463,10 @@ def main():
         os.remove(STOP_SENTINEL)
 
     config_holder = {"config": load_config()}
+    if INFO:
+        print("[broadcaster] Config loaded.")
+        sys.stdout.flush()
+
     threading.Thread(target=watch_config, args=(config_holder,), daemon=True).start()
     threading.Thread(target=watch_stop_sentinel, daemon=True).start()
     start_server(config_holder)
@@ -417,6 +476,7 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("[broadcaster] Stopped.")
-        sys.stdout.flush()
+        if INFO : 
+            print("[broadcaster] Stopped.")
+            sys.stdout.flush()
         save_recording()

@@ -21,6 +21,10 @@ from pythonosc import udp_client
 import json 
 
 
+# Debugging
+DEBUG = False
+INFO = True
+
 # --- OSC config --------------------------------------------------------------
 
 # WSL gets a fresh virtual IP on every boot; the Windows host sits at the
@@ -149,10 +153,11 @@ class HarmonyAnalyser:
 
         self._init_algorithms()
 
-        print(f"[harmony] Ready for '{instrument_name}' @ {sample_rate}Hz")
-        sys.stdout.flush()
-        print(f"[harmony] OSC target: {OSC_HOST}:{OSC_PORT}")
-        sys.stdout.flush()
+        if INFO : 
+            print(f"[harmony] Ready for '{instrument_name}' @ {sample_rate}Hz")
+            sys.stdout.flush()
+            print(f"[harmony] OSC target: {OSC_HOST}:{OSC_PORT}")
+            sys.stdout.flush()
 
     # Essentia algorithms are created once and reused — building them per
     # frame would be wasteful. Each is told the device's sample rate here.
@@ -423,8 +428,10 @@ class HarmonyAnalyser:
         self._frame_count += 1
         if self._frame_count % OSC_THROTTLE_FRAMES != 0:
             return
-
-        self._display(result)
+        
+        if DEBUG : 
+            self._display(result)
+            
         self.osc_client.send_message(
             f"/harmony/{self.instrument_name}",
             json.dumps(result)

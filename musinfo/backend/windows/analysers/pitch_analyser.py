@@ -20,6 +20,10 @@ DETECTION_MODE    = "yin" # yinfft | yin | mcomb. swap to CREPE for more accurat
 OSC_HOST = "127.0.0.1"
 OSC_PORT = 9000
 
+# Debugging
+DEBUG = False
+INFO = True
+
 NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
 
@@ -42,8 +46,9 @@ class PitchAnalyser:
         # Create OSC client
         self.osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
         
-        print(f"[pitch] Ready for '{instrument_name}' @ {sample_rate}Hz")
-        sys.stdout.flush() 
+        if INFO :
+            print(f"[pitch] Ready for '{instrument_name}' @ {sample_rate}Hz")
+            sys.stdout.flush() 
 
     def push(self, audio):
         """
@@ -73,8 +78,9 @@ class PitchAnalyser:
                 note = hz_to_note(pitch)
                 message = f"{note} ({pitch:.1f}Hz)"
                 
-                print(f"[pitch/{self.instrument_name}] {message}")
-                sys.stdout.flush() 
+                if DEBUG : 
+                    print(f"[pitch/{self.instrument_name}] {message}")
+                    sys.stdout.flush() 
                 
                 # Send via OSC to Tauri frontend
                 self.osc_client.send_message(f"/pitch/{self.instrument_name}", message)

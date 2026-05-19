@@ -11,6 +11,9 @@ import numpy as np
 import sounddevice as sd
 import json
 
+# Debugging
+INFO = True
+
 
 BROADCASTER_HOST = "127.0.0.1"
 BROADCASTER_PORT = 5005
@@ -57,7 +60,7 @@ def resolve_device_id(name: str, host_api: str) -> tuple[int, int]:
 
     idx, info = candidates[0]
     actual_rate = int(info["default_samplerate"])
-    print(f"[capture.py] Resolved '{name}' -> device {idx} ({info['name']}, {sd.query_hostapis(info['hostapi'])['name']}) @ {actual_rate}Hz")
+    if INFO : print(f"[capture.py] Resolved '{name}' -> device {idx} ({info['name']}, {sd.query_hostapis(info['hostapi'])['name']}) @ {actual_rate}Hz")
     return idx, actual_rate
 
 
@@ -112,7 +115,7 @@ def load_instruments_config():
                 "channel_id":      channel
             }
 
-            print(f"[capture.py] {name}: device '{device_name}' ({host_api}), channel {channel}")
+            if INFO : print(f"[capture.py] {name}: device '{device_name}' ({host_api}), channel {channel}")
 
         return devices
 
@@ -163,14 +166,14 @@ def stream_device(device_config, sock):
     max_channel_index   = max(channels_map.keys())
     channels_to_capture = max_channel_index + 1
 
-    print(f"[capture.py] Opening '{device_name}' ({host_api}) as device {device_id} @ {sample_rate}Hz")
-    print(f"[capture.py] Capturing {channels_to_capture}/{max_channels} channels")
+    if INFO : print(f"[capture.py] Opening '{device_name}' ({host_api}) as device {device_id} @ {sample_rate}Hz")
+    if INFO : print(f"[capture.py] Capturing {channels_to_capture}/{max_channels} channels")
 
     channel_queues = {ch: queue.Queue() for ch in channels_map.keys()}
 
     def audio_callback(indata, frames, time, status):
         if status:
-            print(f"[capture.py] Status: {status}", flush=True)
+            if INFO : print(f"[capture.py] Status: {status}", flush=True)
         for ch in channels_map.keys():
             channel_queues[ch].put(indata[:, ch].copy())
 
@@ -188,7 +191,7 @@ def stream_device(device_config, sock):
             args=(channel_queues[ch], info["channel_id"]),
             daemon=True
         ).start()
-        print(f"[capture.py] Sender thread for channel {ch} ({info['instrument_name']})")
+        if INFO : print(f"[capture.py] Sender thread for channel {ch} ({info['instrument_name']})")
 
     try:
         with sd.InputStream(
@@ -199,7 +202,7 @@ def stream_device(device_config, sock):
             dtype="float32",
             callback=audio_callback,
         ):
-            print(f"[capture.py] Stream open — '{device_name}' @ {sample_rate}Hz")
+            if INFO : print(f"[capture.py] Stream open — '{device_name}' @ {sample_rate}Hz")
             threading.Event().wait()
     except Exception as e:
         print(f"[capture.py] Stream error for '{device_name}': {e}", flush=True)
@@ -213,11 +216,11 @@ def main():
         print("[capture.py] No devices to capture from.")
         return
 
-    print(f"[capture.py] Connecting to broadcaster at {BROADCASTER_HOST}:{BROADCASTER_PORT}")
+    if INFO : print(f"[capture.py] Connecting to broadcaster at {BROADCASTER_HOST}:{BROADCASTER_PORT}")
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((BROADCASTER_HOST, BROADCASTER_PORT))
-        print("[capture.py] Connected to broadcaster.")
+        if INFO : print("[capture.py] Connected to broadcaster.")
 
         device_threads = []
 
