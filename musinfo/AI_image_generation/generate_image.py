@@ -7,6 +7,9 @@ Launched by Rust/Tauri as a managed process.
 Listens on port 9002 for prompts from prompt_generator.py:
   /image/prompt/positive   str   positive prompt
   /image/prompt/negative   str   negative prompt
+
+Sends to TouchDesigner on port 9000:
+  /musinfo/image_change    1.0   fired after every new NDI frame
 """
 
 import sys
@@ -20,25 +23,31 @@ from diffusers import AutoPipelineForText2Image
 LISTEN_HOST = "127.0.0.1"
 LISTEN_PORT = 9002
 
-
+# TouchDesigner OSC target — change TD_HOST to the TD machine's IP if on another PC
+TD_HOST     = "127.0.0.1"
+TD_PORT     = 9099
+_td_client  = udp_client.SimpleUDPClient(TD_HOST, TD_PORT)
 
 
 # ── Generation config ──────────────────────────────────────────────────────────
 # Change RESOLUTION to switch between speed and quality.
 # "512" targets ~2s per frame on RTX 4060
 # "768" targets ~4s per frame
-RESOLUTION = "512"
-
+# "1024" 
 RESOLUTION_MAP = {
     "512":  (512, 512),
     "768":  (768, 768),
     "1024": (1024, 768),
+    "wide": (1280, 720),   # 720p widescreen
+    "1080": (1920, 1080), # need touchdesigner license
 }
+
+RESOLUTION = "wide"
 
 NUM_INFERENCE_STEPS = 1   # 1–4 for SDXL Turbo; 1 = fastest
 GUIDANCE_SCALE      = 0.0  # CFG-free for Turbo
 
-_width, _height = RESOLUTION_MAP.get(RESOLUTION, (512, 512))
+_width, _height = RESOLUTION_MAP.get(RESOLUTION)
 
 
 
@@ -89,7 +98,7 @@ _new_prompt_event = threading.Event()
 def _load_pipeline():
     print("[gen_image] Loading SDXL Turbo pipeline...", flush=True)
     pipe = AutoPipelineForText2Image.from_pretrained(
-        "stabilityai/sdxl-turbo",
+        "stabilityai/sd-turbo",
         torch_dtype=torch.float16,
         variant="fp16",
     )
@@ -121,6 +130,11 @@ def _on_negative_prompt(address, *args):
     print(f"[gen_image] negative prompt received ({len(value)} chars)", flush=True)
 
 
+def _send_fade_trigger():
+    _td_client.send_message("/musinfo/image_change", 1.0)
+    time.sleep(0.1)
+    _td_client.send_message("/musinfo/image_change", 0.0)
+
 
 # ── Generation loop ────────────────────────────────────────────────────────────
 def _generation_loop(pipe):
@@ -150,7 +164,12 @@ def _generation_loop(pipe):
             image   = result.images[0]
             elapsed = time.time() - t0
             print(f"[gen_image] Done in {elapsed:.2f}s", flush=True)
+
+            # Send NDI frame first, then notify TouchDesigner to start the fade
             _send_ndi_frame(image)
+            # send ffade trigger
+            threading.Thread(target=_send_fade_trigger, daemon=True).start()
+            print("[gen_image] OSC fade trigger sent to TD", flush=True)
 
         except Exception as e:
             print(f"[gen_image] Generation error: {e}", flush=True)
