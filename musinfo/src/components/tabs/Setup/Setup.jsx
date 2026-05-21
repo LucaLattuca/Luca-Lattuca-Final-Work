@@ -171,15 +171,15 @@ const Setup = ({
             )}
         
             <div className={styles.analyserSelector}>
-              <AnalyserConfig
-                selectedAnalysers={formData.analysers}
-                onAnalysersChange={(analysers) => save({ analysers })}
-              />
               {formData.analysers.length === 0 && (
                 <p className={styles.disabledWarning}>
                   ⚠ Mix is disabled. Select at least one analyser to enable.
                 </p>
               )}
+              <AnalyserConfig
+                selectedAnalysers={formData.analysers}
+                onAnalysersChange={(analysers) => save({ analysers })}
+              />
             </div>
             {/* add signal path */}
           </>

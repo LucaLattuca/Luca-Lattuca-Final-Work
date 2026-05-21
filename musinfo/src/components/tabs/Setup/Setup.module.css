@@ -143,16 +143,11 @@
   border: 2px outset rgb(139, 174, 185);
 }
 
-.sourceDetail {
-}
-
-.deviceSelector {
-}
 
 .analyserSelector {
-  width: 100%;
+  width: 60%;
 }
 
 .disabledWarning {
-  color: orange;
+  color: #b86603;
 }
