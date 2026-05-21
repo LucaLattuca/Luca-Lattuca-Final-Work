@@ -2,6 +2,14 @@
 .setup > * {
     margin: 20px 0 20px 0;
     position: relative;
+    height: 87vh;
+}
+
+.setupContent {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+
 }
 
 .instrumentControls {
@@ -42,6 +50,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    
 }
 
 /* Delete instrument prompt */
@@ -96,6 +105,8 @@
   border: none;
   color: white;
 }
+
+
 
 /* Mix config styling */
 

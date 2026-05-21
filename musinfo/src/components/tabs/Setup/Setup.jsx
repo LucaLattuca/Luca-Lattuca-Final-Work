@@ -186,7 +186,8 @@ const Setup = ({
         ) : (
           /* REGULAR INSTRUMENT CONFIGURATION */
           <>
-            <div className={styles.instrumentControls}>
+            <div className={styles.setupContent}>
+              <div className={styles.instrumentControls}>
               <InstrumentConfig
                 name={formData.name}
                 type={formData.type}
@@ -200,9 +201,9 @@ const Setup = ({
                  ? <TestMidi deviceName={formData.midi_device?.name} />
                  : <TestAudio deviceId={formData.audio_device?.device_id} channel={formData.audio_device?.channel} />
               }
-            </div>
-        
-            <div className={styles.audioControls}>
+              </div>
+              
+              <div className={styles.audioControls}>
               <AudioDevicesConfig
                 inputType={formData.type}
                 selectedDevice={formData.type === 'midi' ? formData.midi_device : formData.audio_device}
@@ -224,9 +225,9 @@ const Setup = ({
                 selectedAnalysers={formData.analysers}
                 onAnalysersChange={(analysers) => save({ analysers })}
               />
-            </div>
-        
-            <div className={styles.setupFooter}>
+              </div>
+                
+              <div className={styles.setupFooter}>
               <div className={styles.signalPath}>
                 <SignalPath
                   name={formData.name}
@@ -237,6 +238,8 @@ const Setup = ({
               <div className={styles.removeInstrument}>
                 <button onClick={() => setDeleteInstrumentPrompt(true)}>Delete instrument</button>
               </div>
+              </div>
+
             </div>
           </>
         )}
