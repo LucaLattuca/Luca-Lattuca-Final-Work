@@ -1,36 +1,13 @@
 {
   "instruments": {
-    "backingtrack": {
+    "computer_audio": {
       "analysers": [
-        "genre"
+        "dynamics",
+        "timbre",
+        "tempo"
       ],
       "audio_device": {
         "channel": 0,
-        "connected": true,
-        "device_id": 46,
-        "host_api": "Windows WASAPI",
-        "max_input_channels": 2,
-        "name": "Stereo Mix (Realtek(R) Audio)",
-        "sample_rate": 48000
-      },
-      "enabled": true,
-      "type": "virtual"
-    },
-    "mix": {
-      "analysers": [],
-      "enabled": false,
-      "mix_source": "internal",
-      "source_instruments": [
-        "backingtrack"
-      ],
-      "type": "mix"
-    },
-    "piano": {
-      "analysers": [
-        "genre"
-      ],
-      "audio_device": {
-        "channel": 1,
         "connected": true,
         "device_id": 2,
         "host_api": "MME",
@@ -40,6 +17,38 @@
       },
       "enabled": true,
       "type": "virtual"
+    },
+    "mix": {
+      "analysers": [
+        "genre",
+        "mood"
+      ],
+      "enabled": true,
+      "mix_source": "internal",
+      "source_instruments": [
+        "computer_audio",
+        "piano"
+      ],
+      "type": "mix"
+    },
+    "piano": {
+      "analysers": [
+        "harmony",
+        "mood",
+        "dynamics",
+        "timbre"
+      ],
+      "audio_device": {
+        "channel": 1,
+        "connected": true,
+        "device_id": 39,
+        "host_api": "ASIO",
+        "max_input_channels": 2,
+        "name": "Focusrite USB ASIO",
+        "sample_rate": 44100
+      },
+      "enabled": true,
+      "type": "audio"
     }
   }
 }

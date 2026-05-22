@@ -13,21 +13,28 @@ import numpy as np
 import sys
 import wave
 import hashlib
+from collections import deque
+from math import gcd
+from scipy.signal import resample_poly
 
 # Debugging 
-DEBUG = False
+DEBUG = True
 INFO = True
 
 # AUDIO DEBUGGING information
 _record_buffers = {}
-# TODO : adjust sample rate based on mix. or if relative sample rates, recalculate
-_mix_sample_rate = 48000  # adjust if yours differs | 44100
-_mix_record_lock = threading.Lock()
+_mix_record_lock = threading.Lock() 
+
+# global Sample rate registry
+_instrument_sample_rates = {}  # name -> int (Hz)
+_sample_rates_lock = threading.Lock()
 
 AUDIO_DEBUG_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "audio_debug")
 os.makedirs(AUDIO_DEBUG_DIR, exist_ok=True)
-RECORD_OUTPUT_PATH = os.path.join(AUDIO_DEBUG_DIR, "debug_mix.wav")
 
+# implement silence timeout for our mixed queue. 
+MAX_QUEUE_SIZE  = 20    # prevent unbounded memory if one channel races ahead
+SILENCE_TIMEOUT = 0.15  # seconds — inject silence if channel stalls beyond this
 
 STOP_SENTINEL = os.path.join(os.path.dirname(os.path.dirname(__file__)), "broadcaster.stop")
 
@@ -112,45 +119,50 @@ def _target(analysers_config, analyser_id, side):
 # builds a lookup table mapping channel_id -> instrument name and analysers split by target
 # so broadcaster can instantly look up routing info for each incoming chunk
 def build_channel_map(config):
-    channel_map  = {}
+    channel_map = {}
     analysers_config = config.get("analysers", {})
 
-    # Build regular instrument routing 
+    # Build regular instrument routing
     for name, instrument in config.get("instruments", {}).items():
         if not instrument.get("enabled", False):
             continue
-        
-        inst_type = instrument.get("type")
+
+        inst_type  = instrument.get("type")
         mix_source = instrument.get("mix_source")
 
         # Skip internal mix instruments (they're computed, not captured)
         if inst_type == "mix" and mix_source == "internal":
             continue
 
-
-        # Get channel from audio_device
         audio_device = instrument.get("audio_device", {})
-        channel_id = audio_device.get("channel")
-        
+        channel_id   = audio_device.get("channel")
         if channel_id is None:
             continue
 
+        sample_rate      = audio_device.get("sample_rate", 48000)   # ← pulled from config
         active_analysers = instrument.get("analysers", [])
 
         channel_map[channel_id] = {
             "name":                name,
+            "sample_rate":         sample_rate,                      # ← stored per channel
             "wsl_analysers":       [m for m in active_analysers if _target(analysers_config, m, "wsl")],
             "wsl_heavy_analysers": [m for m in active_analysers if _target(analysers_config, m, "wsl_heavy")],
             "windows_analysers":   [m for m in active_analysers if _target(analysers_config, m, "windows")],
         }
-        
-        if DEBUG : 
-            print(f"[broadcaster] Channel {channel_id} -> '{name}' | wsl: {channel_map[channel_id]['wsl_analysers']} | windows: {channel_map[channel_id]['windows_analysers']}")
+
+        # Register sample rate for save_recording
+        with _sample_rates_lock:
+            _instrument_sample_rates[name] = sample_rate
+
+        if DEBUG:
+            print(f"[broadcaster] Channel {channel_id} -> '{name}' @ {sample_rate}Hz"
+                  f" | wsl: {channel_map[channel_id]['wsl_analysers']}"
+                  f" | windows: {channel_map[channel_id]['windows_analysers']}")
             sys.stdout.flush()
 
     # Build mix configurations
     mix_configs = {}
-    
+
     for mix_name, mix_inst in config.get("instruments", {}).items():
         if mix_inst.get("type") != "mix":
             continue
@@ -158,40 +170,59 @@ def build_channel_map(config):
             continue
         if mix_inst.get("mix_source") != "internal":
             continue
-        
-        # Find channel_ids of source instruments
+
         source_instruments = mix_inst.get("source_instruments", [])
-        source_channels = []
+        source_channels    = []
 
         for inst_name in source_instruments:
-            # Look up the channel_id for this instrument
             for ch_id, ch_info in channel_map.items():
                 if ch_info["name"] == inst_name:
                     source_channels.append(ch_id)
                     break
-                
-        if INFO : print(f"[broadcaster] Mix '{mix_name}' source_channels resolved: {source_channels}")
+
+        if INFO:
+            print(f"[broadcaster] Mix '{mix_name}' source_channels resolved: {source_channels}")
+            sys.stdout.flush()
+
         if not source_channels:
             print(f"[broadcaster] Mix '{mix_name}' has no valid source channels — skipping")
             sys.stdout.flush()
             continue
-        
-        # Split mix analysers by target
+
+        # Mix output rate = highest sample rate among sources (avoids downsampling loss)
+        mix_sample_rate = max(channel_map[ch]["sample_rate"] for ch in source_channels)
+
+        # Register mix output rate for save_recording
+        with _sample_rates_lock:
+            _instrument_sample_rates[mix_name] = mix_sample_rate
+
         mix_analysers = mix_inst.get("analysers", [])
         mix_configs[mix_name] = {
             "source_channels":     source_channels,
-            "buffer":              {},
+            "sample_rate":         mix_sample_rate,                  # ← output rate of the mix
+            "buffer": {
+                ch: {
+                    "queue":      deque(maxlen=MAX_QUEUE_SIZE),
+                    "last_seen":  0.0,
+                    "chunk_size": None,
+                }
+                for ch in source_channels
+            },
             "analysers":           mix_analysers,
             "wsl_analysers":       [a for a in mix_analysers if _target(analysers_config, a, "wsl")],
             "wsl_heavy_analysers": [a for a in mix_analysers if _target(analysers_config, a, "wsl_heavy")],
             "windows_analysers":   [a for a in mix_analysers if _target(analysers_config, a, "windows")],
         }
 
-        if DEBUG : 
-            print(f"[broadcaster] Mix '{mix_name}' combines channels {source_channels} | wsl: {mix_configs[mix_name]['wsl_analysers']} | windows: {mix_configs[mix_name]['windows_analysers']}")
+        if DEBUG:
+            print(f"[broadcaster] Mix '{mix_name}' combines channels {source_channels}"
+                  f" @ {mix_sample_rate}Hz"
+                  f" | wsl: {mix_configs[mix_name]['wsl_analysers']}"
+                  f" | windows: {mix_configs[mix_name]['windows_analysers']}")
             sys.stdout.flush()
-    
+
     return channel_map, mix_configs
+
 
 
 # opens TCP connection to WSL receiver, retries until ready
@@ -278,37 +309,68 @@ def send_framed_chunk(sock, instrument_name, analysers, audio_bytes):
 
 
 # Combine multiple audio chunks into a mixed chunk
-def combine_audio(mix_name, buffers):
-    arrays = [np.frombuffer(b, dtype=np.float32) for b in buffers.values()]
-    mixed = np.mean(arrays, axis=0)
+def combine_audio(mix_name, chunks_by_channel, target_sr, channel_map):
+    """
+    Safely mixes audio chunks from multiple channels.
+    Resamples each source to target_sr before mixing — handles any direction:
+    upsampling (e.g. 44100 -> 48000) and downsampling (e.g. 96000 -> 48000) alike.
+    gcd reduction keeps the resample_poly ratio as small as possible for efficiency.
+    Trims to shortest after resampling to absorb off-by-one length differences.
+
+    """
+
+    arrays = []
+    for ch_id, audio_bytes in chunks_by_channel.items():
+        arr    = np.frombuffer(audio_bytes, dtype=np.float32).copy()
+        src_sr = channel_map[ch_id]["sample_rate"]
+
+        if src_sr != target_sr:
+            g   = gcd(target_sr, src_sr)
+            arr = resample_poly(arr, target_sr // g, src_sr // g).astype(np.float32)
+
+        arrays.append(arr)
+
+    # Trim all to shortest (resampling can produce off-by-one lengths)
+    min_len = min(len(a) for a in arrays)
+    mixed   = np.mean(np.stack([a[:min_len] for a in arrays], axis=0), axis=0)
+
     with _mix_record_lock:
         _record_buffers.setdefault(mix_name, []).append(mixed.copy())
-    return mixed.astype(np.float32).tobytes()
 
+    return mixed.astype(np.float32).tobytes()
 
 # save broadcaster recording to audio_debug folder
 def save_recording():
     with _mix_record_lock:
         if not _record_buffers:
             print("[recorder] Nothing to save.")
+            sys.stdout.flush()
             return
         snapshot = {name: list(chunks) for name, chunks in _record_buffers.items()}
 
+    with _sample_rates_lock:
+        rates_snapshot = dict(_instrument_sample_rates)
+
     for name, chunks in snapshot.items():
-        all_audio = np.concatenate(chunks)
+        all_audio  = np.concatenate(chunks)
         int16_audio = (np.clip(all_audio, -1.0, 1.0) * 32767).astype(np.int16)
-        
+
+        sr = rates_snapshot.get(name, 48000)        # ← per-instrument rate
+        if sr == 48000 and name not in rates_snapshot:
+            print(f"[recorder] Warning: no sample rate registered for '{name}', defaulting to 48000Hz")
+            sys.stdout.flush()
 
         output_path = os.path.join(AUDIO_DEBUG_DIR, f"debug_{name}.wav")
 
         with wave.open(output_path, "w") as wf:
             wf.setnchannels(1)
             wf.setsampwidth(2)
-            wf.setframerate(_mix_sample_rate)
+            wf.setframerate(sr)
             wf.writeframes(int16_audio.tobytes())
-        
-        if INFO : 
-            print(f"[recorder] Saved {len(all_audio) / _mix_sample_rate:.1f}s -> {output_path}")
+
+        if INFO:
+            duration = len(all_audio) / sr
+            print(f"[recorder] Saved {duration:.1f}s @ {sr}Hz -> {output_path}")
             sys.stdout.flush()
 
 
@@ -380,37 +442,77 @@ def handle_capture_connection(conn, config_holder):
                     wsl_heavy_sock = connect_to_wsl_heavy()
 
             # ── 2. Mix routing ───────────────────────────────────────────────
+
+            now = time.monotonic()
+
             for mix_name, mix_config in mix_configs.items():
+                if INFO:
+                    print(f"[broadcaster] mix loop: ch{channel_id} | sources: {mix_config['source_channels']} | queues: { {ch: len(mix_config['buffer'][ch]['queue']) for ch in mix_config['source_channels']} }")
+                    sys.stdout.flush()
+                # Enqueue incoming chunk for this channel
                 if channel_id in mix_config["source_channels"]:
-                    mix_config["buffer"][channel_id] = audio_bytes
+                    slot = mix_config["buffer"][channel_id]
+                    slot["queue"].append(audio_bytes)
+                    slot["last_seen"]  = now
+                    slot["chunk_size"] = len(audio_bytes)
 
-                    if len(mix_config["buffer"]) == len(mix_config["source_channels"]):
-                        mixed_audio = combine_audio(mix_name, mix_config["buffer"])
-                        mix_config["buffer"] = {}
+                # Check if we can fire: every channel either has a queued chunk
+                # or has been silent long enough to substitute zeros
+                can_fire = True
+                for ch in mix_config["source_channels"]:
+                    slot      = mix_config["buffer"][ch]
+                    has_chunk = len(slot["queue"]) > 0
+                    timed_out = (now - slot["last_seen"]) > SILENCE_TIMEOUT and slot["chunk_size"] is not None
+                    if not has_chunk and not timed_out:
+                        can_fire = False
+                        break
+                    
+                if not can_fire:
+                    continue
+                
+                # Build chunks dict — real audio or silence fill
+                chunks = {}
+                for ch in mix_config["source_channels"]:
+                    slot = mix_config["buffer"][ch]
+                    if slot["queue"]:
+                        chunks[ch] = slot["queue"].popleft()
+                    else:
+                        # Channel is silent — contribute zeros of the same byte length
+                        chunks[ch] = bytes(slot["chunk_size"])
+                        if DEBUG:
+                            print(f"[broadcaster] Mix '{mix_name}' ch{ch} silence fill")
+                            sys.stdout.flush()
 
-                        if mix_config["windows_analysers"]:
-                            try:
-                                send_framed_chunk(windows_sock, mix_name, mix_config["windows_analysers"], mixed_audio)
-                            except OSError:
-                                print("[broadcaster] Lost Windows connection — reconnecting")
-                                sys.stdout.flush()
-                                windows_sock = connect_to_windows()
+                mixed_audio = combine_audio(
+                    mix_name,
+                    chunks,
+                    mix_config["sample_rate"],
+                    channel_map,
+                )
 
-                        if mix_config["wsl_analysers"]:
-                            try:
-                                send_framed_chunk(wsl_sock, mix_name, mix_config["wsl_analysers"], mixed_audio)
-                            except OSError:
-                                print("[broadcaster] Lost WSL connection — reconnecting")
-                                sys.stdout.flush()
-                                wsl_sock = connect_to_wsl()
+                if mix_config["windows_analysers"]:
+                    try:
+                        send_framed_chunk(windows_sock, mix_name, mix_config["windows_analysers"], mixed_audio)
+                    except OSError:
+                        print("[broadcaster] Lost Windows connection — reconnecting")
+                        sys.stdout.flush()
+                        windows_sock = connect_to_windows()
 
-                        if mix_config["wsl_heavy_analysers"]:
-                            try:
-                                send_framed_chunk(wsl_heavy_sock, mix_name, mix_config["wsl_heavy_analysers"], mixed_audio)
-                            except OSError:
-                                print("[broadcaster] Lost WSL heavy connection — reconnecting")
-                                sys.stdout.flush()
-                                wsl_heavy_sock = connect_to_wsl_heavy()
+                if mix_config["wsl_analysers"]:
+                    try:
+                        send_framed_chunk(wsl_sock, mix_name, mix_config["wsl_analysers"], mixed_audio)
+                    except OSError:
+                        print("[broadcaster] Lost WSL connection — reconnecting")
+                        sys.stdout.flush()
+                        wsl_sock = connect_to_wsl()
+
+                if mix_config["wsl_heavy_analysers"]:
+                    try:
+                        send_framed_chunk(wsl_heavy_sock, mix_name, mix_config["wsl_heavy_analysers"], mixed_audio)
+                    except OSError:
+                        print("[broadcaster] Lost WSL heavy connection — reconnecting")
+                        sys.stdout.flush()
+                        wsl_heavy_sock = connect_to_wsl_heavy()
 
     finally:
         if INFO:
