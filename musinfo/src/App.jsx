@@ -1,5 +1,5 @@
 import reactLogo from "./assets/react.svg";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef  } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from '@tauri-apps/api/event';
 
@@ -13,6 +13,15 @@ function App() {
   const [pipelineStatus, setPipelineStatus] = useState('idle');
 
   const [instruments, setInstruments] = useState(instrumentsConfig.instruments);
+
+  const prevMixConfig = useRef(null);
+
+  // cache mix config
+  useEffect(() => {
+    if (instruments.mix) {
+      prevMixConfig.current = instruments.mix;
+    }
+  }, [instruments]);
   
   // listen for current pipeline status
   useEffect(() => {
@@ -147,6 +156,20 @@ function App() {
   const handleSubmit = async (formData) => {
     try {
       await invoke('save_instrument', { instrument: formData });
+
+      const nonMixBefore = Object.keys(instruments).filter(k => k !== 'mix').length;
+      if (nonMixBefore === 1 && !instruments.mix) {
+        const mixToRestore = prevMixConfig.current ?? {
+          name: 'mix',
+          analysers: ['genre'],
+          enabled: true,
+          mix_source: 'internal',
+          source_instruments: [],
+          type: 'mix',
+        };
+        await invoke('save_instrument', { instrument: { name: 'mix', ...mixToRestore } });
+      }
+
       const reconciled = await invoke('reconcile_devices');
       setInstruments(reconciled.instruments);
       setSelectedInstrument({ name: formData.name, ...reconciled.instruments[formData.name] });
@@ -156,6 +179,8 @@ function App() {
       console.error('[App] Failed to save instrument:', err);
     }
   };
+
+
 
 
   // Update instrument in setup tab
@@ -185,23 +210,31 @@ function App() {
   const handleDeleteInstrument = async (name) => {
     try {
       await invoke('delete_instrument', { name });
-      setInstruments(prev => {
-        const next = { ...prev };
-        delete next[name];
-        return next;
-      });
-      // select the first remaining instrument, or null if none left
-      setInstruments(prev => {
-        const entries = Object.entries(prev);
-        if (entries.length > 0) {
-          const [nextName, nextData] = entries[0];
-          setSelectedInstrument({ name: nextName, ...nextData });
-          setSwitchInstrument(k => k + 1);
-        } else {
-          setSelectedInstrument(null);
-        }
-        return prev;
-      });
+
+      const next = { ...instruments };
+      delete next[name];
+
+      // Count remaining non-mix instruments
+      const nonMixRemaining = Object.keys(next).filter(k => k !== 'mix').length;
+
+      if (nonMixRemaining <= 1 && next.mix) {
+        // Drop to 1 or 0 non-mix instruments — remove mix from disk and state
+        await invoke('delete_instrument', { name: 'mix' });
+        delete next.mix;
+      }
+
+      setInstruments(next);
+
+      // Select first remaining non-mix instrument, or null
+      const remaining = Object.entries(next).filter(([k]) => k !== 'mix');
+      if (remaining.length > 0) {
+        const [nextName, nextData] = remaining[0];
+        setSelectedInstrument({ name: nextName, ...nextData });
+      } else {
+        setSelectedInstrument(null);
+      }
+      setSwitchInstrument(k => k + 1);
+
     } catch (err) {
       console.error('[App] Failed to delete instrument:', err);
     }
@@ -232,6 +265,7 @@ function App() {
       console.error('[App] Failed to swap devices:', err);
     }
   };
+
 
 
   return (
