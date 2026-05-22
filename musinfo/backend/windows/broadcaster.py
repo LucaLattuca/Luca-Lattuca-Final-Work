@@ -13,9 +13,12 @@ import numpy as np
 import sys
 import wave
 import hashlib
+from collections import deque
+from math import gcd
+from scipy.signal import resample_poly
 
 # Debugging 
-DEBUG = False
+DEBUG = True
 INFO = True
 
 # AUDIO DEBUGGING information
@@ -29,7 +32,9 @@ _sample_rates_lock = threading.Lock()
 AUDIO_DEBUG_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "audio_debug")
 os.makedirs(AUDIO_DEBUG_DIR, exist_ok=True)
 
-
+# implement silence timeout for our mixed queue. 
+MAX_QUEUE_SIZE  = 20    # prevent unbounded memory if one channel races ahead
+SILENCE_TIMEOUT = 0.15  # seconds — inject silence if channel stalls beyond this
 
 STOP_SENTINEL = os.path.join(os.path.dirname(os.path.dirname(__file__)), "broadcaster.stop")
 
@@ -195,7 +200,14 @@ def build_channel_map(config):
         mix_configs[mix_name] = {
             "source_channels":     source_channels,
             "sample_rate":         mix_sample_rate,                  # ← output rate of the mix
-            "buffer":              {},
+            "buffer": {
+                ch: {
+                    "queue":      deque(maxlen=MAX_QUEUE_SIZE),
+                    "last_seen":  0.0,
+                    "chunk_size": None,
+                }
+                for ch in source_channels
+            },
             "analysers":           mix_analysers,
             "wsl_analysers":       [a for a in mix_analysers if _target(analysers_config, a, "wsl")],
             "wsl_heavy_analysers": [a for a in mix_analysers if _target(analysers_config, a, "wsl_heavy")],
@@ -297,13 +309,35 @@ def send_framed_chunk(sock, instrument_name, analysers, audio_bytes):
 
 
 # Combine multiple audio chunks into a mixed chunk
-def combine_audio(mix_name, buffers):
-    arrays = [np.frombuffer(b, dtype=np.float32) for b in buffers.values()]
-    mixed = np.mean(arrays, axis=0)
+def combine_audio(mix_name, chunks_by_channel, target_sr, channel_map):
+    """
+    Safely mixes audio chunks from multiple channels.
+    Resamples each source to target_sr before mixing — handles any direction:
+    upsampling (e.g. 44100 -> 48000) and downsampling (e.g. 96000 -> 48000) alike.
+    gcd reduction keeps the resample_poly ratio as small as possible for efficiency.
+    Trims to shortest after resampling to absorb off-by-one length differences.
+
+    """
+
+    arrays = []
+    for ch_id, audio_bytes in chunks_by_channel.items():
+        arr    = np.frombuffer(audio_bytes, dtype=np.float32).copy()
+        src_sr = channel_map[ch_id]["sample_rate"]
+
+        if src_sr != target_sr:
+            g   = gcd(target_sr, src_sr)
+            arr = resample_poly(arr, target_sr // g, src_sr // g).astype(np.float32)
+
+        arrays.append(arr)
+
+    # Trim all to shortest (resampling can produce off-by-one lengths)
+    min_len = min(len(a) for a in arrays)
+    mixed   = np.mean(np.stack([a[:min_len] for a in arrays], axis=0), axis=0)
+
     with _mix_record_lock:
         _record_buffers.setdefault(mix_name, []).append(mixed.copy())
-    return mixed.astype(np.float32).tobytes()
 
+    return mixed.astype(np.float32).tobytes()
 
 # save broadcaster recording to audio_debug folder
 def save_recording():
@@ -408,37 +442,77 @@ def handle_capture_connection(conn, config_holder):
                     wsl_heavy_sock = connect_to_wsl_heavy()
 
             # ── 2. Mix routing ───────────────────────────────────────────────
+
+            now = time.monotonic()
+
             for mix_name, mix_config in mix_configs.items():
+                if INFO:
+                    print(f"[broadcaster] mix loop: ch{channel_id} | sources: {mix_config['source_channels']} | queues: { {ch: len(mix_config['buffer'][ch]['queue']) for ch in mix_config['source_channels']} }")
+                    sys.stdout.flush()
+                # Enqueue incoming chunk for this channel
                 if channel_id in mix_config["source_channels"]:
-                    mix_config["buffer"][channel_id] = audio_bytes
+                    slot = mix_config["buffer"][channel_id]
+                    slot["queue"].append(audio_bytes)
+                    slot["last_seen"]  = now
+                    slot["chunk_size"] = len(audio_bytes)
 
-                    if len(mix_config["buffer"]) == len(mix_config["source_channels"]):
-                        mixed_audio = combine_audio(mix_name, mix_config["buffer"])
-                        mix_config["buffer"] = {}
+                # Check if we can fire: every channel either has a queued chunk
+                # or has been silent long enough to substitute zeros
+                can_fire = True
+                for ch in mix_config["source_channels"]:
+                    slot      = mix_config["buffer"][ch]
+                    has_chunk = len(slot["queue"]) > 0
+                    timed_out = (now - slot["last_seen"]) > SILENCE_TIMEOUT and slot["chunk_size"] is not None
+                    if not has_chunk and not timed_out:
+                        can_fire = False
+                        break
+                    
+                if not can_fire:
+                    continue
+                
+                # Build chunks dict — real audio or silence fill
+                chunks = {}
+                for ch in mix_config["source_channels"]:
+                    slot = mix_config["buffer"][ch]
+                    if slot["queue"]:
+                        chunks[ch] = slot["queue"].popleft()
+                    else:
+                        # Channel is silent — contribute zeros of the same byte length
+                        chunks[ch] = bytes(slot["chunk_size"])
+                        if DEBUG:
+                            print(f"[broadcaster] Mix '{mix_name}' ch{ch} silence fill")
+                            sys.stdout.flush()
 
-                        if mix_config["windows_analysers"]:
-                            try:
-                                send_framed_chunk(windows_sock, mix_name, mix_config["windows_analysers"], mixed_audio)
-                            except OSError:
-                                print("[broadcaster] Lost Windows connection — reconnecting")
-                                sys.stdout.flush()
-                                windows_sock = connect_to_windows()
+                mixed_audio = combine_audio(
+                    mix_name,
+                    chunks,
+                    mix_config["sample_rate"],
+                    channel_map,
+                )
 
-                        if mix_config["wsl_analysers"]:
-                            try:
-                                send_framed_chunk(wsl_sock, mix_name, mix_config["wsl_analysers"], mixed_audio)
-                            except OSError:
-                                print("[broadcaster] Lost WSL connection — reconnecting")
-                                sys.stdout.flush()
-                                wsl_sock = connect_to_wsl()
+                if mix_config["windows_analysers"]:
+                    try:
+                        send_framed_chunk(windows_sock, mix_name, mix_config["windows_analysers"], mixed_audio)
+                    except OSError:
+                        print("[broadcaster] Lost Windows connection — reconnecting")
+                        sys.stdout.flush()
+                        windows_sock = connect_to_windows()
 
-                        if mix_config["wsl_heavy_analysers"]:
-                            try:
-                                send_framed_chunk(wsl_heavy_sock, mix_name, mix_config["wsl_heavy_analysers"], mixed_audio)
-                            except OSError:
-                                print("[broadcaster] Lost WSL heavy connection — reconnecting")
-                                sys.stdout.flush()
-                                wsl_heavy_sock = connect_to_wsl_heavy()
+                if mix_config["wsl_analysers"]:
+                    try:
+                        send_framed_chunk(wsl_sock, mix_name, mix_config["wsl_analysers"], mixed_audio)
+                    except OSError:
+                        print("[broadcaster] Lost WSL connection — reconnecting")
+                        sys.stdout.flush()
+                        wsl_sock = connect_to_wsl()
+
+                if mix_config["wsl_heavy_analysers"]:
+                    try:
+                        send_framed_chunk(wsl_heavy_sock, mix_name, mix_config["wsl_heavy_analysers"], mixed_audio)
+                    except OSError:
+                        print("[broadcaster] Lost WSL heavy connection — reconnecting")
+                        sys.stdout.flush()
+                        wsl_heavy_sock = connect_to_wsl_heavy()
 
     finally:
         if INFO:
