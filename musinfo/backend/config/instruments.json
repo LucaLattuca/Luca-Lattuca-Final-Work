@@ -1,8 +1,10 @@
 {
   "instruments": {
-    "backingtrack": {
+    "computer_audio": {
       "analysers": [
-        "genre"
+        "dynamics",
+        "timbre",
+        "tempo"
       ],
       "audio_device": {
         "channel": 0,
@@ -17,29 +19,36 @@
       "type": "virtual"
     },
     "mix": {
-      "analysers": [],
-      "enabled": false,
+      "analysers": [
+        "genre",
+        "mood"
+      ],
+      "enabled": true,
       "mix_source": "internal",
       "source_instruments": [
-        "backingtrack"
+        "computer_audio",
+        "piano"
       ],
       "type": "mix"
     },
     "piano": {
       "analysers": [
-        "genre"
+        "harmony",
+        "mood",
+        "dynamics",
+        "timbre"
       ],
       "audio_device": {
         "channel": 1,
         "connected": true,
-        "device_id": 2,
-        "host_api": "MME",
+        "device_id": 37,
+        "host_api": "ASIO",
         "max_input_channels": 2,
-        "name": "Stereo Mix (Realtek(R) Audio)",
+        "name": "Focusrite USB ASIO",
         "sample_rate": 44100
       },
       "enabled": true,
-      "type": "virtual"
+      "type": "audio"
     }
   }
 }
