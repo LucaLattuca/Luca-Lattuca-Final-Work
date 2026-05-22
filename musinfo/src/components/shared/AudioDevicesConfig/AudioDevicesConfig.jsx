@@ -192,7 +192,7 @@ const AudioDevicesConfig = ({
                   </div>
                 </div>
                 <div className={styles.deviceStatus}>
-                  {isInUse && <p>in use by {usedEntry.instrumentName}</p>}
+                  {isInUse && <p>in use</p>}
                 </div>
               </button>
             </div>

@@ -9,8 +9,8 @@
 }
 
 .modal {
-    background: rgb(33, 33, 33);
-    border: 2px outset rgb(18, 18, 18);
+    background: linear-gradient(200deg, #434343 0%, #000000 100%);
+    border: 2px outset #434343;
     border-radius: 15px;
     padding: 0;
     width: 500px;
@@ -22,7 +22,7 @@
 
 /* Header */
 .modalHeader{
-    border-bottom: 3px solid rgb(18, 18, 18);
+    border-bottom: 3px solid #080808;
     margin:0;
     padding: 10px 10px 10px 20px;
 }
@@ -37,6 +37,16 @@
     height: 30px;
     border-radius: 30px;
     cursor: pointer;
+    border: 2px outset #C70000;
+    background-color: #940000;
+    color: white;
+}
+
+.closeButton:hover{ 
+    filter: brightness(0.8);
+}
+.closeButton:active{
+    border-style: inset;
 }
 
 /* Step indicator */
@@ -45,13 +55,13 @@
     display: flex;
     justify-content: space-around;
     padding: 20px;
-    border-bottom: 2px solid rgb(48, 47, 47);
+    border-bottom: 2px solid #434343;
 }
 
 .stepDot{
     width:  25px;
     height: 25px;
-    border: 2px outset rgb(157, 157, 157);
+    border: 2px inset #434343;
     border-radius: 15px;
     display: flex;
     justify-content: center;
@@ -59,13 +69,13 @@
 }
 
 .stepDot.active{
-    border: 2px outset rgb(111, 204, 111);
+    border: 2px outset #30AE30;
     border-radius: 20px;
 }
 
 .stepDot.done{
-    background-color: green;
-    border: 2px outset rgb(111, 204, 111);
+    background-color: #2e872d;
+    border: 2px outset #30AE30;
     border-radius: 20px;
 }
 
@@ -80,46 +90,15 @@
     
     display: flex;
     flex-direction: column;
-
-}
-
-
-
-
-.finalConfigSection {
-     display: flex;
-     flex-direction: column;
-  
-    overflow-y: scroll;
-    scrollbar-color: rgb(93, 92, 92) transparent;
-}
-
-
-.finalConfig {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
     justify-content: space-between;
-    border: 2px outset grey;
-    border-radius: 15px;
-    padding: 10px;
 }
 
-
-.finalConfig p {
-    margin: 0;
-    padding: 3px;
-    display: flex;
-    justify-content: space-between;
-    border: 1px solid rgb(111, 204, 111);
-    border-radius: 15px;
-}
 
 
 /* Navigation */
 
 .navigation {
-    border-top: 3px solid rgb(18, 18, 18);
+    border-top: 3px solid #080808;
     display: flex;
     justify-content: space-between;
     padding: 10px 20px 10px 20px;
@@ -136,14 +115,33 @@
     width: 100px;
     height: 40px;
     cursor: pointer;
-
+    background: transparent;
+    border-radius: 5px;
+    color: white;
 }
 
-.nextBtn {
+.backButton:hover{ 
+    filter: brightness(0.8);
+}
+.backButton:active{
+    border-style: inset;
+}
+
+
+.nextButton {
     
     width: 100px;
     height: 40px;
     cursor: pointer;
     
+    background: transparent;
+    border-radius: 5px;
+    color: white;
+}
 
+.nextButton:hover{ 
+    filter: brightness(0.8);
+}
+.nextButton:active{
+    border-style: inset;
 }

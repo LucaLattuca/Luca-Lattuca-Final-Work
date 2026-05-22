@@ -133,60 +133,63 @@ const Setup = ({
         {isMix ? (
           <>
             {/* Mix Header */}
-            <div className={styles.mixHeader}>
-              <p className={styles.mixDescription}>Combines multiple instruments for full-mix analysis</p>
-            </div>
-        
-            {/* Source selector */}
-            <div className={styles.sourceSelector}>
-              <label>Mix Source</label>
-              <div className={styles.sourceOptions}>
-                <button
-                  className={`${styles.sourceOption} ${isInternalMix ? styles.selected : ''}`}
-                  onClick={() => handleSourceChange('internal')}
-                >
-                  Internal
-                </button>
-                <button
-                  className={`${styles.sourceOption} ${!isInternalMix ? styles.selected : ''}`}
-                  onClick={() => handleSourceChange('external')}
-                >
-                  External
-                </button>
+            <div className={styles.setupMixContent}>
+              <div className={styles.mixHeader}>
+                <p className={styles.mixDescription}>Combines multiple instruments for full-mix analysis</p>
               </div>
-            </div>
-            
-            {!isInternalMix && (
-              <div className={styles.deviceSelector}>
-                <AudioDevicesConfig
-                  inputType="all"
-                  selectedDevice={formData.audio_device}
-                  onSelectDevice={(device) => save({ audio_device: device })}
-                  onSwapDevice={null}
-                  currentInstrumentName={formData.name}
-                  allInstruments={instruments}
-                  onReconcile={onReconcile}
+          
+              {/* Source selector */}
+              <div className={styles.sourceSelector}>
+                <label>Mix Source</label>
+                <div className={styles.sourceOptions}>
+                  <button
+                    className={`${styles.sourceOption} ${isInternalMix ? styles.selected : ''}`}
+                    onClick={() => handleSourceChange('internal')}
+                  >
+                    Internal
+                  </button>
+                  <button
+                    className={`${styles.sourceOption} ${!isInternalMix ? styles.selected : ''}`}
+                    onClick={() => handleSourceChange('external')}
+                  >
+                    External
+                  </button>
+                </div>
+              </div>
+
+              {!isInternalMix && (
+                <div className={styles.deviceSelector}>
+                  <AudioDevicesConfig
+                    inputType="all"
+                    selectedDevice={formData.audio_device}
+                    onSelectDevice={(device) => save({ audio_device: device })}
+                    onSwapDevice={null}
+                    currentInstrumentName={formData.name}
+                    allInstruments={instruments}
+                    onReconcile={onReconcile}
+                  />
+                </div>
+              )}
+
+              <div className={styles.analyserSelector}>
+                {formData.analysers.length === 0 && (
+                  <p className={styles.disabledWarning}>
+                    ⚠ Mix is disabled. Select at least one analyser to enable.
+                  </p>
+                )}
+                <AnalyserConfig
+                  selectedAnalysers={formData.analysers}
+                  onAnalysersChange={(analysers) => save({ analysers })}
                 />
               </div>
-            )}
-        
-            <div className={styles.analyserSelector}>
-              <AnalyserConfig
-                selectedAnalysers={formData.analysers}
-                onAnalysersChange={(analysers) => save({ analysers })}
-              />
-              {formData.analysers.length === 0 && (
-                <p className={styles.disabledWarning}>
-                  ⚠ Mix is disabled. Select at least one analyser to enable.
-                </p>
-              )}
             </div>
             {/* add signal path */}
           </>
         ) : (
           /* REGULAR INSTRUMENT CONFIGURATION */
           <>
-            <div className={styles.instrumentControls}>
+            <div className={styles.setupContent}>
+              <div className={styles.instrumentControls}>
               <InstrumentConfig
                 name={formData.name}
                 type={formData.type}
@@ -200,9 +203,9 @@ const Setup = ({
                  ? <TestMidi deviceName={formData.midi_device?.name} />
                  : <TestAudio deviceId={formData.audio_device?.device_id} channel={formData.audio_device?.channel} />
               }
-            </div>
-        
-            <div className={styles.audioControls}>
+              </div>
+              
+              <div className={styles.audioControls}>
               <AudioDevicesConfig
                 inputType={formData.type}
                 selectedDevice={formData.type === 'midi' ? formData.midi_device : formData.audio_device}
@@ -224,9 +227,9 @@ const Setup = ({
                 selectedAnalysers={formData.analysers}
                 onAnalysersChange={(analysers) => save({ analysers })}
               />
-            </div>
-        
-            <div className={styles.setupFooter}>
+              </div>
+                
+              <div className={styles.setupFooter}>
               <div className={styles.signalPath}>
                 <SignalPath
                   name={formData.name}
@@ -237,6 +240,8 @@ const Setup = ({
               <div className={styles.removeInstrument}>
                 <button onClick={() => setDeleteInstrumentPrompt(true)}>Delete instrument</button>
               </div>
+              </div>
+
             </div>
           </>
         )}

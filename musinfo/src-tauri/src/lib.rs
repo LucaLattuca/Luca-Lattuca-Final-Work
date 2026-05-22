@@ -285,16 +285,40 @@ import json, sounddevice as sd
 devices = sd.query_devices()
 host_apis = sd.query_hostapis()
 result = []
-VIRTUAL_KEYWORDS = ["vb", "virtual", "cable", "voicemeeter"]
+VIRTUAL_KEYWORDS = ["vb", "virtual", "cable", "voicemeeter", "stereo mix"]
+
+
+EXCLUDE_KEYWORDS = [
+    "mapper",       
+    "ndi",           
+    "webcam",       
+    "asio4all",     
+    "realtek asio", 
+    "pc speaker",   
+    "hfenum",       
+    "hands-free",   
+    "microphone array",
+    "microphone (realtek",
+]
 
 for i, d in enumerate(devices):
     api_name = host_apis[d["hostapi"]]["name"]
     if d["max_input_channels"] == 0:
         continue
-    if api_name not in ["Windows WASAPI", "Windows WDM-KS", "MME", "ASIO"]:
+    if api_name not in ["Windows WASAPI", "MME", "ASIO"]:
         continue
 
     name_lower = d["name"].lower()
+
+    # exclude noise devices from all tabs
+    if any(k in name_lower for k in EXCLUDE_KEYWORDS):
+        continue
+    
+    # for Focusrite: only show ASIO, skip all other APIs
+    if "focusrite" in name_lower and api_name != "ASIO":
+        continue
+    
+
     is_virtual = any(k in name_lower for k in VIRTUAL_KEYWORDS)
 
     # Filter by device type (unless "all")

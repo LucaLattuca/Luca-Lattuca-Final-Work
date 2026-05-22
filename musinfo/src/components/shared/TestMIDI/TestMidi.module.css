@@ -12,18 +12,23 @@
 
 .toggleBtn {
   background: transparent;
-  border: 1px solid gray;
+  border: 2px outset #434343;
   border-radius: 6px;
   color: white;
   padding: 4px 14px;
   cursor: pointer;
   font-size: small;
-  white-space: nowrap;
+}
+
+.toggleBtn:hover { 
+  filter: brightness(0.8);
+}
+.toggleBtn:active {
+  border-style: inset;
 }
 
 .toggleBtn.active {
-  border-color: rgb(58, 151, 58);
-  color: rgb(58, 151, 58);
+  border-color: #C70000;
 }
 
 .toggleBtn:disabled {
@@ -56,9 +61,9 @@
 }
 
 .hint {
-  color: #555;
+  color: #434343;
 }
 
 .error {
-  color: rgb(200, 80, 80);
+  color: #C70000;
 }
