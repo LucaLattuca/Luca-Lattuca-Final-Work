@@ -14,12 +14,13 @@
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
-    gap: 10px;
+    column-gap: 10px;
+    row-gap: 10px;
     margin-top: 5px;
     margin-bottom: 5px;
     height: 100px;
     overflow-y: auto;
-    scrollbar-color: rgb(93, 92, 92) transparent;
+    scrollbar-color: #434343 transparent;
     scrollbar-width: thin;
     
 }
@@ -32,13 +33,13 @@
 
 
 .analyserCards button.selectedCard  {
-    border: 3px outset rgb(58, 151, 58);
+    border: 2px outset #30AE30;
 }
 
 .analyserCards button {
     width: 140px;
     height: 35px;
-    border: 2px outset gray;
+    border: 2px outset #434343;
     border-radius: 7px;
     background: transparent;
     color: white;
@@ -46,11 +47,20 @@
 }
 
 .analyserCards button:hover {
-    border: 2px outset rgb(108, 108, 108);
+    filter: brightness(0.8);
+}
+
+.analyserCards button:active {
+    border-style: inset;
 }
 
 .analyserCards button.selectedCard:hover {
-    border: 3px outset rgb(54, 139, 54);
+    border: 2px outset #30AE30;
+}
+
+.analyserCards button.selectedCard:active {
+    
+    border-style: inset;
 }
 
 .analyserDescription {

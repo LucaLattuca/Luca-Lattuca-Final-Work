@@ -47,7 +47,7 @@ const TestMidi = ({ deviceName }) => {
           onClick={listening ? stop : start}
           disabled={!deviceName}
         >
-          {listening ? '■ Stop' : '▶ Test'}
+          {listening ? 'Stop' : 'Test'}
         </button>
         <p className={styles.status}>
           {listening

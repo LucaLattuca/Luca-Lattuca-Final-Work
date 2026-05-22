@@ -1,10 +1,9 @@
 
 .testDevice {
-    margin-left: 20px;
 }
 
 .testBtn {
-    border: 2px outset green;
+    border: 2px outset #30AE30;
     border-radius: 5px;
     
     background-color: transparent;
@@ -14,8 +13,16 @@
 
 }
 
+.testBtn:hover {
+    filter: brightness(0.8);
+    cursor: pointer;
+}
+.testBtn:active{
+    border-style: inset;
+}
+
 .testBtnActive {
-    border: 2px outset red;
+    border: 2px outset #C70000;
 }
 
 

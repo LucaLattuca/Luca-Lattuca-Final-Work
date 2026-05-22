@@ -7,7 +7,11 @@ const SignalPath = ({ name, audioDevice, analysers }) => {
       <p className={styles.signalPathTitle}>Signal Path</p>
       <div className={styles.signalPath}>
         <p>{name}</p>          &rarr;
-        <p>{audioDevice?.name}</p>     &rarr;
+        { audioDevice
+          ? <p>{audioDevice?.name}</p> 
+          : <p>MIDI</p> 
+        }
+        &rarr;
         <p>Musinfo</p> &rarr;
         <p>{analysers?.join(', ')}</p>    &rarr;
         <p>OSC output</p>

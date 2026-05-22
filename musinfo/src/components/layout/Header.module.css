@@ -17,17 +17,16 @@
     padding: 0.5rem;
      font-family: "Goldman", sans-serif;
      letter-spacing: 0.5px;
-    /* background-color: #6e0808; */
 }
 .logo *{
     margin: 0;
     padding: 0;
     color: #c9c9c9;
+    font-size: medium;
 }
 
 .nav {
     display: flex;
-    
 }
 
 .nav button {
@@ -71,25 +70,25 @@
 
 .statusLaunching {
     margin-right: 30px;
-    color: rgb(46, 112, 136);
+    color: #2E7088;
 }
 
 .statusListening {
     margin-right: 30px;
-    color: rgb(48, 173, 48);
+    color: #30AE30;
 }
 
 .statusStopping {
     margin-right: 30px;
-    color: rgb(212, 86, 86);
+    color: #C70000;
 }
 
 .startButton {
     color: white;
-    background-color: rgb(34, 95, 33);
+    background-color: #2e872d;
     margin-right: 15px;
     margin-left: auto;
-    border: 2px outset rgb(46, 135, 45);
+    border: 2px outset #30AE30;
     border-radius: 5px;
     height: 30px;
     width:  70px;
@@ -102,14 +101,29 @@
     color: white;
     margin-right: 15px;
     margin-left: auto;
-    background-color: rgb(148, 0, 0);
-    border: 2px outset rgb(199, 0, 0);
+    background-color: #940000;
+    border: 2px outset #C70000;
     border-radius: 5px;
     height: 30px;
     width:  70px;
     cursor: pointer;
     font-size: medium;
 
+}
+
+.startButton:hover {
+    filter: brightness(0.8);    
+}
+.stopButton:hover {
+    filter: brightness(0.8);
+}
+
+
+.startButton:active {
+    border-style: inset;
+}
+.stopButton:active {
+    border-style: inset;   
 }
 
 .stopDisabled {

@@ -10,6 +10,7 @@ import AudioDevicesConfig from '../shared/AudioDevicesConfig/AudioDevicesConfig'
 import AnalyserConfig     from '../shared/AnalyserConfig/AnalyserConfig';
 import SignalPath         from '../shared/SignalPath/SignalPath';
 import TestAudio          from '../shared/TestAudio/TestAudio';
+import TestMidi from '../shared/TestMIDI/TestMidi';
 
 
 const STEP_LABELS = ['Choose input type', 'Select device', 'Configure', 'Test signal'];
@@ -137,29 +138,19 @@ const AddInstrumentModal = ({ onClose, onSubmit, instruments  }) => {
               />
             )}
 
+            {formData.type == 'midi' && (
+              <TestMidi
+              deviceName={formData.midi_device?.name}/>
+            )}
+            
+
+
             <div className={styles.finalConfigSection}>
               <SignalPath
                 name={formData.name}
                 audioDevice={formData.type !== 'midi' ? formData.audio_device : null}
                 analysers={formData.analysers}
               />
-
-              <p>Final check</p>
-              <div className={styles.finalConfig}>
-                <p><span>Name</span>{formData.name}</p>
-                <p><span>Type</span>{formData.type}</p>
-                {formData.type === 'midi' ? (
-                  <p><span>MIDI Device</span>{formData.midi_device?.name}</p>
-                ) : (
-                  <>
-                    <p><span>Device</span>{formData.audio_device.name}</p>
-                    <p><span>Channel</span>{formData.audio_device.channel}</p>
-                    <p><span>Host API</span>{formData.audio_device.host_api}</p>
-                    <p><span>Sample rate</span>{formData.audio_device.sample_rate} Hz</p>
-                  </>
-                )}
-                <p><span>Analysers</span>{formData.analysers.join(', ')}</p>
-              </div>
             </div>
               
           </div>
@@ -178,7 +169,7 @@ const AddInstrumentModal = ({ onClose, onSubmit, instruments  }) => {
           </button>
         
           <p className={styles.navText}>Step {step + 1} of {STEP_LABELS.length}</p>
-          <button className={styles.nextBtn}
+          <button className={styles.nextButton}
             onClick={() =>  {console.log('[FormData]', formData); step < STEP_LABELS.length - 1 ? setStep(s => s + 1) : onSubmit(formData)}}
             disabled={!canContinue}
           >
