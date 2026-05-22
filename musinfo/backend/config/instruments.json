@@ -33,37 +33,30 @@
         "pitch"
       ],
       "audio_device": {
-        "channel": 0,
-        "connected": false,
-        "device_id": null,
-        "host_api": "",
-        "max_input_channels": 0,
-        "name": "",
-        "sample_rate": 0
+        "channel": 1,
+        "device_id": 51,
+        "host_api": "Windows WASAPI",
+        "max_input_channels": 2,
+        "name": "CABLE-A Output (VB-Audio Virtual Cable A)",
+        "sample_rate": 48000
       },
       "enabled": true,
-      "midi_device": {
-        "connected": true,
-        "name": "Digital Piano-1",
-        "port": "input"
-      },
-      "type": "midi"
+      "type": "virtual"
     },
     "test": {
       "analysers": [
         "genre"
       ],
       "audio_device": {
-        "channel": 1,
-        "connected": false,
-        "device_id": 39,
-        "host_api": "ASIO",
+        "channel": 0,
+        "device_id": 2,
+        "host_api": "MME",
         "max_input_channels": 2,
-        "name": "Focusrite USB ASIO",
+        "name": "Stereo Mix (Realtek(R) Audio)",
         "sample_rate": 44100
       },
       "enabled": true,
-      "type": "audio"
+      "type": "virtual"
     }
   }
 }

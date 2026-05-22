@@ -45,6 +45,7 @@ const Sidebar = ({ onAddInstrument, onSelectInstrument, selectedInstrument, inst
             );
         })}
         
+
         <p className={styles.sidebarTitle}>Mix</p>
         <div className={styles.mixSection}>
           {Object.entries(mixInstruments).map(([name, data]) => {
