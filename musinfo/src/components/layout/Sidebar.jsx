@@ -45,30 +45,33 @@ const Sidebar = ({ onAddInstrument, onSelectInstrument, selectedInstrument, inst
             );
         })}
         
+        {Object.entries(regularInstruments).length > 1 &&(
+          <>
+            <p className={styles.sidebarTitle}>Mix</p>
+            <div className={styles.mixSection}>
+              {Object.entries(mixInstruments).map(([name, data]) => {
+                // Check if internal mix or external mix
+                const isInternalMix = data.mix_source === 'internal';
 
-        <p className={styles.sidebarTitle}>Mix</p>
-        <div className={styles.mixSection}>
-          {Object.entries(mixInstruments).map(([name, data]) => {
-            // Check if internal mix or external mix
-            const isInternalMix = data.mix_source === 'internal';
+                // Show different info based on source
+                const sourceDisplay = isInternalMix
+                ? 'internal mix' 
+                : `${data.audio_device?.name || 'Unknown'} — Ch.${(data.audio_device?.channel || 0) + 1}`;
 
-            // Show different info based on source
-            const sourceDisplay = isInternalMix
-              ? 'internal mix' 
-              : `${data.audio_device?.name || 'Unknown'} — Ch.${(data.audio_device?.channel || 0) + 1}`;
-
-            return (
-              <div
-                key={name}
-                className={`${styles.instrumentcard} ${styles.mixCard} ${selectedInstrument?.name === name ? styles.selectedInstrument : ''}`}
-                onClick={() => onSelectInstrument(name, data)}
-              >
-                <h3>{name}</h3>
-                <p>{sourceDisplay}</p>
-              </div>
-            );
-          })}
-        </div>
+                return (
+                  <div
+                  key={name}
+                  className={`${styles.instrumentcard} ${styles.mixCard} ${selectedInstrument?.name === name ? styles.selectedInstrument : ''}`}
+                  onClick={() => onSelectInstrument(name, data)}
+                  >
+                    <h3>{name}</h3>
+                    <p>{sourceDisplay}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
 
       </div>
 

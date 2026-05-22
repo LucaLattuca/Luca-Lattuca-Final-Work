@@ -2,26 +2,23 @@
   "instruments": {
     "backingtrack": {
       "analysers": [
-        "pitch",
         "genre"
       ],
       "audio_device": {
-        "channel": 1,
+        "channel": 0,
         "connected": true,
-        "device_id": 2,
-        "host_api": "MME",
+        "device_id": 46,
+        "host_api": "Windows WASAPI",
         "max_input_channels": 2,
         "name": "Stereo Mix (Realtek(R) Audio)",
-        "sample_rate": 44100
+        "sample_rate": 48000
       },
       "enabled": true,
-      "type": "audio"
+      "type": "virtual"
     },
     "mix": {
-      "analysers": [
-        "genre"
-      ],
-      "enabled": true,
+      "analysers": [],
+      "enabled": false,
       "mix_source": "internal",
       "source_instruments": [
         "backingtrack"
@@ -30,25 +27,11 @@
     },
     "piano": {
       "analysers": [
-        "pitch"
-      ],
-      "audio_device": {
-        "channel": 1,
-        "device_id": 51,
-        "host_api": "Windows WASAPI",
-        "max_input_channels": 2,
-        "name": "CABLE-A Output (VB-Audio Virtual Cable A)",
-        "sample_rate": 48000
-      },
-      "enabled": true,
-      "type": "virtual"
-    },
-    "test": {
-      "analysers": [
         "genre"
       ],
       "audio_device": {
-        "channel": 0,
+        "channel": 1,
+        "connected": true,
         "device_id": 2,
         "host_api": "MME",
         "max_input_channels": 2,
