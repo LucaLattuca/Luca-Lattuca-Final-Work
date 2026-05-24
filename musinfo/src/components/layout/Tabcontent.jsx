@@ -33,7 +33,7 @@ const Tabcontent = ({
           />
         </div>
       )}
-      {activeTab === 'osc' && <OSCConfig />}
+      {activeTab === 'osc' && <OSCConfig instruments={instruments} />}
     </div>
   );
 };
