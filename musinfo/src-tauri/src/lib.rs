@@ -769,9 +769,9 @@ fn stop_pipeline(
     // if wsl_receiver.py is running, kill it
     if let Some(mut child) = wsl_state.0.lock().unwrap().take() {
         child
-        .kill()
-        .map_err(|e| format!("Failed to kill wsl_receiver.py: {}", e))?;
-    println!("[Tauri] receiver.py stopped.");
+            .kill()
+            .map_err(|e| format!("Failed to kill wsl_receiver.py: {}", e))?;
+        println!("[Tauri] receiver.py stopped.");
     }
 
     // if wsl_receiver_heavy.py is running, kill it
@@ -779,7 +779,7 @@ fn stop_pipeline(
         child
             .kill()
             .map_err(|e| format!("Failed to kill wsl_receiver_heavy.py: {}", e))?;
-    println!("[Tauri] wsl_receiver_heavy.py stopped.");
+        println!("[Tauri] wsl_receiver_heavy.py stopped.");
     }
 
     Ok("Pipeline stopped".to_string())
