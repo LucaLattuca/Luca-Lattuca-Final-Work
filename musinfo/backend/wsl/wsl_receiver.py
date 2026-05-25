@@ -206,7 +206,8 @@ def initialise_analyser(instrument, analyser_name):
 # prints instrument/analyser combination
 def log_routing(name, analysers):
     analysers_str = ", ".join(analysers) if analysers else "none"
-    print(f"[wsl_receiver] {name:<16} -> {analysers_str}")
+    index = INSTRUMENT_INDICES.get(name, "N/A (mix)")
+    print(f"[wsl_receiver] {name:<16} index={index}  -> {analysers_str}")
     sys.stdout.flush()
 
 
