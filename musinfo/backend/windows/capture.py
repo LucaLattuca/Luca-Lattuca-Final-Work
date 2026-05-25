@@ -88,6 +88,10 @@ def load_instruments_config():
 
         for name, inst in enabled.items():
 
+            # Skip MIDI instruments — handled by midi_capture.py, no audio_device to capture from
+            if inst.get("type") == "midi":
+                continue
+
             # Skip internal mixes — they have no audio_device to capture from
             if inst.get("type") == "mix" and inst.get("mix_source") == "internal":
                 continue
