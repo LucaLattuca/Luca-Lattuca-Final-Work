@@ -8,14 +8,21 @@ musical key, and how dissonant the sound is.
 """
 
 import os
-from unittest import result
-os.environ['ESSENTIA_LOG_LEVEL'] = 'error'
-
-import sys
 import subprocess
+import sys
+
+from collections import deque
+import numpy as np
+import librosa
+import essentia.standard as es
+from pythonosc import udp_client
+
 
 import threading
 import time
+
+import json 
+os.environ['ESSENTIA_LOG_LEVEL'] = 'error'
 
 # Resolve performance.json from WSL — walks up from this file to the project root.
 def get_performance_config_path():
@@ -37,15 +44,6 @@ def load_performance_config():
         return enabled, raw_key, scale
     except Exception:
         return False, None, "major"
-
-
-from collections import deque
-
-import numpy as np
-import librosa
-import essentia.standard as es
-from pythonosc import udp_client
-import json 
 
 
 

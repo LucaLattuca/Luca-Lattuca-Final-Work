@@ -103,7 +103,7 @@ KS_KEY_LOCK = 4
 # hot-reloaded from the performance tab — changing these takes effect on the next note event
 FORCED_KEY_ENABLED = False
 FORCED_KEY_ROOT    = "C"
-FORCED_KEY_SCALE   = "major"\
+FORCED_KEY_SCALE   = "major"
 
 # Resolve performance.json — walks up from this file to the project root.
 def get_performance_config_path():
