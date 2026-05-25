@@ -7,6 +7,7 @@
 import numpy as np
 from pythonosc import udp_client
 import sys
+import json
 
 # ── Debugging ───────────────────────────────────────────────────────────────────────
 DEBUG = False
@@ -488,11 +489,38 @@ class MidiHarmonyAnalyser:
 
     # ── OSC output ────────────────────────────────────────────────────────────
 
-    # stub — OSC sends added in step 5 once all result fields are populated
+        
+    # sends analysis results over OSC to TouchDesigner and the frontend
+    # mirrors HarmonyAnalyser._handle_result exactly — same addresses, same payload shape
     def _handle_result(self, result: dict):
         self._event_count += 1
+
         if DEBUG:
             self._display(result)
+
+        # full result to frontend via Tauri OSC bridge
+        self.osc_client.send_message(
+            f"/harmony/{self.instrument_name}",
+            json.dumps(result)
+        )
+
+        # frontend view — subset the OutputPanel reads
+        self.osc_client.send_message(
+            f"/harmony/{self.instrument_name}/frontend",
+            json.dumps(self.frontend_view(result))
+        )
+
+        # per-field messages to TouchDesigner
+        idx = self.instrument_index
+        self.td_client.send_message(f"/td/harmony/{idx}/chord",          result["chord"] or "")
+        self.td_client.send_message(f"/td/harmony/{idx}/chord_quality",  result["chord_quality"] or "")
+        self.td_client.send_message(f"/td/harmony/{idx}/chord_strength", result["chord_strength"])
+        self.td_client.send_message(f"/td/harmony/{idx}/roman_degree",   result["roman_degree"] or "")
+        self.td_client.send_message(f"/td/harmony/{idx}/key",            result["key"] or "")
+        self.td_client.send_message(f"/td/harmony/{idx}/scale",          result["scale"] or "")
+        self.td_client.send_message(f"/td/harmony/{idx}/dissonance",     result["dissonance"])
+        self.td_client.send_message(f"/td/harmony/{idx}/harmonic_change",result["harmonic_change"])
+        self.td_client.send_message(f"/td/harmony/{idx}/hpcp",           result["hpcp"])
 
 
     # ── display ───────────────────────────────────────────────────────────────
