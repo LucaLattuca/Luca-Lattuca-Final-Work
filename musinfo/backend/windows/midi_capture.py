@@ -1,7 +1,7 @@
 # midi_capture.py — MIDI Capture + TCP Streamer (Windows side)
 # Loads instruments.json, opens a pygame.midi.Input for every instrument
 # where type == "midi" and enabled == True, and streams MIDI events
-# directly to midi_receiver.py in WSL over TCP.
+# directly to midi_harmony_analyser.py in WSL over TCP.
 #
 # Bypasses broadcaster entirely — MIDI is discrete events, not PCM stream.
 # broadcaster and wsl_receiver remain audio-only and untouched.
@@ -120,7 +120,7 @@ def note_name(midi_note: int) -> str:
 
 def send_event(sock, instrument_name: str, analysers: list, event: dict):
     """
-    Frame format to midi_receiver.py:
+    Frame format to midi_harmony_analyser.py:
 
       [4 bytes: header length  (uint32 big-endian)]
       [N bytes: header JSON                       ]
@@ -255,17 +255,17 @@ def listen_instrument(instrument_name: str, device_name: str, analysers: list, s
 
 # ── connection ────────────────────────────────────────────────────────────────
 
-def connect_to_midi_receiver() -> socket.socket:
-    """Retry loop — midi_receiver.py in WSL may take a moment to be ready."""
+def connect_to_midi_harmony_analyser() -> socket.socket:
+    """Retry loop — midi_harmony_analyser.py in WSL may take a moment to be ready."""
     while True:
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((WSL_MIDI_HOST, WSL_MIDI_PORT))
             if INFO:
-                print(f"[midi_capture] Connected to midi_receiver at {WSL_MIDI_HOST}:{WSL_MIDI_PORT}", flush=True)
+                print(f"[midi_capture] Connected to midi_harmony_analyser at {WSL_MIDI_HOST}:{WSL_MIDI_PORT}", flush=True)
             return s
         except ConnectionRefusedError:
-            print("[midi_capture] midi_receiver not ready — retrying in 2s", flush=True)
+            print("[midi_capture] midi_harmony_analyser not ready — retrying in 2s", flush=True)
             time.sleep(2)
 
 
@@ -289,7 +289,7 @@ def main():
         pygame.midi.quit()
         return
 
-    sock = connect_to_midi_receiver()
+    sock = connect_to_midi_harmony_analyser()
 
     threads = []
     for name, cfg in instruments.items():
@@ -319,4 +319,4 @@ if __name__ == "__main__":
     try:
         main()
     except ConnectionRefusedError:
-        print("[midi_capture] Connection refused — is midi_receiver.py running?")
+        print("[midi_capture] Connection refused — is midi_harmony_analyser.py running?")
