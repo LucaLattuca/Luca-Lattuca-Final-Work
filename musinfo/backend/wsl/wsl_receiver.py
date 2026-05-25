@@ -58,6 +58,25 @@ def load_sample_rates():
 # Load sample rates at startup
 SAMPLE_RATES = load_sample_rates()
 
+# Load instrument indexes
+def load_instrument_indices():
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+    config_path = os.path.join(base_dir, "config", "instruments.json")
+    try:
+        with open(config_path) as f:
+            config = json.load(f)
+        audio_instruments = sorted(
+            name for name, inst in config.get("instruments", {}).items()
+            if inst.get("type") == "audio"
+        )
+        return {name: idx for idx, name in enumerate(audio_instruments)}
+    except Exception:
+        return {}
+
+
+INSTRUMENT_INDICES = load_instrument_indices()
+
+
 
 # ─── THREADED WRAPPER ─────────────────────────────────────────────────────────
 # Queue sizes per analyser — GPU-heavy get 1 (always fresh), CPU get 4
@@ -174,7 +193,11 @@ def initialise_analyser(instrument, analyser_name):
             print(f"[wsl_receiver] Starting {analyser_name} for {instrument} @ {sample_rate}Hz")
             sys.stdout.flush()
 
-            instance = cls(instrument_name=instrument, sample_rate=sample_rate)
+            instance = cls(
+                instrument_name=instrument,
+                sample_rate=sample_rate,
+                instrument_index=INSTRUMENT_INDICES.get(instrument, 0)
+            )
             queue_size = ANALYSER_QUEUE_SIZES.get(analyser_name, 2)
             analyser_registry[instrument][analyser_name] = ThreadedAnalyser(
                 instance, queue_size=queue_size
@@ -183,7 +206,8 @@ def initialise_analyser(instrument, analyser_name):
 # prints instrument/analyser combination
 def log_routing(name, analysers):
     analysers_str = ", ".join(analysers) if analysers else "none"
-    print(f"[wsl_receiver] {name:<16} -> {analysers_str}")
+    index = INSTRUMENT_INDICES.get(name, "N/A (mix)")
+    print(f"[wsl_receiver] {name:<16} index={index}  -> {analysers_str}")
     sys.stdout.flush()
 
 

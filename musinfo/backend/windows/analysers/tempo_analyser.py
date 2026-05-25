@@ -23,13 +23,13 @@ MAX_BPM = 220.0
 
 class TempoAnalyser:
 
-    def __init__(self, instrument_name: str, sample_rate: int = 48000):
+    def __init__(self, instrument_name: str, sample_rate: int = 48000, instrument_index: int = 0):
         self.instrument_name     = instrument_name
         self.sample_rate         = sample_rate
         self._beat_reset_pending = False
-
+    
         self.osc    = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
-        self.td_osc = udp_client.SimpleUDPClient(OSC_HOST, OSC_TD_PORT)
+        self.td_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_TD_PORT)
 
         self.pulse_address = f"/tempo/{instrument_name}/pulse"
         self.bpm_address   = f"/tempo/{instrument_name}/bpm"
@@ -62,12 +62,12 @@ class TempoAnalyser:
         self._sample_count += HOP_SIZE
 
         if self._beat_reset_pending:
-            self.td_osc.send_message(self.pulse_address, 0)
+            self.td_client.send_message(f"/td/tempo/pulse", 0)
             self._beat_reset_pending = False
 
         if is_beat[0]:
             self.osc.send_message(self.pulse_address, 1)
-            self.td_osc.send_message(self.pulse_address, 1)
+            self.td_client.send_message(f"/td/tempo/pulse", 1)
             self._beat_reset_pending = True
 
             now = self._sample_count / self.sample_rate
