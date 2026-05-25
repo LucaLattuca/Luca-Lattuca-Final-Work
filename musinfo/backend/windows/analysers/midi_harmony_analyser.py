@@ -6,7 +6,11 @@
 
 import numpy as np
 from pythonosc import udp_client
+import sys
 
+# ── Debugging ───────────────────────────────────────────────────────────────────────
+DEBUG = False
+INFO = True
 
 # ── OSC ───────────────────────────────────────────────────────────────────────
 
@@ -172,9 +176,10 @@ class MidiHarmonyAnalyser:
         self.osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
         self.td_client  = udp_client.SimpleUDPClient(OSC_HOST, OSC_TD_PORT)
 
-        print(f"[midi_harmony] Ready for '{instrument_name}'", flush=True)
-        print(f"[midi_harmony] OSC -> {OSC_HOST}:{OSC_PORT}", flush=True)
-
+        if INFO : 
+            print(f"[midi_harmony] Ready for '{instrument_name}'", flush=True)
+            print(f"[midi_harmony] OSC -> {OSC_HOST}:{OSC_PORT}", flush=True)
+            sys.stdout.flush() 
 
     # ── event entry point ─────────────────────────────────────────────────────
 
@@ -416,10 +421,7 @@ class MidiHarmonyAnalyser:
                 total_roughness += max(0.0, roughness)
 
         # normalise against the maximum possible roughness for this many notes
-        # max roughness approximated as n_pairs * peak_roughness_of_one_pair
-        n_pairs = len(partials) * (len(partials) - 1) / 2
-        
-        # n_pairs scaling over-penalises dense chords — use a constant instead
+        # n_pairs scaling over-penalises dense chords
         normalised = total_roughness / 2.0
 
         # clamp to [0, 1]
@@ -466,20 +468,20 @@ class MidiHarmonyAnalyser:
         # step 4 — dissonance (Plomp-Levelt)
         result["dissonance"] = self._compute_dissonance()
 
-        # step 5 : OSC output
-
+       
 
         if self._active_notes:
             names = [note_name(n) for n in sorted(self._active_notes.keys())]
-            print(
-                f"[midi_harmony/{self.instrument_name}] "
-                # f"active={names}  "
-                f"chord={result['chord']}  "
-                # f"key={result['key']} {result['scale']}  "
-                # f"roman={result['roman_degree']}  "
-                f"diss={result['dissonance']:.2f}",
-                flush=True,
-            )
+            if INFO:
+                print(
+                    f"[midi_harmony/{self.instrument_name}] "
+                    f"active={names}  "
+                    f"chord={result['chord']}  "
+                    f"key={result['key']} {result['scale']}  "
+                    f"roman={result['roman_degree']}  "
+                    f"diss={result['dissonance']:.2f}",
+                    flush=True,
+                )
 
         return result
 
@@ -489,6 +491,8 @@ class MidiHarmonyAnalyser:
     # stub — OSC sends added in step 5 once all result fields are populated
     def _handle_result(self, result: dict):
         self._event_count += 1
+        if DEBUG:
+            self._display(result)
 
 
     # ── display ───────────────────────────────────────────────────────────────
