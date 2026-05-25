@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Styles from './Performance.module.css';
+import { invoke } from '@tauri-apps/api/core';
 
 // Alexander Scriabin's colour associations for each pitch class
 const SCRIABIN_COLORS = {
@@ -29,8 +30,10 @@ const Performance = ({ setForcedKey }) => {
     if (!next) {
       setSelectedKey(null);
       setForcedKey({ enabled: false, key: null });
+      invoke('save_performance_config', { enabled: false, key: null });
     } else {
       setForcedKey({ enabled: true, key: selectedKey });
+      invoke('save_performance_config', { enabled: true, key: selectedKey });
     }
   };
 
@@ -39,6 +42,7 @@ const Performance = ({ setForcedKey }) => {
     setSelectedKey(next);
     if (enabled) {
       setForcedKey({ enabled: true, key: next });
+      invoke('save_performance_config', { enabled: true, key: next });
     }
   };
 

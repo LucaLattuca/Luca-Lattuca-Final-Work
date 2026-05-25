@@ -45,9 +45,17 @@ const OSC_DEBUG: bool = false;
 // Resolves the path to instruments.json relative to the project root.
 fn instruments_path() -> Result<std::path::PathBuf, String> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+    .parent()
+    .ok_or("Could not resolve project root")?;
+Ok(root.join("backend/config/instruments.json"))
+}
+
+// Resolves the path to performance.json relative to the project root.
+fn performance_path() -> Result<std::path::PathBuf, String> {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .ok_or("Could not resolve project root")?;
-    Ok(root.join("backend/config/instruments.json"))
+    Ok(root.join("backend/config/performance.json"))
 }
 
 // Resolves the path to the sessions folder
@@ -69,6 +77,29 @@ fn write_config(path: &Path, config: &serde_json::Map<String, Value>) -> Result<
     let out =
         serde_json::to_string_pretty(config).map_err(|e| format!("Serialize error: {}", e))?;
     fs::write(path, out).map_err(|e| format!("Write error: {}", e))
+}
+
+// PERFORMANCE
+
+#[tauri::command]
+fn save_performance_config(enabled: bool, key: Option<String>) -> Result<(), String> {
+    let path = performance_path()?;
+
+    let config = serde_json::json!({
+        "Performance": {
+            "forcedKey": {
+                "enabled": enabled,
+                "key": key
+            }
+        }
+    });
+
+    let out = serde_json::to_string_pretty(&config)
+        .map_err(|e| format!("Serialize error: {}", e))?;
+    fs::write(&path, out)
+        .map_err(|e| format!("Write error: {}", e))?;
+
+    Ok(())
 }
 
 // INSTRUMENTS
@@ -988,6 +1019,7 @@ pub fn run() {
             save_session,
             load_session,
             list_sessions,
+            save_performance_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
