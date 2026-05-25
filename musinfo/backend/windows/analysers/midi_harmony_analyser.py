@@ -66,24 +66,35 @@ SCALE_DEGREES = {
 # how many semitones to shift the KS profile when correlating against each key
 # e.g. C major starts at 0, C# major at 1, D major at 2, etc.
 
+
 # Krumhansl-Schmuckler major and minor profiles
-# these represent how strongly each pitch class is associated with a key
 KS_MAJOR = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09,
                      2.52, 5.19, 2.39, 3.66, 2.29, 2.88])
 KS_MINOR = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53,
                      2.54, 4.75, 3.98, 2.69, 3.34, 3.17])
 
-# how much each new note event contributes to the histogram
-# higher = reacts faster to key changes, lower = more stable
-KS_DECAY = 0.92   # multiply histogram by this on every event to slowly forget old notes
+# decay applied to histogram on every note_on — lower = slower to forget old notes
+# 0.92 reacts faster, 0.97 is more stable across a long phrase
+KS_DECAY = 0.97
 
-# minimum number of note events before we attempt key detection
-KS_MIN_EVENTS = 4
+# more events required before attempting detection — gives histogram time to build
+KS_MIN_EVENTS = 8
 
-# only update the reported key if the new candidate scores above this threshold
-# prevents key flickering on sparse input
-KS_CONFIDENCE_THRESHOLD = 0.80
+# higher threshold — only change the reported key if very confident
+# prevents diminished chords from pulling the key
+KS_CONFIDENCE_THRESHOLD = 0.92
 
+# how many consecutive detections the new key must hold before displacing the current one
+# e.g. 4 means the new key must win 4 events in a row before we accept it
+KS_KEY_LOCK = 4
+
+# ── forced key config ─────────────────────────────────────────────────────────
+
+# set FORCED_KEY_ENABLED to True and fill in root + scale to bypass KS detection entirely
+# hot-reloaded from the performance tab — changing these takes effect on the next note event
+FORCED_KEY_ENABLED = False
+FORCED_KEY_ROOT    = "C"
+FORCED_KEY_SCALE   = "major"
 
 # ── chord templates ───────────────────────────────────────────────────────────
 
@@ -95,7 +106,8 @@ CHORD_TEMPLATES = {
     "dominant7":  np.array([1,0,0,0,1,0,0,1,0,0,1,0], dtype=np.float32),  # 1 3 5 b7
     "major7":     np.array([1,0,0,0,1,0,0,1,0,0,0,1], dtype=np.float32),  # 1 3 5 7
     "minor7":     np.array([1,0,0,1,0,0,0,1,0,0,1,0], dtype=np.float32),  # 1 b3 5 b7
-    "diminished": np.array([1,0,0,1,0,0,1,0,0,0,0,0], dtype=np.float32),  # 1 b3 b5
+    "diminished7":     np.array([1,0,0,1,0,0,1,0,0,1,0,0], dtype=np.float32),  # 1 b3 b5 bb7
+    "half_diminished": np.array([1,0,0,1,0,0,1,0,0,0,1,0], dtype=np.float32),  # 1 b3 b5 b7
     "sus4":       np.array([1,0,0,0,0,1,0,1,0,0,0,0], dtype=np.float32),  # 1 4 5
 }
 
@@ -114,14 +126,10 @@ class MidiHarmonyAnalyser:
     same OSC addresses — so TouchDesigner and the frontend need no changes.
     """
 
-    def __init__(self, instrument_name="unknown", instrument_index=0,
-                 forced_key=None):
+    def __init__(self, instrument_name="unknown", instrument_index=0):
 
         self.instrument_name  = instrument_name
         self.instrument_index = instrument_index
-
-        # None = detect automatically, ("C", "major") = skip detection and use this
-        self.forced_key       = forced_key
 
         # held notes: { midi_note_int: velocity_int }
         self._active_notes: dict[int, int] = {}
@@ -138,7 +146,10 @@ class MidiHarmonyAnalyser:
         # cached key result — only updated when KS confidence crosses the threshold
         self._last_key     = (None, None, 0.0, False)  # (key, scale, confidence, forced)
 
-
+        # consecutive detections of the same key candidate — must reach KS_KEY_LOCK before accepted
+        self._key_candidate_streak = 0
+        self._key_candidate        = (None, None)
+        
         # previous HPCP vector — used to measure harmonic change between events
         self._hpcp_prev = None
 
@@ -214,12 +225,12 @@ class MidiHarmonyAnalyser:
 
 
     # correlates the pitch class histogram against all 24 KS key profiles
-    # returns (key, scale, confidence, forced) — same shape as _last_key
+    # requires KS_KEY_LOCK consecutive agreements before updating the reported key
+    # forced key bypasses all of this entirely
     def _detect_key(self) -> tuple:
-        # forced key — skip detection entirely
-        if self.forced_key is not None:
-            root, scale = self.forced_key
-            return root, scale, 1.0, True
+        # forced key — read module-level constants so hot-reload takes effect immediately
+        if FORCED_KEY_ENABLED:
+            return FORCED_KEY_ROOT, FORCED_KEY_SCALE, 1.0, True
 
         # not enough note history yet
         if self._pc_histogram.sum() < KS_MIN_EVENTS:
@@ -228,11 +239,9 @@ class MidiHarmonyAnalyser:
         best_key, best_scale, best_score = None, None, -np.inf
 
         for tonic in range(12):
-            # rotate the KS profile to align with this tonic
             major_profile = np.roll(KS_MAJOR, tonic)
             minor_profile = np.roll(KS_MINOR, tonic)
 
-            # Pearson correlation between histogram and each profile
             major_score = float(np.corrcoef(self._pc_histogram, major_profile)[0, 1])
             minor_score = float(np.corrcoef(self._pc_histogram, minor_profile)[0, 1])
 
@@ -241,9 +250,24 @@ class MidiHarmonyAnalyser:
             if minor_score > best_score:
                 best_score, best_key, best_scale = minor_score, NOTE_NAMES[tonic], "minor"
 
-        # only update if confidence is high enough to avoid flickering
-        if best_score >= KS_CONFIDENCE_THRESHOLD:
-            self._last_key = (best_key, best_scale, best_score, False)
+        # below confidence threshold — don't even consider this candidate
+        if best_score < KS_CONFIDENCE_THRESHOLD:
+            return self._last_key
+
+        candidate = (best_key, best_scale)
+
+        if candidate == self._key_candidate:
+            # same candidate as last time — increment streak
+            self._key_candidate_streak += 1
+        else:
+            # new candidate — reset streak
+            self._key_candidate        = candidate
+            self._key_candidate_streak = 1
+
+        # only accept the new key once it has held for KS_KEY_LOCK consecutive events
+        if self._key_candidate_streak >= KS_KEY_LOCK:
+            self._last_key             = (best_key, best_scale, best_score, False)
+            self._key_candidate_streak = 0
 
         return self._last_key
     
@@ -312,7 +336,8 @@ class MidiHarmonyAnalyser:
                         "7"    if quality == "dominant7"  else
                         "maj7" if quality == "major7"     else
                         "m7"   if quality == "minor7"     else
-                        "dim"  if quality == "diminished" else
+                        "dim7"  if quality == "diminished7"     else
+                        "m7b5"  if quality == "half_diminished" else
                         "sus4"
                     )
                     best_name = best_root + suffix
@@ -383,7 +408,7 @@ class MidiHarmonyAnalyser:
                 f"roman={result['roman_degree']}",
                 flush=True,
             )
-            
+
         return result
 
 
