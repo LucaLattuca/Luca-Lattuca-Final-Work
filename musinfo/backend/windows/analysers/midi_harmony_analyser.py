@@ -122,6 +122,9 @@ class MidiHarmonyAnalyser:
         self._last_key     = (None, None, 0.0, False)  # (key, scale, confidence, forced)
 
 
+        # previous HPCP vector — used to measure harmonic change between events
+        self._hpcp_prev = None
+
         self._event_count     = 0
 
         self.osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
@@ -226,6 +229,40 @@ class MidiHarmonyAnalyser:
             self._last_key = (best_key, best_scale, best_score, False)
 
         return self._last_key
+    
+    # builds a velocity-weighted pitch class profile from currently active notes
+    # then computes centroid, spread, and harmonic change from the resulting vector
+    def _compute_hpcp(self) -> tuple:
+        hpcp = np.zeros(12, dtype=np.float32)
+
+        for note, velocity in self._active_notes.items():
+            # each note contributes its velocity weight to its pitch class bin
+            hpcp[note % 12] += velocity / 127.0
+
+        # normalise so the vector sums to 1 — makes profiles comparable regardless of how many notes are held
+        total = hpcp.sum()
+        if total > 1e-6:
+            hpcp /= total
+
+        # ── chroma descriptors ────────────────────────────────────────────────────
+
+        indices = np.arange(12)
+
+        # weighted average pitch class index by energy
+        centroid = float(np.sum(indices * hpcp) / total) if total > 1e-6 else 0.0
+
+        # weighted standard deviation around the centroid — how spread the harmony is
+        spread = float(np.sqrt(np.sum(((indices - centroid) ** 2) * hpcp) / total)) if total > 1e-6 else 0.0
+
+        # euclidean distance from previous HPCP — large value means harmony just changed
+        if self._hpcp_prev is not None:
+            harmonic_change = float(np.linalg.norm(hpcp - self._hpcp_prev))
+        else:
+            harmonic_change = 0.0
+
+        self._hpcp_prev = hpcp.copy()
+
+        return hpcp, centroid, spread, harmonic_change
 
     # ── analysis pipeline ─────────────────────────────────────────────────────
 
@@ -238,14 +275,7 @@ class MidiHarmonyAnalyser:
     def analyse(self) -> dict:
         result = self._empty_result()
 
-        if self._active_notes:
-            names = [note_name(n) for n in sorted(self._active_notes.keys())]
-            print(
-                f"[midi_harmony/{self.instrument_name}] "
-                f"active={names}  key={result['key']} {result['scale']}  "
-                f"conf={result['key_confidence']:.2f}",
-                flush=True,
-            )
+        
 
         # step 1 — key detection
         key, scale, confidence, forced = self._detect_key()
@@ -254,11 +284,27 @@ class MidiHarmonyAnalyser:
         result["key_confidence"] = confidence
         result["key_forced"]     = forced
 
-        # step 2 : HPCP           (velocity-weighted pitch class profile)
+        # step 2 — HPCP and chroma descriptors
+        hpcp, centroid, spread, harmonic_change = self._compute_hpcp()
+        result["hpcp"]            = hpcp.tolist()
+        result["chroma_centroid"] = centroid
+        result["chroma_spread"]   = spread
+        result["harmonic_change"] = harmonic_change
+        
         # step 3 : chord          (template matching)
         # step 4 : dissonance     (Plomp-Levelt on active note frequencies)
         # step 5 : OSC output
 
+
+        if self._active_notes:
+            names = [note_name(n) for n in sorted(self._active_notes.keys())]
+            print(
+                f"[midi_harmony/{self.instrument_name}] "
+                f"active={names}  key={result['key']} {result['scale']}  "
+                f"hpcp={[round(v, 2) for v in result['hpcp']]}",
+                flush=True,
+            )
+            
         return result
 
 
