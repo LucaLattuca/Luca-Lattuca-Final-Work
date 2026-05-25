@@ -12,6 +12,11 @@ import os
 TCP_HOST = "0.0.0.0"
 TCP_PORT = 5010
 
+NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+
+def note_name(midi_note: int) -> str:
+    return NOTE_NAMES[int(midi_note) % 12] + str(int(midi_note) // 12 - 1)
+
 # ── socket helpers ────────────────────────────────────────────────────────────
 
 def recv_exact(conn, n):
@@ -62,12 +67,15 @@ def read_frame(conn):
 def print_event(instrument: str, event: dict):
     event_type = event.get("type", "unknown")
 
+    # convert active_notes keys (string MIDI numbers) to note names for readability
+    active_named = [note_name(n) for n in sorted(event.get("active_notes", {}).keys(), key=int)]
+
     if event_type == "note_on":
         print(
             f"[midi_harmony/{instrument}] NOTE ON  "
             f"{event.get('note_name', '?'):4s}  "
             f"vel={event.get('velocity', 0):3d}  "
-            f"active={sorted(event.get('active_notes', {}).keys())}",
+            f"active={active_named}",
             flush=True,
         )
 
@@ -75,7 +83,7 @@ def print_event(instrument: str, event: dict):
         print(
             f"[midi_harmony/{instrument}] NOTE OFF "
             f"{event.get('note_name', '?'):4s}  "
-            f"active={sorted(event.get('active_notes', {}).keys())}",
+            f"active={active_named}",
             flush=True,
         )
 
