@@ -2,7 +2,8 @@
     "Performance": {
         "forcedKey": {
             "enabled": false,
-            "key": null
+            "key": null,
+            "scale": null
         }
     }
 }

@@ -3,12 +3,25 @@
 
 .container {
     padding: 20px;
-    fontfamily: "Special Gothic", sans-serif;
+    font-family: "Special Gothic", sans-serif;
 }
 
 .infoText {
     font-size: larger;
 
+}
+
+.keysWrapper {
+  position: relative;
+}
+
+.keyVeil {
+  position: relative;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.55);
+  border-radius: 5px;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .forcedKey {
@@ -66,4 +79,23 @@
 }
 .keys li button:active {
     border-style: inset;    
+}
+
+.scale {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: large;
+    margin-top: 40px;
+}
+.scale button {
+    width: 100px;
+    height: 40px;
+    padding: 5px 10px;
+    font-size: medium;
+    border: 2px outset #333;
+    background-color: transparent;
+    color: white;
+    cursor: pointer;
+    border-radius: 5px;
 }
