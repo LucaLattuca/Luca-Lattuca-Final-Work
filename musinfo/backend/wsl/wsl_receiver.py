@@ -12,6 +12,7 @@ import os
 import sys
 import subprocess
 import atexit
+import time
 
 import threading
 from queue import Queue, Full
@@ -323,6 +324,9 @@ def spawn_midi_analysers():
         _midi_subprocesses.append(proc)
         atexit.register(proc.terminate)  # fires when wsl_receiver process exits
         print(f"[wsl_receiver] {analyser_name} analyser running (pid {proc.pid})", flush=True)
+
+    # give MIDI analysers time to bind their sockets before midi_capture.py tries to connect
+    time.sleep(1.5)
 
 
 # start TCP server loop
