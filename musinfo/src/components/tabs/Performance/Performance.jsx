@@ -38,7 +38,6 @@ const Performance = ({ setForcedKey }) => {
     const next = !enabled;
     setEnabled(next);
     if (!next) {
-      setSelectedKey(null);
       setForcedKey({ enabled: false, key: null, scale: null });
       invoke('save_performance_config', { enabled: false, key: null, scale: null });
     } else {
@@ -92,7 +91,7 @@ const Performance = ({ setForcedKey }) => {
             )}
           <div className={Styles.harmonyConfig}>
             <div className={Styles.keys}>
-              {!enabled && <div className={Styles.keyVeil} />}
+              {!enabled && <div className={Styles.configVeil} />}
               <ul>
                 {KEYS.map((key) => (
                   <li key={key}>
@@ -101,46 +100,42 @@ const Performance = ({ setForcedKey }) => {
                       onClick={() => handleKeySelect(key)}
                       style={{
                         borderColor: SCRIABIN_COLORS[key],
-                        // dim the button when forced key is disabled
-                        opacity: enabled ? 1 : 0,
-                        // highlight the selected key
                         backgroundColor: selectedKey === key ? `${SCRIABIN_COLORS[key]}25` : 'transparent',
-                        borderStyle: selectedKey === key ? `inset` : 'outset',
+                        borderStyle: selectedKey === key ? 'inset' : 'outset',
                       }}
-                      >
+                    >
                       {key}
                     </button>
                   </li>
                 ))}
               </ul>
-            </div>
-            <div className={Styles.scale}>
-              {enabled && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => handleScaleSelect('major')}
-                    style={{ 
-                      borderStyle: selectedScale === 'major' ? 'inset' : 'outset', 
-                      borderColor: 'red',
-                      backgroundColor: selectedScale === 'major' ? 'rgba(255,0,0,0.2)' : 'transparent',
-                    }}
-                  >
-                    Major
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleScaleSelect('minor')}
-                    style={{ 
-                      borderStyle: selectedScale === 'minor' ? 'inset' : 'outset',
-                      borderColor: 'blue',
-                      backgroundColor: selectedScale === 'minor' ? 'rgba(0,0,255,0.2)' : 'transparent',
-                    }}
-                  >
-                    Minor
-                  </button>
-                </>
-              )}
+              <div className={Styles.scale}>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleScaleSelect('major')}
+                      style={{ 
+                        borderStyle: selectedScale === 'major' ? 'inset' : 'outset', 
+                        borderColor: 'red',
+                        backgroundColor: selectedScale === 'major' ? 'rgba(255,0,0,0.2)' : 'transparent',
+                      }}
+                      >
+                      Major
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleScaleSelect('minor')}
+                      style={{ 
+                        borderStyle: selectedScale === 'minor' ? 'inset' : 'outset',
+                        borderColor: 'blue',
+                        backgroundColor: selectedScale === 'minor' ? 'rgba(0,0,255,0.2)' : 'transparent',
+                      }}
+                      >
+                      Minor
+                    </button>
+                  </>
+                
+              </div>
             </div>
           </div>    
 
