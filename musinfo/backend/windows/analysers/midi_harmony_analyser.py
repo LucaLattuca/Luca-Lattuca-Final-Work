@@ -114,6 +114,20 @@ CHORD_TEMPLATES = {
 # minimum dot-product score to report a chord — below this we return None
 CHORD_MIN_STRENGTH = 0.5
 
+# ── dissonance config ─────────────────────────────────────────────────────────
+
+# Plomp-Levelt curve parameters — these shape the roughness curve between two partials
+# b1/b2 control the steepness of the rise and fall of roughness around the critical bandwidth
+PL_B1 = 3.5
+PL_B2 = 5.75
+
+# number of overtones to consider per note — more = more accurate but slower
+# 4 is a good balance for real-time use
+PL_OVERTONES = 4
+
+# amplitude falloff per overtone — each harmonic is weaker than the fundamental
+PL_OVERTONE_FALLOFF = 0.6
+
 # ── MidiHarmonyAnalyser ───────────────────────────────────────────────────────
 
 class MidiHarmonyAnalyser:
@@ -356,6 +370,56 @@ class MidiHarmonyAnalyser:
     
         return best_name, best_root, best_quality, best_strength, roman, relation
 
+
+    # computes Plomp-Levelt dissonance from currently active MIDI notes
+    # models perceptual roughness between all pairs of partials (fundamentals + overtones)
+    # returns a value between 0.0 (consonant) and 1.0 (maximally dissonant)
+    def _compute_dissonance(self) -> float:
+        if len(self._active_notes) < 2:
+            # single note or silence — no intervals, no roughness
+            return 0.0
+
+        # build list of (frequency, amplitude) for all partials of all active notes
+        partials = []
+        for note, velocity in self._active_notes.items():
+            fundamental = midi_to_hz(note)
+            amplitude   = velocity / 127.0
+            for k in range(1, PL_OVERTONES + 1):
+                # kth harmonic: frequency k*f0, amplitude falls off with each overtone
+                partials.append((fundamental * k, amplitude * (PL_OVERTONE_FALLOFF ** (k - 1))))
+
+        # compute roughness for every unique pair of partials
+        total_roughness = 0.0
+        for i in range(len(partials)):
+            for j in range(i + 1, len(partials)):
+                f1, a1 = partials[i]
+                f2, a2 = partials[j]
+
+                # always put lower frequency first
+                if f1 > f2:
+                    f1, a1, f2, a2 = f2, a2, f1, a1
+
+                # critical bandwidth — the frequency range within which roughness occurs
+                # approximated from Plomp-Levelt (1965)
+                cbw = 1.72 * (f1 ** 0.65)
+
+                # normalised frequency difference within the critical bandwidth
+                x = (f2 - f1) / cbw
+
+                # Plomp-Levelt roughness curve — peaks around x=0.25, zero at x=0 and x>=1
+                roughness = (a1 * a2) * (
+                    np.exp(-PL_B1 * x) - np.exp(-PL_B2 * x)
+                )
+                total_roughness += max(0.0, roughness)
+
+        # normalise against the maximum possible roughness for this many notes
+        # max roughness approximated as n_pairs * peak_roughness_of_one_pair
+        n_pairs = len(partials) * (len(partials) - 1) / 2
+        normalised = total_roughness / (n_pairs * 0.15) if n_pairs > 0 else 0.0
+
+        # clamp to [0, 1]
+        return float(min(1.0, normalised))
+    
     # ── analysis pipeline ─────────────────────────────────────────────────────
 
     def _analyse_and_send(self):
@@ -394,7 +458,9 @@ class MidiHarmonyAnalyser:
         result["roman_degree"]   = roman
         result["relation"]       = relation
 
-        # step 4 : dissonance     (Plomp-Levelt on active note frequencies)
+        # step 4 — dissonance (Plomp-Levelt)
+        result["dissonance"] = self._compute_dissonance()
+
         # step 5 : OSC output
 
 
@@ -405,10 +471,10 @@ class MidiHarmonyAnalyser:
                 f"active={names}  "
                 f"chord={result['chord']}  "
                 f"key={result['key']} {result['scale']}  "
-                f"roman={result['roman_degree']}",
+                f"roman={result['roman_degree']}  "
+                f"diss={result['dissonance']:.2f}",
                 flush=True,
             )
-
         return result
 
 
