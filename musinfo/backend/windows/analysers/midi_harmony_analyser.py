@@ -85,6 +85,23 @@ KS_MIN_EVENTS = 4
 KS_CONFIDENCE_THRESHOLD = 0.80
 
 
+# ── chord templates ───────────────────────────────────────────────────────────
+
+# binary pitch class masks for each chord quality, root = C (index 0)
+# rotate by root semitone to get templates for other keys
+CHORD_TEMPLATES = {
+    "major":      np.array([1,0,0,0,1,0,0,1,0,0,0,0], dtype=np.float32),  # 1 3 5
+    "minor":      np.array([1,0,0,1,0,0,0,1,0,0,0,0], dtype=np.float32),  # 1 b3 5
+    "dominant7":  np.array([1,0,0,0,1,0,0,1,0,0,1,0], dtype=np.float32),  # 1 3 5 b7
+    "major7":     np.array([1,0,0,0,1,0,0,1,0,0,0,1], dtype=np.float32),  # 1 3 5 7
+    "minor7":     np.array([1,0,0,1,0,0,0,1,0,0,1,0], dtype=np.float32),  # 1 b3 5 b7
+    "diminished": np.array([1,0,0,1,0,0,1,0,0,0,0,0], dtype=np.float32),  # 1 b3 b5
+    "sus4":       np.array([1,0,0,0,0,1,0,1,0,0,0,0], dtype=np.float32),  # 1 4 5
+}
+
+# minimum dot-product score to report a chord — below this we return None
+CHORD_MIN_STRENGTH = 0.5
+
 # ── MidiHarmonyAnalyser ───────────────────────────────────────────────────────
 
 class MidiHarmonyAnalyser:
@@ -264,6 +281,56 @@ class MidiHarmonyAnalyser:
 
         return hpcp, centroid, spread, harmonic_change
 
+    # matches the HPCP vector against all chord templates and returns the best fit
+    # returns (chord_name, root, quality, strength, roman_numeral, relation)
+    def _detect_chord(self, hpcp: np.ndarray, key: str, scale: str) -> tuple:
+        # no notes — nothing to match against
+        if hpcp.sum() < 1e-6:
+            return None, None, None, 0.0, None, None
+    
+        best_name, best_root, best_quality, best_strength = None, None, None, 0.0
+    
+        for root_idx in range(12):
+            for quality, template in CHORD_TEMPLATES.items():
+                # rotate template to align with this root
+                rotated = np.roll(template, root_idx)
+    
+                # normalise template so dot product is between 0 and 1
+                norm = np.linalg.norm(rotated)
+                if norm < 1e-6:
+                    continue
+                
+                strength = float(np.dot(hpcp, rotated) / norm)
+    
+                if strength > best_strength:
+                    best_strength = strength
+                    best_root     = NOTE_NAMES[root_idx]
+                    best_quality  = quality
+                    # format chord name: "Am", "Cmaj7", "G7" etc.
+                    suffix = "" if quality == "major" else (
+                        "m"    if quality == "minor"      else
+                        "7"    if quality == "dominant7"  else
+                        "maj7" if quality == "major7"     else
+                        "m7"   if quality == "minor7"     else
+                        "dim"  if quality == "diminished" else
+                        "sus4"
+                    )
+                    best_name = best_root + suffix
+    
+        # below threshold — not confident enough to report a chord
+        if best_strength < CHORD_MIN_STRENGTH:
+            return None, None, None, best_strength, None, None
+    
+        # roman numeral — only computable if we have a key
+        roman, relation = None, None
+        if best_root and key and scale:
+            interval = (NOTE_SEMITONES[best_root] - NOTE_SEMITONES[key]) % 12
+            degree   = SCALE_DEGREES.get(scale, {}).get(interval)
+            if degree:
+                roman, relation = degree
+    
+        return best_name, best_root, best_quality, best_strength, roman, relation
+
     # ── analysis pipeline ─────────────────────────────────────────────────────
 
     def _analyse_and_send(self):
@@ -291,7 +358,17 @@ class MidiHarmonyAnalyser:
         result["chroma_spread"]   = spread
         result["harmonic_change"] = harmonic_change
         
-        # step 3 : chord          (template matching)
+        # step 3 — chord detection
+        chord, root, quality, strength, roman, relation = self._detect_chord(
+            hpcp, result["key"], result["scale"]
+        )
+        result["chord"]          = chord
+        result["chord_root"]     = root
+        result["chord_quality"]  = quality
+        result["chord_strength"] = strength
+        result["roman_degree"]   = roman
+        result["relation"]       = relation
+
         # step 4 : dissonance     (Plomp-Levelt on active note frequencies)
         # step 5 : OSC output
 
@@ -300,8 +377,10 @@ class MidiHarmonyAnalyser:
             names = [note_name(n) for n in sorted(self._active_notes.keys())]
             print(
                 f"[midi_harmony/{self.instrument_name}] "
-                f"active={names}  key={result['key']} {result['scale']}  "
-                f"hpcp={[round(v, 2) for v in result['hpcp']]}",
+                f"active={names}  "
+                f"chord={result['chord']}  "
+                f"key={result['key']} {result['scale']}  "
+                f"roman={result['roman_degree']}",
                 flush=True,
             )
             
