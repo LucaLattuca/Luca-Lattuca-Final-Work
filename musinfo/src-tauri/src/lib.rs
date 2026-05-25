@@ -33,6 +33,10 @@ struct BroadcasterProcess(Mutex<Option<Child>>);
 // holds the windows_receiver.py process handle so stop_pipeline can kill it
 struct WindowsReceiverProcess(Mutex<Option<Child>>);
 
+// holds the midi_capture.py process handle so stop_pipeline can kill it
+// midi_harmony_analyser.py is a child of wsl_receiver.py — lib.rs does not manage it directly
+struct MidiCaptureProcess(Mutex<Option<Child>>);
+
 // DEBUGGING
 const OSC_DEBUG: bool = false;
 
@@ -581,7 +585,7 @@ fn stop_device_test(test_state: State<TestProcess>) -> Result<String, String> {
 
 // AUDIO PIPELINE
 
-// spawns the full audio pipeline in order: wsl_receiver -> windows_receiver -> broadcaster -> capture
+// spawns the full pipeline: wsl_receiver -> wsl_receiver_heavy -> windows_receiver -> broadcaster -> capture -> midi_capture
 #[tauri::command]
 fn start_pipeline(
     app: AppHandle,
@@ -590,6 +594,7 @@ fn start_pipeline(
     wsl_heavy_state: State<WslHeavyProcess>,
     broadcaster_state: State<BroadcasterProcess>,
     windows_receiver_state: State<WindowsReceiverProcess>,
+    midi_capture_state: State<MidiCaptureProcess>,
 ) -> Result<String, String> {
     let project_root_windows = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -647,8 +652,6 @@ fn start_pipeline(
 
     let windows_receiver_child = Command::new("python")
         .arg(&windows_receiver_script)
-        // REMOVED: .stdout(Stdio::null())
-        // REMOVED: .stderr(Stdio::null())
         .spawn()
         .map_err(|e| format!("Failed to spawn windows_receiver.py: {}", e))?;
 
@@ -664,8 +667,6 @@ fn start_pipeline(
 
     let broadcaster_child = Command::new("python")
         .arg(&broadcaster_script)
-        // REMOVED: .stdout(Stdio::null())
-        // REMOVED: .stderr(Stdio::null())
         .spawn()
         .map_err(|e| format!("Failed to spawn broadcaster.py: {}", e))?;
 
@@ -682,13 +683,25 @@ fn start_pipeline(
     let capture_child = Command::new("python")
         .env("SD_ENABLE_ASIO", "1")
         .arg(&capture_script)
-        // REMOVED: .stdout(Stdio::null())
-        // REMOVED: .stderr(Stdio::null())
         .spawn()
         .map_err(|e| format!("Failed to spawn capture.py: {}", e))?;
 
     *capture_state.0.lock().unwrap() = Some(capture_child);
     println!("[Tauri] capture.py spawned.");
+
+    // --- 5. Spawn midi_capture.py on Windows ---
+    // midi_harmony_analyser runs in-process inside midi_capture.py — no WSL or socket needed.
+    let midi_capture_script = project_root_windows.join("backend/windows/midi_capture.py");
+
+    println!("[Tauri] Spawning midi_capture.py...");
+
+    let midi_capture_child = Command::new("python")
+        .arg(&midi_capture_script)
+        .spawn()
+        .map_err(|e| format!("Failed to spawn midi_capture.py: {}", e))?;
+
+    *midi_capture_state.0.lock().unwrap() = Some(midi_capture_child);
+    println!("[Tauri] midi_capture.py spawned.");
 
     // Signal frontend that pipeline is ready
     app.emit("pipeline-ready", ()).unwrap_or_else(|e| eprintln!("[Tauri] emit error: {}", e));
@@ -696,7 +709,7 @@ fn start_pipeline(
     Ok("Pipeline started".to_string())
 }
 
-// kills all pipeline processes in reverse order: capture -> broadcaster -> windows_receiver -> wsl_receiver
+// kills all pipeline processes in reverse order: capture + midi_capture -> broadcaster -> windows_receiver -> wsl_receiver_heavy -> wsl_receiver
 #[tauri::command]
 fn stop_pipeline(
     capture_state: State<CaptureProcess>,
@@ -704,6 +717,7 @@ fn stop_pipeline(
     wsl_heavy_state: State<WslHeavyProcess>,
     broadcaster_state: State<BroadcasterProcess>,
     windows_receiver_state: State<WindowsReceiverProcess>,
+    midi_capture_state: State<MidiCaptureProcess>,
 ) -> Result<String, String> {
     let project_root_windows = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -715,6 +729,14 @@ fn stop_pipeline(
             .kill()
             .map_err(|e| format!("Failed to kill capture.py: {}", e))?;
         println!("[Tauri] capture.py stopped.");
+    }
+
+    // if midi_capture.py is running, kill it
+    if let Some(mut child) = midi_capture_state.0.lock().unwrap().take() {
+        child
+            .kill()
+            .map_err(|e| format!("Failed to kill midi_capture.py: {}", e))?;
+        println!("[Tauri] midi_capture.py stopped.");
     }
 
     let sentinel_path = project_root_windows
@@ -747,9 +769,9 @@ fn stop_pipeline(
     // if wsl_receiver.py is running, kill it
     if let Some(mut child) = wsl_state.0.lock().unwrap().take() {
         child
-        .kill()
-        .map_err(|e| format!("Failed to kill wsl_receiver.py: {}", e))?;
-    println!("[Tauri] receiver.py stopped.");
+            .kill()
+            .map_err(|e| format!("Failed to kill wsl_receiver.py: {}", e))?;
+        println!("[Tauri] receiver.py stopped.");
     }
 
     // if wsl_receiver_heavy.py is running, kill it
@@ -757,7 +779,7 @@ fn stop_pipeline(
         child
             .kill()
             .map_err(|e| format!("Failed to kill wsl_receiver_heavy.py: {}", e))?;
-    println!("[Tauri] wsl_receiver_heavy.py stopped.");
+        println!("[Tauri] wsl_receiver_heavy.py stopped.");
     }
 
     Ok("Pipeline stopped".to_string())
@@ -933,6 +955,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(CaptureProcess(Mutex::new(None)))
+        .manage(MidiCaptureProcess(Mutex::new(None)))
         .manage(TestProcess(Mutex::new(None)))
         .manage(MidiTestProcess(Mutex::new(None)))
         .manage(WslProcess(Mutex::new(None)))

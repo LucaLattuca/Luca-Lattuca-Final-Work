@@ -1,97 +1,16 @@
 {
   "instruments": {
-    "bass": {
+    "piano": {
       "analysers": [
-        "timbre",
-        "dynamics",
-        "pitch"
+        "harmony"
       ],
-      "audio_device": {
-        "channel": 5,
-        "connected": true,
-        "device_id": 37,
-        "host_api": "ASIO",
-        "max_input_channels": 20,
-        "name": "Focusrite USB ASIO",
-        "sample_rate": 44100
-      },
       "enabled": true,
-      "type": "audio"
-    },
-    "drums": {
-      "analysers": [
-        "tempo",
-        "dynamics",
-        "timbre"
-      ],
-      "audio_device": {
-        "channel": 7,
+      "midi_device": {
         "connected": true,
-        "device_id": 37,
-        "host_api": "ASIO",
-        "max_input_channels": 20,
-        "name": "Focusrite USB ASIO",
-        "sample_rate": 44100
+        "name": "Digital Piano-1",
+        "port": "input"
       },
-      "enabled": true,
-      "type": "audio"
-    },
-    "guitar": {
-      "analysers": [
-        "timbre",
-        "dynamics"
-      ],
-      "audio_device": {
-        "channel": 6,
-        "connected": true,
-        "device_id": 37,
-        "host_api": "ASIO",
-        "max_input_channels": 20,
-        "name": "Focusrite USB ASIO",
-        "sample_rate": 44100
-      },
-      "enabled": true,
-      "type": "audio"
-    },
-    "mix": {
-      "analysers": [
-        "genre",
-        "mood",
-        "tempo"
-      ],
-      "audio_device": {
-        "channel": 10,
-        "connected": true,
-        "device_id": 37,
-        "host_api": "ASIO",
-        "max_input_channels": 20,
-        "name": "Focusrite USB ASIO",
-        "sample_rate": 44100
-      },
-      "enabled": true,
-      "mix_source": "external",
-      "source_instruments": [
-        "computer_audio",
-        "piano"
-      ],
-      "type": "mix"
-    },
-    "vocals": {
-      "analysers": [
-        "pitch",
-        "timbre"
-      ],
-      "audio_device": {
-        "channel": 4,
-        "connected": true,
-        "device_id": 37,
-        "host_api": "ASIO",
-        "max_input_channels": 20,
-        "name": "Focusrite USB ASIO",
-        "sample_rate": 44100
-      },
-      "enabled": true,
-      "type": "audio"
+      "type": "midi"
     }
   }
 }
