@@ -3,39 +3,63 @@
 # Instantiated by midi_capture.py (Windows), called via push(event).
 # Produces the same result shape and OSC output as HarmonyAnalyser
 # so TouchDesigner and the frontend require no changes.
-#
-# commit: feat(midi_harmony_analyser): skeleton — class only, no TCP
 
-import sys
-import subprocess
 import numpy as np
 from pythonosc import udp_client
 
 
-# ── OSC config ────────────────────────────────────────────────────────────────
+# ── OSC ───────────────────────────────────────────────────────────────────────
 
-def get_windows_host_ip():
-    # on Windows we send OSC to localhost
-    return "127.0.0.1"
-
-OSC_HOST    = get_windows_host_ip()
+# running on Windows — OSC goes to localhost
+OSC_HOST    = "127.0.0.1"
 OSC_PORT    = 9000
 OSC_TD_PORT = 9100
-
-# send OSC output at most every N note events to avoid flooding TouchDesigner
-OSC_THROTTLE_EVENTS = 1
 
 
 # ── note helpers ──────────────────────────────────────────────────────────────
 
 NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
+# commit: feat(midi_harmony_analyser): skeleton
+
 def note_name(midi_note: int) -> str:
     return NOTE_NAMES[int(midi_note) % 12] + str(int(midi_note) // 12 - 1)
 
+# frequency of a MIDI note number — used for Plomp-Levelt dissonance (step 4)
 def midi_to_hz(midi_note: int) -> float:
-    # frequency of a MIDI note — used for Plomp-Levelt dissonance later
     return 440.0 * (2.0 ** ((int(midi_note) - 69) / 12.0))
+
+
+# ── semitone map ──────────────────────────────────────────────────────────────
+
+# semitone position of each note name — used for roman numeral calculation
+NOTE_SEMITONES = {
+    "C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3,
+    "E": 4, "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8,
+    "Ab": 8, "A": 9, "A#": 10, "Bb": 10, "B": 11,
+}
+
+# scale degree templates — interval in semitones from tonic -> (roman numeral, plain name)
+SCALE_DEGREES = {
+    "major": {
+        0:  ("I",    "tonic"),
+        2:  ("II",   "supertonic"),
+        4:  ("III",  "mediant"),
+        5:  ("IV",   "subdominant"),
+        7:  ("V",    "dominant"),
+        9:  ("VI",   "submediant"),
+        11: ("VII",  "leading tone"),
+    },
+    "minor": {
+        0:  ("i",    "tonic"),
+        2:  ("ii",   "supertonic"),
+        3:  ("III",  "mediant"),
+        5:  ("iv",   "subdominant"),
+        7:  ("v",    "dominant"),
+        8:  ("VI",   "submediant"),
+        10: ("VII",  "subtonic"),
+    },
+}
 
 
 # ── MidiHarmonyAnalyser ───────────────────────────────────────────────────────
@@ -52,32 +76,33 @@ class MidiHarmonyAnalyser:
 
     def __init__(self, instrument_name="unknown", instrument_index=0,
                  forced_key=None):
-        # commit: feat(midi_harmony_analyser): skeleton — __init__ state
 
-        self.instrument_name   = instrument_name
-        self.instrument_index  = instrument_index
-        self.forced_key        = forced_key   # None = detect, ("C", "major") = override
+        self.instrument_name  = instrument_name
+        self.instrument_index = instrument_index
+
+        # None = detect automatically, ("C", "major") = skip detection and use this
+        self.forced_key       = forced_key
 
         # held notes: { midi_note_int: velocity_int }
         self._active_notes: dict[int, int] = {}
 
         # sustain pedal — notes released while pedal is down stay in active set
-        self._sustain_on       = False
+        self._sustain_on      = False
         self._sustained_notes: set[int] = set()
 
-        self._event_count      = 0
+        self._event_count     = 0
 
         self.osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
         self.td_client  = udp_client.SimpleUDPClient(OSC_HOST, OSC_TD_PORT)
 
         print(f"[midi_harmony] Ready for '{instrument_name}'", flush=True)
-        print(f"[midi_harmony] OSC target: {OSC_HOST}:{OSC_PORT}", flush=True)
+        print(f"[midi_harmony] OSC -> {OSC_HOST}:{OSC_PORT}", flush=True)
 
 
     # ── event entry point ─────────────────────────────────────────────────────
 
+    # routes each incoming event to the correct handler
     def push(self, event: dict):
-        # commit: feat(midi_harmony_analyser): skeleton — push dispatcher
         event_type = event.get("type")
 
         if event_type == "note_on":
@@ -86,7 +111,7 @@ class MidiHarmonyAnalyser:
             self._on_note_off(event)
         elif event_type == "control_change":
             self._on_control_change(event)
-        # pitch_bend does not affect harmony — ignored for now
+        # pitch_bend does not affect harmony — ignored
 
 
     # ── MIDI event handlers ───────────────────────────────────────────────────
@@ -95,13 +120,14 @@ class MidiHarmonyAnalyser:
         note     = int(event["note"])
         velocity = int(event["velocity"])
         self._active_notes[note] = velocity
+        # if this note was being held by the pedal, clear that flag
         self._sustained_notes.discard(note)
         self._analyse_and_send()
 
     def _on_note_off(self, event: dict):
         note = int(event["note"])
         if self._sustain_on:
-            # pedal is down — keep note sounding, track it as sustained
+            # pedal is down — keep note sounding, track it as pedal-sustained
             self._sustained_notes.add(note)
         else:
             self._active_notes.pop(note, None)
@@ -109,16 +135,17 @@ class MidiHarmonyAnalyser:
 
     def _on_control_change(self, event: dict):
         # only sustain pedal (CC 64) affects harmonic state
-        if event.get("cc_num") == 64:
-            if event.get("cc_value", 0) >= 64:
-                self._sustain_on = True
-            else:
-                # pedal released — drop all sustained notes
-                self._sustain_on = False
-                for note in self._sustained_notes:
-                    self._active_notes.pop(note, None)
-                self._sustained_notes.clear()
-                self._analyse_and_send()
+        if event.get("cc_num") != 64:
+            return
+        if event.get("cc_value", 0) >= 64:
+            self._sustain_on = True
+        else:
+            # pedal released — remove all pedal-sustained notes from active set
+            self._sustain_on = False
+            for note in self._sustained_notes:
+                self._active_notes.pop(note, None)
+            self._sustained_notes.clear()
+            self._analyse_and_send()
 
 
     # ── analysis pipeline ─────────────────────────────────────────────────────
@@ -128,38 +155,54 @@ class MidiHarmonyAnalyser:
         self._handle_result(result)
 
 
+    # main analysis method — each step populates fields in result
     def analyse(self) -> dict:
-        # commit: feat(midi_harmony_analyser): skeleton — analyse stub
-        # Steps added here one by one:
-        #   step 1 : key detection  (Krumhansl-Schmuckler)
-        #   step 2 : HPCP           (velocity-weighted pitch class profile)
-        #   step 3 : chord          (template matching)
-        #   step 4 : dissonance     (Plomp-Levelt on active note frequencies)
-        #   step 5 : OSC output
         result = self._empty_result()
 
-        # skeleton print — confirms pipeline is live before analysis is added
+        # placeholder — prints active notes until analysis steps are added
         if self._active_notes:
             names = [note_name(n) for n in sorted(self._active_notes.keys())]
-            print(
-                f"[midi_harmony/{self.instrument_name}] active={names}",
-                flush=True,
-            )
+            print(f"[midi_harmony/{self.instrument_name}] active={names}", flush=True)
+
+        # step 1 : key detection  (Krumhansl-Schmuckler)  ← next
+        # step 2 : HPCP           (velocity-weighted pitch class profile)
+        # step 3 : chord          (template matching)
+        # step 4 : dissonance     (Plomp-Levelt on active note frequencies)
+        # step 5 : OSC output
 
         return result
 
 
     # ── OSC output ────────────────────────────────────────────────────────────
 
+    # stub — OSC sends added in step 5 once all result fields are populated
     def _handle_result(self, result: dict):
-        # commit: feat(midi_harmony_analyser): skeleton — _handle_result stub
-        # OSC sends added once analysis fields are populated
         self._event_count += 1
 
 
-    # ── result shape ──────────────────────────────────────────────────────────
-    # Identical to HarmonyAnalyser._empty_result() — same keys, same defaults.
+    # ── display ───────────────────────────────────────────────────────────────
 
+    # debug print — mirrors HarmonyAnalyser._display() format
+    def _display(self, result: dict):
+        chord   = result["chord"] or "—"
+        key     = f"{result['key']} {result['scale']}" if result["key"] else "—"
+        roman   = result["roman_degree"] or "—"
+        quality = result["chord_quality"] or "—"
+        conf    = f"{result['key_confidence']*100:.0f}%"
+        diss    = f"{result['dissonance']:.2f}"
+        forced  = " (forced)" if result["key_forced"] else ""
+
+        print(f"\n[midi_harmony/{self.instrument_name}] ─────────────────────")
+        print(f"  chord      {chord}  ({quality})  {roman}")
+        print(f"  key        {key}{forced}  confidence {conf}")
+        print(f"  dissonance {diss}   change {result['harmonic_change']:.2f}")
+        print(f"─────────────────────────────────────────────────────────────")
+
+
+    # ── result shape ──────────────────────────────────────────────────────────
+
+    # identical to HarmonyAnalyser._empty_result() — every code path returns
+    # this exact set of keys so nothing downstream sees a missing field
     @staticmethod
     def _empty_result() -> dict:
         return {
@@ -182,4 +225,15 @@ class MidiHarmonyAnalyser:
             "chroma_centroid": 0.0,
             "harmonic_change": 0.0,
             "dissonance":      0.0,
+        }
+
+    # the frontend only needs these fields — built from the full result
+    def frontend_view(self, result: dict) -> dict:
+        return {
+            "chord":            result["chord"],
+            "root":             result["chord_root"],
+            "relation_to_root": result["roman_degree"],
+            "chord_quality":    result["chord_quality"],
+            "dissonance":       result["dissonance"],
+            "key":              result["key"],
         }
