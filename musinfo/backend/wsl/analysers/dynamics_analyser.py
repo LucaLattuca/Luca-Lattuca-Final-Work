@@ -54,13 +54,15 @@ def get_windows_host_ip():
 # OSC config
 OSC_HOST = get_windows_host_ip()
 OSC_PORT = 9000
+OSC_TD_PORT = 9100
 
 
 class DynamicsAnalyser:
     def __init__(self, instrument_name="unknown", sample_rate=SAMPLE_RATE,
-                 method=DEFAULT_METHOD):
+             method=DEFAULT_METHOD, instrument_index=0):
         self.instrument_name = instrument_name
         self.sender_rate = sample_rate
+        self.instrument_index = instrument_index
 
         if method not in ONSET_METHODS:
             print(f"[dynamics] unknown method '{method}', falling back to '{DEFAULT_METHOD}'")
@@ -90,6 +92,11 @@ class DynamicsAnalyser:
         self.addr_onset     = f"/dynamics/{self.instrument_name}/onset"
         self.addr_strength  = f"/dynamics/{self.instrument_name}/onset_strength"
         self.addr_rms_onset = f"/dynamics/{self.instrument_name}/rms_at_onset"
+
+        
+        self.td_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_TD_PORT)
+
+        
 
         if INFO : 
             print(f"[dynamics] Ready for '{instrument_name}' @ {sample_rate}Hz (method={method})")
@@ -180,12 +187,17 @@ class DynamicsAnalyser:
         if scaled < 0.01:  # floor — don't send noise
             scaled = 0.0
         self.osc_client.send_message(self.addr_rms, scaled)
+        self.td_client.send_message(f"/td/dynamics/{self.instrument_index}/rms", scaled)
 
     def _send_onset(self, onset_strength, rms_at_onset):
         scaled_rms_at_onset = min(100.0, rms_at_onset * 300.0)
         self.osc_client.send_message(self.addr_onset, 1)
         self.osc_client.send_message(self.addr_strength, float(onset_strength))
         self.osc_client.send_message(self.addr_rms_onset, float(scaled_rms_at_onset))
+
+        self.td_client.send_message(f"/td/dynamics/{self.instrument_index}/onset",          1)
+        self.td_client.send_message(f"/td/dynamics/{self.instrument_index}/onset_strength", float(onset_strength))
+        self.td_client.send_message(f"/td/dynamics/{self.instrument_index}/rms_at_onset",   float(scaled_rms_at_onset))
 
         if DEBUG : 
             print(f"[dynamics/{self.instrument_name}] onset "

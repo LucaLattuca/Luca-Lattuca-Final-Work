@@ -40,7 +40,7 @@ def get_windows_host_ip():
 
 OSC_HOST = get_windows_host_ip()
 OSC_PORT = 9000
-
+OSC_TD_PORT = 9100
 
 class TimbreAnalyser:
     """
@@ -56,9 +56,10 @@ class TimbreAnalyser:
       /timbre/{instrument}/attack       attack sharpness      (float, sec, event)
     """
 
-    def __init__(self, instrument_name="unknown", sample_rate=48000):
+    def __init__(self, instrument_name="unknown", sample_rate=48000,  instrument_index=0):
         self.instrument_name = instrument_name
         self.sample_rate = sample_rate
+        self.instrument_index = instrument_index
 
         self._buffer = np.zeros(0, dtype=np.float32)
 
@@ -98,7 +99,7 @@ class TimbreAnalyser:
         self._last_attack_sample = -10 ** 9
 
         self.osc = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
-
+        self.td_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_TD_PORT)
         if INFO :
             print(f"[timbre] Ready for '{instrument_name}' @ {sample_rate}Hz")
             print(f"[timbre] OSC target: {OSC_HOST}:{OSC_PORT}")
@@ -159,6 +160,10 @@ class TimbreAnalyser:
         self.osc.send_message(
             f"/timbre/{self.instrument_name}/mfcc", mfcc.tolist()
         )
+
+        self.td_client.send_message(f"/td/timbre/{self.instrument_index}/mfcc", mfcc.tolist())
+
+
 
     def _detect_onset(self, odf):
         self._odf_buffer.append(float(odf))
@@ -235,11 +240,12 @@ class TimbreAnalyser:
         
         self.osc.send_message(f"/timbre/{self.instrument_name}/attack", attack_sec)
 
+        self.td_client.send_message(f"/td/timbre/{self.instrument_index}/attack", attack_sec)
+
     def _send_continuous(self, name, value):
         smoothed = self._smooth(name, float(value))
-        self.osc.send_message(
-            f"/timbre/{self.instrument_name}/{name}", smoothed
-        )
+        self.osc.send_message(f"/timbre/{self.instrument_name}/{name}", smoothed)
+        self.td_client.send_message(f"/td/timbre/{self.instrument_index}/{name}", smoothed)
 
     def _smooth(self, key, value):
         prev = self._ema.get(key, value)

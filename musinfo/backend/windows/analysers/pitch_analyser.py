@@ -19,6 +19,8 @@ DETECTION_MODE    = "yin" # yinfft | yin | mcomb. swap to CREPE for more accurat
 # OSC Configuration
 OSC_HOST = "127.0.0.1"
 OSC_PORT = 9000
+OSC_TD_PORT = 9100
+
 
 # Debugging
 DEBUG = False
@@ -34,10 +36,11 @@ def hz_to_note(freq):
 
 # TODO add median filter for inaccurate octave readings
 class PitchAnalyser:
-    def __init__(self, instrument_name="unknown", sample_rate=48000):
+    def __init__(self, instrument_name="unknown", sample_rate=48000, instrument_index=0):
         self.instrument_name = instrument_name
         self.sample_rate = sample_rate
-        
+        self.instrument_index = instrument_index
+
         # Create Aubio pitch detector with the provided sample rate
         self.detector = aubio.pitch(DETECTION_MODE, BUF_SIZE, HOP_SIZE, sample_rate)
         self.detector.set_unit("Hz")
@@ -45,7 +48,8 @@ class PitchAnalyser:
         
         # Create OSC client
         self.osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
-        
+        self.td_client = udp_client.SimpleUDPClient("127.0.0.1", OSC_TD_PORT)
+
         if INFO :
             print(f"[pitch] Ready for '{instrument_name}' @ {sample_rate}Hz")
             sys.stdout.flush() 
@@ -84,6 +88,6 @@ class PitchAnalyser:
                 
                 # Send via OSC to Tauri frontend
                 self.osc_client.send_message(f"/pitch/{self.instrument_name}", message)
-                
+                self.td_client.send_message(f"/td/pitch/{self.instrument_index}/note", message)
                 # Only send one detection per chunk to avoid spam
                 break

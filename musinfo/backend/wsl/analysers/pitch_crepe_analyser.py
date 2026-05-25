@@ -58,6 +58,7 @@ def get_windows_host_ip():
 
 OSC_HOST = get_windows_host_ip()
 OSC_PORT = 9000
+OSC_TD_PORT = 9100
 
 
 def _resample(audio, from_rate, to_rate):
@@ -137,6 +138,7 @@ class PitchCREPEAnalyser:
         self.buffer = AudioBuffer(sample_rate)  
         self.buffer.buffer = np.array([], dtype=np.float32)  # discard pre-load audio
         self.osc    = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
+        self.td_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_TD_PORT)
 
         if INFO :
             print(f"[Pitch_crepe] ready — {instrument_name} @ {sample_rate}Hz → OSC {OSC_HOST}:{OSC_PORT}")

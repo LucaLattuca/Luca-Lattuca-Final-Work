@@ -8,6 +8,7 @@ musical key, and how dissonant the sound is.
 """
 
 import os
+from unittest import result
 os.environ['ESSENTIA_LOG_LEVEL'] = 'error'
 
 import sys
@@ -41,6 +42,7 @@ def get_windows_host_ip():
 
 OSC_HOST = get_windows_host_ip()
 OSC_PORT = 9000
+OSC_TD_PORT = 9100
 
 # Only send OSC output every N frames. At 48kHz with HOP_SIZE=2048,
 # one frame is ~43ms, so 5 frames = ~215ms between updates.
@@ -120,12 +122,13 @@ class HarmonyAnalyser:
 
     # forced_key: None means detect the key normally; ("C", "major") overrides it.
     def __init__(self, instrument_name="unknown", sample_rate=48000,
-                 forced_key=None):
+                 forced_key=None, instrument_index=0):
         
         self._frame_count = 0
 
         self.instrument_name = instrument_name
         self.sample_rate     = sample_rate
+        self.instrument_index = instrument_index
         self.forced_key      = forced_key
 
         self._key_buffer        = deque(maxlen=KEY_DETECTION_WINDOW)
@@ -146,7 +149,8 @@ class HarmonyAnalyser:
         self._hpss_context = np.zeros(HPSS_CONTEXT_SIZE, dtype=np.float32)
 
         self.osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
-
+        self.td_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_TD_PORT)
+        
         # Chord label history for smoothing — separate from the HPCP history
         # that ChordsDetection reads.
         self._chord_history_labels = deque(maxlen=SMOOTHING_WINDOW)
@@ -440,6 +444,18 @@ class HarmonyAnalyser:
             f"/harmony/{self.instrument_name}/frontend",
             json.dumps(self.frontend_view(result))
         )
+        
+        # send to touchdesigner
+        idx = self.instrument_index
+        self.td_client.send_message(f"/td/harmony/{idx}/chord",          result["chord"] or "")
+        self.td_client.send_message(f"/td/harmony/{idx}/chord_quality",  result["chord_quality"] or "")
+        self.td_client.send_message(f"/td/harmony/{idx}/chord_strength", result["chord_strength"])
+        self.td_client.send_message(f"/td/harmony/{idx}/roman_degree",   result["roman_degree"] or "")
+        self.td_client.send_message(f"/td/harmony/{idx}/key",            result["key"] or "")
+        self.td_client.send_message(f"/td/harmony/{idx}/scale",          result["scale"] or "")
+        self.td_client.send_message(f"/td/harmony/{idx}/dissonance",     result["dissonance"])
+        self.td_client.send_message(f"/td/harmony/{idx}/harmonic_change",result["harmonic_change"])
+        self.td_client.send_message(f"/td/harmony/{idx}/hpcp",           result["hpcp"])
 
     def _display(self, result: dict):
         chord   = result["chord"] or "—"
