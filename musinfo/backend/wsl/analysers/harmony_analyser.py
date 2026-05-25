@@ -13,6 +13,32 @@ os.environ['ESSENTIA_LOG_LEVEL'] = 'error'
 
 import sys
 import subprocess
+
+import threading
+import time
+
+# Resolve performance.json from WSL — walks up from this file to the project root.
+def get_performance_config_path():
+    here = os.path.abspath(__file__)
+    # wsl/analysers/harmony_analyser.py -> wsl -> project root -> backend/config
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(here)))
+    return os.path.join(project_root, "backend", "config", "performance.json")
+
+# Returns (enabled, key_root, key_scale) from performance.json, or defaults on any error.
+def load_performance_config():
+    
+    try:
+        path = get_performance_config_path()
+        with open(path, "r") as f:
+            data = json.load(f)
+        fk = data["Performance"]["forcedKey"]
+        enabled = bool(fk.get("enabled", False))
+        raw_key = fk.get("key")  # e.g. "F#/Gb", "C", None
+        return enabled, raw_key
+    except Exception:
+        return False, None
+
+
 from collections import deque
 
 import numpy as np
@@ -20,6 +46,8 @@ import librosa
 import essentia.standard as es
 from pythonosc import udp_client
 import json 
+
+
 
 
 # Debugging
@@ -162,6 +190,21 @@ class HarmonyAnalyser:
             sys.stdout.flush()
             print(f"[harmony] OSC target: {OSC_HOST}:{OSC_PORT}")
             sys.stdout.flush()
+    # Background thread: re-reads performance.json every second and updates forced_key.
+    def _start_config_poll(self):
+        def poll():
+            while True:
+                time.sleep(1)
+                enabled, raw_key = load_performance_config()
+                if enabled and raw_key:
+                    # normalise "F#/Gb" -> "F#" so NOTE_SEMITONES can look it up
+                    root = raw_key.split("/")[0]
+                    self.forced_key = (root, "major")
+                else:
+                    self.forced_key = None
+
+        t = threading.Thread(target=poll, daemon=True)
+        t.start()
 
     # Essentia algorithms are created once and reused — building them per
     # frame would be wasteful. Each is told the device's sample rate here.
