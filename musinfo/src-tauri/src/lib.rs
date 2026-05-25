@@ -690,7 +690,7 @@ fn start_pipeline(
     println!("[Tauri] capture.py spawned.");
 
     // --- 5. Spawn midi_capture.py on Windows ---
-    // Connects directly to midi_harmony_analyser.py in WSL (port 5010).
+    // midi_harmony_analyser runs in-process inside midi_capture.py — no WSL or socket needed.
     let midi_capture_script = project_root_windows.join("backend/windows/midi_capture.py");
 
     println!("[Tauri] Spawning midi_capture.py...");

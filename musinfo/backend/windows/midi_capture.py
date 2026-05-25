@@ -1,32 +1,26 @@
-# midi_capture.py — MIDI Capture + TCP Streamer (Windows side)
-# Loads instruments.json, opens a pygame.midi.Input for every instrument
-# where type == "midi" and enabled == True, and streams MIDI events
-# directly to midi_harmony_analyser.py in WSL over TCP.
+# midi_capture.py — MIDI Capture (Windows side)
+# Loads instruments.json, opens a pygame.midi.Input for every enabled MIDI
+# instrument, and passes events directly to MidiHarmonyAnalyser in-process.
 #
-# Bypasses broadcaster entirely — MIDI is discrete events, not PCM stream.
-# broadcaster and wsl_receiver remain audio-only and untouched.
+# No socket, no WSL — the analyser runs here on Windows alongside capture.
 
 import os
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 
 import json
-import socket
-import struct
 import threading
 import time
 
 import pygame.midi
 
+from analysers.midi_harmony_analyser import MidiHarmonyAnalyser
+
+
 # ── config ────────────────────────────────────────────────────────────────────
 
 INFO = True
 
-WSL_MIDI_HOST = "172.29.28.224"   # same WSL IP as broadcaster uses for wsl_receiver
-WSL_MIDI_PORT = 5010               # dedicated port — nothing else touches this
-
-POLL_INTERVAL = 0.005              # 5 ms polling — tight enough for live performance
-
-socket_lock = threading.Lock()     # shared across instrument threads
+POLL_INTERVAL = 0.005   # 5 ms polling — tight enough for live performance
 
 
 # ── instruments.json ──────────────────────────────────────────────────────────
@@ -34,8 +28,8 @@ socket_lock = threading.Lock()     # shared across instrument threads
 def load_midi_instruments() -> dict:
     """
     Return every instrument where:
-      - enabled          == True
-      - type             == "midi"
+      - enabled               == True
+      - type                  == "midi"
       - midi_device.connected == True
     """
     base_dir    = os.path.dirname(os.path.dirname(__file__))
@@ -50,6 +44,13 @@ def load_midi_instruments() -> dict:
     except json.JSONDecodeError as e:
         print(f"[midi_capture] Failed to parse instruments.json: {e}", flush=True)
         return {}
+
+    # load instrument indices the same way windows_receiver does — sorted audio instruments
+    audio_instruments = sorted(
+        name for name, inst in config.get("instruments", {}).items()
+        if inst.get("type") == "audio"
+    )
+    instrument_indices = {name: idx for idx, name in enumerate(audio_instruments)}
 
     result = {}
     for name, inst in config.get("instruments", {}).items():
@@ -66,8 +67,9 @@ def load_midi_instruments() -> dict:
             print(f"[midi_capture] '{name}': no device name — skipping", flush=True)
             continue
         result[name] = {
-            "device_name": dev_name,
-            "analysers":   inst.get("analysers", []),
+            "device_name":      dev_name,
+            "analysers":        inst.get("analysers", []),
+            "instrument_index": instrument_indices.get(name, 0),
         }
         if INFO:
             print(f"[midi_capture] Found: '{name}' -> '{dev_name}'", flush=True)
@@ -116,30 +118,14 @@ def note_name(midi_note: int) -> str:
     return NOTE_NAMES[midi_note % 12] + str(midi_note // 12 - 1)
 
 
-# ── TCP framing ───────────────────────────────────────────────────────────────
-
-def send_event(sock, instrument_name: str, analysers: list, event: dict):
-    """
-    Frame format to midi_harmony_analyser.py:
-
-      [4 bytes: header length  (uint32 big-endian)]
-      [N bytes: header JSON                       ]
-      [4 bytes: payload length (uint32 big-endian)]
-      [K bytes: payload JSON  (MIDI event dict)   ]
-
-    Header: { instrument, analysers }
-    Payload: { type, note, note_name, velocity, active_notes, timestamp, ... }
-    """
-    header  = json.dumps({"instrument": instrument_name, "analysers": analysers}).encode("utf-8")
-    payload = json.dumps(event).encode("utf-8")
-    frame   = struct.pack(">I", len(header)) + header + struct.pack(">I", len(payload)) + payload
-    with socket_lock:
-        sock.sendall(frame)
-
-
 # ── per-instrument listener thread ────────────────────────────────────────────
 
-def listen_instrument(instrument_name: str, device_name: str, analysers: list, sock):
+def listen_instrument(instrument_name: str, device_name: str, analysers: list,
+                      analyser: MidiHarmonyAnalyser):
+    """
+    Polls the MIDI device and passes each event directly to the analyser.
+    Runs in its own daemon thread — one per instrument.
+    """
     device_id = resolve_midi_device_id(device_name)
     if device_id is None:
         print(f"[midi_capture] '{instrument_name}': '{device_name}' not found — exiting thread", flush=True)
@@ -163,7 +149,7 @@ def listen_instrument(instrument_name: str, device_name: str, analysers: list, s
                 continue
 
             for event in midi_in.read(32):
-                data      = event[0]        # [status, data1, data2, unused]
+                data      = event[0]   # [status, data1, data2, unused]
                 timestamp = event[1]
 
                 status   = data[0] & 0xF0
@@ -206,7 +192,7 @@ def listen_instrument(instrument_name: str, device_name: str, analysers: list, s
                         flush=True,
                     )
 
-                # ── control change (sustain pedal, mod wheel, etc.) ──────────
+                # ── control change ───────────────────────────────────────────
                 elif status == 0xB0:
                     cc_num, cc_value = note, velocity
                     label = "sustain" if cc_num == 64 else f"CC{cc_num}"
@@ -239,11 +225,9 @@ def listen_instrument(instrument_name: str, device_name: str, analysers: list, s
                 else:
                     continue    # ignore clock, aftertouch, sysex, etc.
 
-                try:
-                    send_event(sock, instrument_name, analysers, midi_event)
-                except OSError as e:
-                    print(f"[midi_capture] Send error: {e}", flush=True)
-                    return      # socket dead — let thread exit cleanly
+                # pass event directly to the in-process analyser
+                if "harmony" in analysers:
+                    analyser.push(midi_event)
 
     except Exception as e:
         print(f"[midi_capture/{instrument_name}] Error: {e}", flush=True)
@@ -251,22 +235,6 @@ def listen_instrument(instrument_name: str, device_name: str, analysers: list, s
         midi_in.close()
         if INFO:
             print(f"[midi_capture/{instrument_name}] Listener closed.", flush=True)
-
-
-# ── connection ────────────────────────────────────────────────────────────────
-
-def connect_to_midi_harmony_analyser() -> socket.socket:
-    """Retry loop — midi_harmony_analyser.py in WSL may take a moment to be ready."""
-    while True:
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.connect((WSL_MIDI_HOST, WSL_MIDI_PORT))
-            if INFO:
-                print(f"[midi_capture] Connected to midi_harmony_analyser at {WSL_MIDI_HOST}:{WSL_MIDI_PORT}", flush=True)
-            return s
-        except ConnectionRefusedError:
-            print("[midi_capture] midi_harmony_analyser not ready — retrying in 2s", flush=True)
-            time.sleep(2)
 
 
 # ── main ──────────────────────────────────────────────────────────────────────
@@ -277,10 +245,7 @@ def main():
     instruments = load_midi_instruments()
 
     if not instruments:
-        print("[midi_capture] No enabled MIDI instruments — staying alive for hot-reload.", flush=True)
-        # Stay alive rather than exit — avoids needing a pipeline restart
-        # if the user enables a MIDI instrument after launch.
-        # TODO: poll instruments.json and open devices dynamically.
+        print("[midi_capture] No enabled MIDI instruments — staying alive.", flush=True)
         try:
             while True:
                 time.sleep(5)
@@ -289,13 +254,18 @@ def main():
         pygame.midi.quit()
         return
 
-    sock = connect_to_midi_harmony_analyser()
-
     threads = []
+
     for name, cfg in instruments.items():
+        # instantiate one analyser per instrument
+        analyser = MidiHarmonyAnalyser(
+            instrument_name  = name,
+            instrument_index = cfg["instrument_index"],
+        )
+
         t = threading.Thread(
             target=listen_instrument,
-            args=(name, cfg["device_name"], cfg["analysers"], sock),
+            args=(name, cfg["device_name"], cfg["analysers"], analyser),
             name=f"MidiCapture-{name}",
             daemon=True,
         )
@@ -311,12 +281,8 @@ def main():
     except KeyboardInterrupt:
         print("[midi_capture] Stopped.", flush=True)
     finally:
-        sock.close()
         pygame.midi.quit()
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except ConnectionRefusedError:
-        print("[midi_capture] Connection refused — is midi_harmony_analyser.py running?")
+    main()

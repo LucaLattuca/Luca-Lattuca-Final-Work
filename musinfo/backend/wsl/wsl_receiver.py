@@ -10,9 +10,7 @@ import json
 import numpy as np
 import os
 import sys
-import subprocess
-import atexit
-import time
+
 
 import threading
 from queue import Queue, Full
@@ -255,80 +253,6 @@ def handle_connection(conn, addr):
         conn.close()
 
 
-# ─── MIDI ANALYSER SUBPROCESSES ───────────────────────────────────────────────
-# MIDI analysers run as separate processes spawned by wsl_receiver at startup.
-# lib.rs does not manage them — wsl_receiver owns their lifetime.
-# Each MIDI analyser opens its own TCP socket (midi_harmony_analyser on 5010).
-# midi_capture.py (Windows) connects directly to that socket, bypassing broadcaster.
-
-# add new MIDI analysers here: analyser_name -> filename in backend/wsl/analysers/
-MIDI_ANALYSERS = {
-    "harmony": "midi_harmony_analyser.py",
-}
-
-# process handles kept so atexit can terminate them when wsl_receiver is killed
-_midi_subprocesses: list[subprocess.Popen] = []
-
-
-# reads instruments.json and returns { analyser_name: [instrument_name, ...] }
-# for every enabled midi instrument that has at least one analyser selected
-def scan_midi_analysers() -> dict:
-    base_dir    = os.path.dirname(os.path.dirname(__file__))
-    config_path = os.path.join(base_dir, "config", "instruments.json")
-    try:
-        with open(config_path) as f:
-            config = json.load(f)
-    except Exception:
-        return {}
-
-    result = {}
-    for name, inst in config.get("instruments", {}).items():
-        if inst.get("type") != "midi" or not inst.get("enabled", False):
-            continue
-        for analyser in inst.get("analysers", []):
-            result.setdefault(analyser, []).append(name)
-
-    return result
-
-
-# spawns one subprocess per required MIDI analyser using the same venv as wsl_receiver
-# called once before start_server() — atexit handles cleanup when lib.rs kills wsl_receiver
-def spawn_midi_analysers():
-    needed = scan_midi_analysers()
-    if not needed:
-        print("[wsl_receiver] No MIDI instruments with analysers — skipping.", flush=True)
-        return
-
-    base_dir   = os.path.dirname(os.path.abspath(__file__))
-    python_bin = os.path.join(base_dir, ".venv", "bin", "python3")
-
-    for analyser_name, instruments in needed.items():
-        analyser_file = MIDI_ANALYSERS.get(analyser_name)
-        if not analyser_file:
-            # analyser selected in UI but not yet registered in MIDI_ANALYSERS
-            print(f"[wsl_receiver] '{analyser_name}' not in MIDI_ANALYSERS — skipping", flush=True)
-            continue
-
-        analyser_path = os.path.join(base_dir, "analysers", analyser_file)
-        if not os.path.exists(analyser_path):
-            print(f"[wsl_receiver] Analyser not found: {analyser_path} — skipping", flush=True)
-            continue
-
-        print(f"[wsl_receiver] Spawning {analyser_name} analyser for: {instruments}", flush=True)
-
-        proc = subprocess.Popen(
-            [python_bin, analyser_path],
-            stdout=sys.stdout,   # midi analyser logs appear alongside wsl_receiver logs
-            stderr=sys.stderr,
-        )
-        _midi_subprocesses.append(proc)
-        atexit.register(proc.terminate)  # fires when wsl_receiver process exits
-        print(f"[wsl_receiver] {analyser_name} analyser running (pid {proc.pid})", flush=True)
-
-    # give MIDI analysers time to bind their sockets before midi_capture.py tries to connect
-    time.sleep(1.5)
-
-
 # start TCP server loop
 def start_server():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
@@ -345,7 +269,6 @@ def start_server():
 
 if __name__ == "__main__":
     try:
-        spawn_midi_analysers()
         start_server()
     except KeyboardInterrupt:
         print("[wsl_receiver] Stopped.")
