@@ -34,8 +34,8 @@ struct BroadcasterProcess(Mutex<Option<Child>>);
 struct WindowsReceiverProcess(Mutex<Option<Child>>);
 
 // holds the midi_capture.py process handle so stop_pipeline can kill it
+// midi_harmony_analyser.py is a child of wsl_receiver.py — lib.rs does not manage it directly
 struct MidiCaptureProcess(Mutex<Option<Child>>);
-
 
 // DEBUGGING
 const OSC_DEBUG: bool = false;
@@ -585,7 +585,7 @@ fn stop_device_test(test_state: State<TestProcess>) -> Result<String, String> {
 
 // AUDIO PIPELINE
 
-// spawns the full audio pipeline in order: wsl_receiver -> windows_receiver -> broadcaster -> capture
+// spawns the full pipeline: wsl_receiver -> wsl_receiver_heavy -> windows_receiver -> broadcaster -> capture -> midi_capture
 #[tauri::command]
 fn start_pipeline(
     app: AppHandle,
@@ -652,8 +652,6 @@ fn start_pipeline(
 
     let windows_receiver_child = Command::new("python")
         .arg(&windows_receiver_script)
-        // REMOVED: .stdout(Stdio::null())
-        // REMOVED: .stderr(Stdio::null())
         .spawn()
         .map_err(|e| format!("Failed to spawn windows_receiver.py: {}", e))?;
 
@@ -669,8 +667,6 @@ fn start_pipeline(
 
     let broadcaster_child = Command::new("python")
         .arg(&broadcaster_script)
-        // REMOVED: .stdout(Stdio::null())
-        // REMOVED: .stderr(Stdio::null())
         .spawn()
         .map_err(|e| format!("Failed to spawn broadcaster.py: {}", e))?;
 
@@ -687,26 +683,23 @@ fn start_pipeline(
     let capture_child = Command::new("python")
         .env("SD_ENABLE_ASIO", "1")
         .arg(&capture_script)
-        // REMOVED: .stdout(Stdio::null())
-        // REMOVED: .stderr(Stdio::null())
         .spawn()
         .map_err(|e| format!("Failed to spawn capture.py: {}", e))?;
 
     *capture_state.0.lock().unwrap() = Some(capture_child);
     println!("[Tauri] capture.py spawned.");
 
-
     // --- 5. Spawn midi_capture.py on Windows ---
-    // Connects directly to midi_receiver.py in WSL — bypasses broadcaster.
+    // Connects directly to midi_harmony_analyser.py in WSL (port 5010).
     let midi_capture_script = project_root_windows.join("backend/windows/midi_capture.py");
- 
+
     println!("[Tauri] Spawning midi_capture.py...");
- 
+
     let midi_capture_child = Command::new("python")
         .arg(&midi_capture_script)
         .spawn()
         .map_err(|e| format!("Failed to spawn midi_capture.py: {}", e))?;
- 
+
     *midi_capture_state.0.lock().unwrap() = Some(midi_capture_child);
     println!("[Tauri] midi_capture.py spawned.");
 
@@ -716,7 +709,7 @@ fn start_pipeline(
     Ok("Pipeline started".to_string())
 }
 
-// kills all pipeline processes in reverse order: capture -> broadcaster -> windows_receiver -> wsl_receiver
+// kills all pipeline processes in reverse order: capture + midi_capture -> broadcaster -> windows_receiver -> wsl_receiver_heavy -> wsl_receiver
 #[tauri::command]
 fn stop_pipeline(
     capture_state: State<CaptureProcess>,
