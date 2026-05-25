@@ -4,15 +4,6 @@
       "analysers": [
         "harmony"
       ],
-      "audio_device": {
-        "channel": 0,
-        "connected": false,
-        "device_id": null,
-        "host_api": "",
-        "max_input_channels": 0,
-        "name": "",
-        "sample_rate": 0
-      },
       "enabled": true,
       "midi_device": {
         "connected": true,

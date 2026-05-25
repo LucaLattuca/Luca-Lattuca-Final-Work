@@ -401,7 +401,10 @@ class MidiHarmonyAnalyser:
 
                 # critical bandwidth — the frequency range within which roughness occurs
                 # approximated from Plomp-Levelt (1965)
-                cbw = 1.72 * (f1 ** 0.65)
+                # cbw = 1.72 * (f1 ** 0.65)
+
+                # Zwicker critical bandwidth — wider and more accurate than the power law approximation
+                cbw = 25 + 75 * (1 + 1.4 * ((f1 / 1000) ** 2)) ** 0.69
 
                 # normalised frequency difference within the critical bandwidth
                 x = (f2 - f1) / cbw
@@ -415,7 +418,9 @@ class MidiHarmonyAnalyser:
         # normalise against the maximum possible roughness for this many notes
         # max roughness approximated as n_pairs * peak_roughness_of_one_pair
         n_pairs = len(partials) * (len(partials) - 1) / 2
-        normalised = total_roughness / (n_pairs * 0.15) if n_pairs > 0 else 0.0
+        
+        # n_pairs scaling over-penalises dense chords — use a constant instead
+        normalised = total_roughness / 2.0
 
         # clamp to [0, 1]
         return float(min(1.0, normalised))
@@ -468,13 +473,14 @@ class MidiHarmonyAnalyser:
             names = [note_name(n) for n in sorted(self._active_notes.keys())]
             print(
                 f"[midi_harmony/{self.instrument_name}] "
-                f"active={names}  "
+                # f"active={names}  "
                 f"chord={result['chord']}  "
-                f"key={result['key']} {result['scale']}  "
-                f"roman={result['roman_degree']}  "
+                # f"key={result['key']} {result['scale']}  "
+                # f"roman={result['roman_degree']}  "
                 f"diss={result['dissonance']:.2f}",
                 flush=True,
             )
+
         return result
 
 
