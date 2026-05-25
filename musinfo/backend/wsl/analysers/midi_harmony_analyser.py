@@ -63,9 +63,6 @@ def print_event(instrument: str, event: dict):
     event_type = event.get("type", "unknown")
 
     if event_type == "note_on":
-        active = sorted(event.get("active_notes", {}).keys(), key=int)
-        active_names = [event.get("note_name")] if not active else \
-                       [f"#{n}" for n in active]
         print(
             f"[midi_harmony/{instrument}] NOTE ON  "
             f"{event.get('note_name', '?'):4s}  "
