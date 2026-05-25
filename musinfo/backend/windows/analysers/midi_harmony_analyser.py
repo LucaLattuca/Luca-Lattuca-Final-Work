@@ -114,16 +114,16 @@ def get_performance_config_path():
     return os.path.join(project_root, "backend", "config", "performance.json")
 # Returns (enabled, raw_key) from performance.json, or defaults on any error.
 def load_performance_config():
-    
     try:
         with open(get_performance_config_path(), "r") as f:
             data = json.load(f)
         fk = data["Performance"]["forcedKey"]
         enabled = bool(fk.get("enabled", False))
         raw_key = fk.get("key")
-        return enabled, raw_key
+        scale   = fk.get("scale") or "major"
+        return enabled, raw_key, scale
     except Exception:
-        return False, None
+        return False, None, "major"
 
 # ── chord templates ───────────────────────────────────────────────────────────
 
@@ -202,7 +202,7 @@ class MidiHarmonyAnalyser:
         self.td_client  = udp_client.SimpleUDPClient(OSC_HOST, OSC_TD_PORT)
         
         self._start_config_poll()
-        
+
         if INFO : 
             print(f"[midi_harmony] Ready for '{instrument_name}'", flush=True)
             print(f"[midi_harmony] OSC -> {OSC_HOST}:{OSC_PORT}", flush=True)
@@ -214,17 +214,15 @@ class MidiHarmonyAnalyser:
             global FORCED_KEY_ENABLED, FORCED_KEY_ROOT, FORCED_KEY_SCALE
             while True:
                 time.sleep(1)
-                enabled, raw_key = load_performance_config()
+                enabled, raw_key, scale = load_performance_config()
                 FORCED_KEY_ENABLED = enabled and bool(raw_key)
                 if raw_key:
-                    FORCED_KEY_ROOT  = raw_key.split("/")[0]  # "F#/Gb" -> "F#"
-                    FORCED_KEY_SCALE = "major"
-                if INFO:
-                    if FORCED_KEY_ENABLED:
-                        print(f"[midi_harmony] forced key -> {FORCED_KEY_ROOT} {FORCED_KEY_SCALE}", flush=True)
-
-    t = threading.Thread(target=poll, daemon=True)
-    t.start()
+                    FORCED_KEY_ROOT  = raw_key.split("/")[0]
+                    FORCED_KEY_SCALE = scale
+                if INFO and FORCED_KEY_ENABLED:
+                    print(f"[midi_harmony] forced key -> {FORCED_KEY_ROOT} {FORCED_KEY_SCALE}", flush=True)
+        t = threading.Thread(target=poll, daemon=True)
+        t.start()
     
     # ── event entry point ─────────────────────────────────────────────────────
 

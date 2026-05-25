@@ -82,14 +82,15 @@ fn write_config(path: &Path, config: &serde_json::Map<String, Value>) -> Result<
 // PERFORMANCE
 
 #[tauri::command]
-fn save_performance_config(enabled: bool, key: Option<String>) -> Result<(), String> {
+fn save_performance_config(enabled: bool, key: Option<String>, scale: Option<String>) -> Result<(), String> {
     let path = performance_path()?;
 
     let config = serde_json::json!({
         "Performance": {
             "forcedKey": {
                 "enabled": enabled,
-                "key": key
+                "key": key,
+                "scale": scale
             }
         }
     });

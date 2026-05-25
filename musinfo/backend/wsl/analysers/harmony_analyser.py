@@ -26,17 +26,17 @@ def get_performance_config_path():
 
 # Returns (enabled, key_root, key_scale) from performance.json, or defaults on any error.
 def load_performance_config():
-    
     try:
         path = get_performance_config_path()
         with open(path, "r") as f:
             data = json.load(f)
         fk = data["Performance"]["forcedKey"]
         enabled = bool(fk.get("enabled", False))
-        raw_key = fk.get("key")  # e.g. "F#/Gb", "C", None
-        return enabled, raw_key
+        raw_key = fk.get("key")
+        scale   = fk.get("scale") or "major"
+        return enabled, raw_key, scale
     except Exception:
-        return False, None
+        return False, None, "major"
 
 
 from collections import deque
@@ -184,25 +184,25 @@ class HarmonyAnalyser:
         self._chord_history_labels = deque(maxlen=SMOOTHING_WINDOW)
 
         self._init_algorithms()
+        self._start_config_poll()
 
         if INFO : 
             print(f"[harmony] Ready for '{instrument_name}' @ {sample_rate}Hz")
             sys.stdout.flush()
             print(f"[harmony] OSC target: {OSC_HOST}:{OSC_PORT}")
             sys.stdout.flush()
+
     # Background thread: re-reads performance.json every second and updates forced_key.
     def _start_config_poll(self):
         def poll():
             while True:
                 time.sleep(1)
-                enabled, raw_key = load_performance_config()
+                enabled, raw_key, scale = load_performance_config()
                 if enabled and raw_key:
-                    # normalise "F#/Gb" -> "F#" so NOTE_SEMITONES can look it up
                     root = raw_key.split("/")[0]
-                    self.forced_key = (root, "major")
+                    self.forced_key = (root, scale)
                 else:
                     self.forced_key = None
-
         t = threading.Thread(target=poll, daemon=True)
         t.start()
 
