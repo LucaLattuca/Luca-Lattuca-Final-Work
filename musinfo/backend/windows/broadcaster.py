@@ -18,7 +18,7 @@ from math import gcd
 from scipy.signal import resample_poly
 
 # Debugging 
-DEBUG = True
+DEBUG = False
 INFO = True
 
 # AUDIO DEBUGGING information
