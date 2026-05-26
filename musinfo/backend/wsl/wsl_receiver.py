@@ -86,7 +86,7 @@ ANALYSER_QUEUE_SIZES = {
     "tempo":       1,  # tempo_cnn
     "dynamics":    4,
     "timbre":      4,
-    "harmony":     4,
+    "harmony":     32,
 }
 
 class ThreadedAnalyser:
