@@ -368,9 +368,8 @@ class HarmonyAnalyser:
     # KeyExtractor is only re-run when the buffer is full, then the result is
     # smoothed across the last few detections so the key doesn't flicker.
     def _detect_key(self, hpcp: np.ndarray) -> tuple:
-        if self.forced_key is not None:
-            root, scale = self.forced_key
-            return root, scale, 1.0, True
+        if FORCED_KEY_ENABLED:
+            return FORCED_KEY_ROOT, FORCED_KEY_SCALE, 1.0, True
 
         self._key_buffer.append(hpcp)
 
