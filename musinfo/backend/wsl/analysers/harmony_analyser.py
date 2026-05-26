@@ -27,8 +27,15 @@ os.environ['ESSENTIA_LOG_LEVEL'] = 'error'
 # Resolve performance.json from WSL — walks up from this file to the project root.
 def get_performance_config_path():
     here = os.path.abspath(__file__)
-    # wsl/analysers/harmony_analyser.py -> wsl -> project root -> backend/config
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(here)))
+    # backend/wsl/analysers/harmony_analyser.py
+    # -> analysers -> wsl -> backend -> project root -> backend/config
+    project_root = os.path.dirname(  # project root
+        os.path.dirname(             # backend
+            os.path.dirname(         # wsl
+                os.path.dirname(here)  # analysers
+            )
+        )
+    )
     return os.path.join(project_root, "backend", "config", "performance.json")
 
 # Returns (enabled, key_root, key_scale) from performance.json, or defaults on any error.
@@ -192,15 +199,35 @@ class HarmonyAnalyser:
 
     # Background thread: re-reads performance.json every second and updates forced_key.
     def _start_config_poll(self):
+        _prev_forced = (None, None, None)
+        _was_enabled = False   # track previous enabled state to detect the transition
+
         def poll():
+            nonlocal _prev_forced, _was_enabled
+            global FORCED_KEY_ENABLED, FORCED_KEY_ROOT, FORCED_KEY_SCALE
             while True:
                 time.sleep(1)
                 enabled, raw_key, scale = load_performance_config()
-                if enabled and raw_key:
-                    root = raw_key.split("/")[0]
-                    self.forced_key = (root, scale)
-                else:
-                    self.forced_key = None
+                FORCED_KEY_ENABLED = enabled and bool(raw_key)
+                if raw_key:
+                    FORCED_KEY_ROOT  = raw_key.split("/")[0]
+                    FORCED_KEY_SCALE = scale
+
+                # reset KS state so detection rebuilds cleanly
+                if _was_enabled and not self.forced_key:
+                    self._key_buffer.clear()
+                    self._key_history.clear()
+                    self._last_key_result = (None, None, 0.0, False)
+                    if INFO:
+                        print(f"[harmony] forced key disabled — resetting key detector", flush=True)
+
+                _was_enabled = FORCED_KEY_ENABLED
+
+                current = (FORCED_KEY_ENABLED, FORCED_KEY_ROOT, FORCED_KEY_SCALE)
+                if INFO and current != _prev_forced:
+                    print(f"[midi_harmony] forced key -> enabled={FORCED_KEY_ENABLED} {FORCED_KEY_ROOT} {FORCED_KEY_SCALE}", flush=True)
+                _prev_forced = current
+
         t = threading.Thread(target=poll, daemon=True)
         t.start()
 
@@ -544,10 +571,14 @@ class HarmonyAnalyser:
     # result above so the two can never disagree.
     def frontend_view(self, result: dict) -> dict:
         return {
-            "chord":            result["chord"],
-            "root":             result["chord_root"],
-            "relation_to_root": result["roman_degree"],
-            "chord_quality":    result["chord_quality"],
+            # key
+            "key":              result["key"]   or "",
+            "scale":            result["scale"] or "",
+            # chord
+            "chord":            result["chord"]         or "",
+            "chord_quality":    result["chord_quality"] or "",
+            "root":             result["chord_root"]    or "",
+            "relation_to_root": result["roman_degree"]  or "",
+            # dissonance
             "dissonance":       result["dissonance"],
-            "key":              result["key"],
         }
