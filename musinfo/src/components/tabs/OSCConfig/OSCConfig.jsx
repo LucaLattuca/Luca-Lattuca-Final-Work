@@ -25,12 +25,10 @@ const ANALYSER_ADDRESSES = {
   tempo: {
     destination: 'both',
     image_gen_params: [
-      { label: 'bpm',  path: '/prompt/bpm',        type: 'float'  },
       { label: 'feel', path: '/prompt/tempo_feel',  type: 'string' },
     ],
-    td_params: (name) => [
-      { label: 'pulse', path: `/tempo/${name}/pulse`, type: 'int'   },
-      { label: 'bpm',   path: `/tempo/${name}/bpm`,   type: 'float' },
+    td_params: (name, idx) => [
+      { label: 'pulse', path: `/td/tempo/pulse`, type: 'int' },
     ],
   },
   // TD analysers: /td/{analyser}/{index}/{param}
@@ -84,24 +82,42 @@ function deriveAddresses(instruments) {
   const tdRows       = [];
 
   const audioInstruments = Object.entries(instruments)
-    .filter(([, cfg]) => cfg.type === 'audio')
+    .filter(([, cfg]) => cfg.type === 'audio' || cfg.type === 'virtual')
     .sort(([a], [b]) => a.localeCompare(b));
 
   const mixInstruments = Object.entries(instruments)
     .filter(([, cfg]) => cfg.type === 'mix');
 
-  // Audio instruments first, mix always last
+  // Audio + virtual instruments → route each analyser by its own destination
   audioInstruments.forEach(([name, cfg], idx) => {
-    const rows = [];
+    const tdRows_inst = [];
     (cfg.analysers || []).forEach(analyser => {
       const def = ANALYSER_ADDRESSES[analyser];
-      if (!def || def.destination !== 'touchdesigner') return;
-      (typeof def.params === 'function' ? def.params(name, idx) : def.params)
-        .forEach(p => rows.push({ analyser, ...p }));
+      if (!def) return;
+      if (def.destination === 'touchdesigner') {
+        (typeof def.params === 'function' ? def.params(name, idx) : def.params)
+          .forEach(p => tdRows_inst.push({ analyser, ...p }));
+      } else if (def.destination === 'image_gen') {
+        // collect into a per-instrument image gen group
+        def.params.forEach(p => {
+          // find or create the image gen group for this instrument
+          let group = imageGenRows.find(g => g.instrument === name);
+          if (!group) { group = { instrument: name, isMix: false, rows: [] }; imageGenRows.push(group); }
+          group.rows.push({ analyser, ...p });
+        });
+      } else if (def.destination === 'both') {
+        def.image_gen_params.forEach(p => {
+          let group = imageGenRows.find(g => g.instrument === name);
+          if (!group) { group = { instrument: name, isMix: false, rows: [] }; imageGenRows.push(group); }
+          group.rows.push({ analyser, ...p });
+        });
+        def.td_params(name).forEach(p => tdRows_inst.push({ analyser, ...p }));
+      }
     });
-    if (rows.length) tdRows.push({ instrument: name, index: idx, isMix: false, rows });
+    if (tdRows_inst.length) tdRows.push({ instrument: name, index: idx, isMix: false, rows: tdRows_inst });
   });
 
+  // Mix instruments — same logic, always last
   mixInstruments.forEach(([name, cfg]) => {
     const igRows  = [];
     const tdExtra = [];
@@ -115,14 +131,12 @@ function deriveAddresses(instruments) {
         def.td_params(name).forEach(p => tdExtra.push({ analyser, ...p }));
       }
     });
-    // Mix rows pushed last in both sections
     if (igRows.length)  imageGenRows.push({ instrument: name, isMix: true, rows: igRows });
     if (tdExtra.length) tdRows.push({ instrument: name, isMix: true, rows: tdExtra });
   });
 
   return { imageGenRows, tdRows };
 }
-
 // ─── Copy button ──────────────────────────────────────────────────────────────
 function CopyIcon({ text }) {
   const [copied, setCopied] = useState(false);

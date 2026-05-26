@@ -23,8 +23,9 @@ MAX_BPM = 220.0
 
 class TempoAnalyser:
 
-    def __init__(self, instrument_name: str, sample_rate: int = 48000, instrument_index: int = 0):
+    def __init__(self, instrument_name: str, sample_rate: int = 48000,  instrument_index: int = 0):
         self.instrument_name     = instrument_name
+        self.instrument_index    = instrument_index
         self.sample_rate         = sample_rate
         self._beat_reset_pending = False
     

@@ -128,7 +128,6 @@ class TempoCNNAnalyser:
         now = time.time()
         if (now - self._last_send) >= SEND_INTERVAL:
             self.osc.send_message(self.bpm_address, smoothed)
-            self.prompt_osc_client.send_message("/prompt/bpm", smoothed)
             
             if DEBUG : 
                 print(f"[tempo_cnn] {self.instrument_name}: {smoothed} BPM -> {self.bpm_address}")
