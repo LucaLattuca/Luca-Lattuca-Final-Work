@@ -1,9 +1,9 @@
 {
-    "Performance": {
-        "forcedKey": {
-            "enabled": false,
-            "key": null,
-            "scale": null
-        }
+  "Performance": {
+    "forcedKey": {
+      "enabled": true,
+      "key": "D",
+      "scale": "minor"
     }
+  }
 }

@@ -20,39 +20,32 @@ const SCRIABIN_COLORS = {
 
 const KEYS = [ 'C','Db','D','Eb','E','F','F#/Gb','G','Ab','A','Bb','B'];
 
-const Performance = ({ setForcedKey }) => {
-  const [enabled, setEnabled]       = useState(false);
+const Performance = () => {
+  const [enabled, setEnabled]         = useState(false);
   const [selectedKey, setSelectedKey] = useState(null);
   const [selectedScale, setSelectedScale] = useState('major');
 
   const handleScaleSelect = (scale) => {
     setSelectedScale(scale);
-    if (enabled && selectedKey) {
-      setForcedKey({ enabled: true, key: selectedKey, scale });
-      invoke('save_performance_config', { enabled: true, key: selectedKey, scale });
-    }
+    invoke('save_performance_config', { enabled, key: selectedKey, scale });
   };
-
 
   const handleToggleEnable = () => {
     const next = !enabled;
     setEnabled(next);
     if (!next) {
-      setForcedKey({ enabled: false, key: null, scale: null });
-      invoke('save_performance_config', { enabled: false, key: null, scale: null });
+      invoke('save_performance_config', { enabled: false, key: null, scale: null })
+        .catch(e => console.error('[save_performance_config] disable failed:', e));
     } else {
-      setForcedKey({ enabled: true, key: selectedKey, scale: selectedScale });
-      invoke('save_performance_config', { enabled: true, key: selectedKey, scale: selectedScale });
+      invoke('save_performance_config', { enabled: true, key: selectedKey, scale: selectedScale })
+        .catch(e => console.error('[save_performance_config] enable failed:', e));
     }
   };
 
   const handleKeySelect = (key) => {
     const next = selectedKey === key ? null : key;
     setSelectedKey(next);
-    if (enabled) {
-      setForcedKey({ enabled: true, key: next, scale: selectedScale });
-      invoke('save_performance_config', { enabled: true, key: next, scale: selectedScale });
-    }
+    invoke('save_performance_config', { enabled, key: next, scale: selectedScale });
   };
 
   return (

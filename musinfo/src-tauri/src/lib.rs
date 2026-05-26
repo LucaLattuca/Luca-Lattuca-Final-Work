@@ -85,6 +85,12 @@ fn write_config(path: &Path, config: &serde_json::Map<String, Value>) -> Result<
 fn save_performance_config(enabled: bool, key: Option<String>, scale: Option<String>) -> Result<(), String> {
     let path = performance_path()?;
 
+    // ensure the config directory exists
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create config dir: {}", e))?;
+    }
+
     let config = serde_json::json!({
         "Performance": {
             "forcedKey": {
