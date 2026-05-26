@@ -20,10 +20,12 @@ const SCRIABIN_COLORS = {
 
 const KEYS = [ 'C','Db','D','Eb','E','F','F#/Gb','G','Ab','A','Bb','B'];
 
-const Performance = () => {
-  const [enabled, setEnabled]         = useState(false);
-  const [selectedKey, setSelectedKey] = useState(null);
-  const [selectedScale, setSelectedScale] = useState('major');
+const Performance = ({ performanceState, setPerformanceState }) => {
+  const { enabled, selectedKey, selectedScale } = performanceState;
+
+  const setEnabled      = (v) => setPerformanceState(s => ({ ...s, enabled: v }));
+  const setSelectedKey  = (v) => setPerformanceState(s => ({ ...s, selectedKey: v }));
+  const setSelectedScale = (v) => setPerformanceState(s => ({ ...s, selectedScale: v }));
 
   const handleScaleSelect = (scale) => {
     setSelectedScale(scale);
