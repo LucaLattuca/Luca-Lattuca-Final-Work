@@ -6,11 +6,15 @@ import PianoKeyboard from '../Performance/PianoKeyboard/PianoKeyboard';
 
 
 const Performance = ({ performanceState, setPerformanceState }) => {
-  const { enabled, selectedKey, selectedScale } = performanceState;
+  
+  const { enabled, selectedKey, selectedScale, imageGenEnabled } = performanceState;
+
 
   const setEnabled      = (v) => setPerformanceState(s => ({ ...s, enabled: v }));
   const setSelectedKey  = (v) => setPerformanceState(s => ({ ...s, selectedKey: v }));
   const setSelectedScale = (v) => setPerformanceState(s => ({ ...s, selectedScale: v }));
+  const setImageGenEnabled = (v) => setPerformanceState(s => ({ ...s, imageGenEnabled: v }));
+
 
   const handleScaleSelect = (scale) => {
     setSelectedScale(scale);
@@ -35,10 +39,17 @@ const Performance = ({ performanceState, setPerformanceState }) => {
     invoke('save_performance_config', { enabled, key: next, scale: selectedScale });
   };
 
+  const handleImageGenToggle = () => {
+    const next = !imageGenEnabled;
+    setImageGenEnabled(next);
+    invoke('toggle_image_generation', { enabled: next })
+      .catch(e => console.error('[toggle_image_generation] failed:', e));
+  };
+
   return (
     <>
       <div className={Styles.container}>
-        <div className={Styles.forcedKey}>
+        <div className={Styles.forcedKeyConfig}>
 
           <div className={Styles.enableForcedKey}>
             
@@ -103,6 +114,19 @@ const Performance = ({ performanceState, setPerformanceState }) => {
 
 
         </div>
+        <div className={Styles.imageGenerationConfig}>
+          <label>Image Generation</label>
+          <button
+            type="button"
+            onClick={handleImageGenToggle}
+            className={Styles.toggleSwitch}
+            style={{
+              borderColor: imageGenEnabled ? '#30AE30' : '#434343',
+            }}
+            data-enabled={imageGenEnabled}
+          />
+        </div>
+
       </div>
     </>
   );
