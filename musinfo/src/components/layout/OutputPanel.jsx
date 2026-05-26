@@ -151,22 +151,21 @@ const OutputPanel = ({
     const renderHarmony = (harmonyData) => {
         if (!harmonyData) return '—';
         
-        // harmony arrives as a JSON string on the /frontend address
         let data = harmonyData;
         if (typeof data === 'string') {
             try { data = JSON.parse(data); } catch (e) { return String(harmonyData); }
         }
-
-        const { chord, root, relation_to_root, chord_quality, dissonance, key } = data;
-
+    
+        const { key, scale, chord, chord_quality, root, relation_to_root, dissonance } = data;
+    
         return (
             <div>
-                {chord            != null && <div>chord: {chord}</div>}
-                {root             != null && <div>root: {root}</div>}
-                {chord_quality    != null && <div>quality: {chord_quality}</div>}
-                {relation_to_root != null && <div>degree: {relation_to_root}</div>}
-                {key              != null && <div>key: {key}</div>}
-                {dissonance       != null && <div>dissonance: {Number(dissonance).toFixed(2)}</div>}
+                <div>key: {key || '—'}</div>
+                <div>scale: {scale || '—'}</div>
+                <div>chord: {chord ? `${chord} (${chord_quality || '—'})` : '—'}</div>
+                <div>root: {root || '—'}</div>
+                <div>degree: {relation_to_root || '—'}</div>
+                <div>dissonance: {dissonance != null ? Number(dissonance).toFixed(2) : '—'}</div>
             </div>
         );
     };

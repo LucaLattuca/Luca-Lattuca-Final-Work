@@ -1,9 +1,9 @@
 {
   "Performance": {
     "forcedKey": {
-      "enabled": true,
-      "key": "Eb",
-      "scale": "minor"
+      "enabled": false,
+      "key": null,
+      "scale": null
     }
   }
 }

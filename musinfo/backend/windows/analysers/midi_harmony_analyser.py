@@ -87,15 +87,15 @@ KS_MINOR = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53,
 KS_DECAY = 0.97
 
 # more events required before attempting detection — gives histogram time to build
-KS_MIN_EVENTS = 8
+KS_MIN_EVENTS = 3
 
 # higher threshold — only change the reported key if very confident
 # prevents diminished chords from pulling the key
-KS_CONFIDENCE_THRESHOLD = 0.92
+KS_CONFIDENCE_THRESHOLD = 0.85
 
 # how many consecutive detections the new key must hold before displacing the current one
-# e.g. 4 means the new key must win 4 events in a row before we accept it
-KS_KEY_LOCK = 4
+# e.g. 3 means the new key must win 3 events in a row before we accept it
+KS_KEY_LOCK = 3
 
 # ── forced key config ─────────────────────────────────────────────────────────
 
@@ -107,11 +107,19 @@ FORCED_KEY_SCALE   = "major"
 
 # Resolve performance.json — walks up from this file to the project root.
 def get_performance_config_path():
-
     here = os.path.abspath(__file__)
-    # windows/midi_capture/midi_harmony_analyser.py -> midi_capture -> windows -> project root -> backend/config
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(here)))
+    # backend/windows/analysers/midi_harmony_analyser.py
+    # -> analysers -> windows -> backend -> project root -> backend/config
+    project_root = os.path.dirname(  # project root
+        os.path.dirname(             # backend
+            os.path.dirname(         # windows
+                os.path.dirname(here)  # analysers
+            )
+        )
+    )
     return os.path.join(project_root, "backend", "config", "performance.json")
+
+
 # Returns (enabled, raw_key) from performance.json, or defaults on any error.
 def load_performance_config():
     try:
@@ -210,7 +218,11 @@ class MidiHarmonyAnalyser:
 
     # Background thread: re-reads performance.json every second and updates module-level forced key constants.
     def _start_config_poll(self):
+        _prev_forced = (None, None, None)
+        _was_enabled = False   # track previous enabled state to detect the transition
+
         def poll():
+            nonlocal _prev_forced, _was_enabled
             global FORCED_KEY_ENABLED, FORCED_KEY_ROOT, FORCED_KEY_SCALE
             while True:
                 time.sleep(1)
@@ -219,8 +231,23 @@ class MidiHarmonyAnalyser:
                 if raw_key:
                     FORCED_KEY_ROOT  = raw_key.split("/")[0]
                     FORCED_KEY_SCALE = scale
-                if INFO and FORCED_KEY_ENABLED:
-                    print(f"[midi_harmony] forced key -> {FORCED_KEY_ROOT} {FORCED_KEY_SCALE}", flush=True)
+
+                # reset KS state so detection rebuilds cleanly
+                if _was_enabled and not FORCED_KEY_ENABLED:
+                    self._pc_histogram[:]      = 0.0
+                    self._last_key             = (None, None, 0.0, False)
+                    self._key_candidate_streak = 0
+                    self._key_candidate        = (None, None)
+                    if INFO:
+                        print(f"[midi_harmony] forced key disabled — resetting KS detector", flush=True)
+
+                _was_enabled = FORCED_KEY_ENABLED
+
+                current = (FORCED_KEY_ENABLED, FORCED_KEY_ROOT, FORCED_KEY_SCALE)
+                if INFO and current != _prev_forced:
+                    print(f"[midi_harmony] forced key -> enabled={FORCED_KEY_ENABLED} {FORCED_KEY_ROOT} {FORCED_KEY_SCALE}", flush=True)
+                _prev_forced = current
+
         t = threading.Thread(target=poll, daemon=True)
         t.start()
     
@@ -554,12 +581,14 @@ class MidiHarmonyAnalyser:
 
         # per-field messages to TouchDesigner
         idx = self.instrument_index
+        self.td_client.send_message(f"/td/harmony/{idx}/key",            result["key"] or "")
+        self.td_client.send_message(f"/td/harmony/{idx}/scale",          result["scale"] or "")
+
         self.td_client.send_message(f"/td/harmony/{idx}/chord",          result["chord"] or "")
         self.td_client.send_message(f"/td/harmony/{idx}/chord_quality",  result["chord_quality"] or "")
         self.td_client.send_message(f"/td/harmony/{idx}/chord_strength", result["chord_strength"])
         self.td_client.send_message(f"/td/harmony/{idx}/roman_degree",   result["roman_degree"] or "")
-        self.td_client.send_message(f"/td/harmony/{idx}/key",            result["key"] or "")
-        self.td_client.send_message(f"/td/harmony/{idx}/scale",          result["scale"] or "")
+        
         self.td_client.send_message(f"/td/harmony/{idx}/dissonance",     result["dissonance"])
         self.td_client.send_message(f"/td/harmony/{idx}/harmonic_change",result["harmonic_change"])
         self.td_client.send_message(f"/td/harmony/{idx}/hpcp",           result["hpcp"])
@@ -615,10 +644,14 @@ class MidiHarmonyAnalyser:
     # the frontend only needs these fields — built from the full result
     def frontend_view(self, result: dict) -> dict:
         return {
-            "chord":            result["chord"],
-            "root":             result["chord_root"],
-            "relation_to_root": result["roman_degree"],
-            "chord_quality":    result["chord_quality"],
+            # key
+            "key":              result["key"]   or "",
+            "scale":            result["scale"] or "",
+            # chord
+            "chord":            result["chord"]         or "",
+            "chord_quality":    result["chord_quality"] or "",
+            "root":             result["chord_root"]    or "",
+            "relation_to_root": result["roman_degree"]  or "",
+            # dissonance
             "dissonance":       result["dissonance"],
-            "key":              result["key"],
         }
