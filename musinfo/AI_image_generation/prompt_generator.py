@@ -43,6 +43,10 @@ _state = {
     "tempo_feel":   None,   # str
 }
 
+# controlled by the Performance tab toggle via OSC from Tauri
+_image_gen_enabled = False
+_image_gen_lock    = threading.Lock()
+
 
 # ── Prompt assembly ────────────────────────────────────────────────────────────
 NEGATIVE_PROMPT = (
@@ -206,11 +210,25 @@ def _on_tempo_feel(address, *args):
         _state["tempo_feel"] = value
     print(f"[prompt_gen] tempo_feel: {value}", flush=True)
 
+def _on_image_gen_enabled(address, *args):
+    global _image_gen_enabled
+    value = int(args[0]) if args else 0
+    with _image_gen_lock:
+        _image_gen_enabled = bool(value)
+    state = "ENABLED" if _image_gen_enabled else "DISABLED"
+    print(f"[prompt_gen] image generation {state}", flush=True)
+
 
 # ── Emission loop ──────────────────────────────────────────────────────────────
 def _prompt_loop(emit_client):
     while True:
         time.sleep(PROMPT_INTERVAL)
+
+        with _image_gen_lock:
+            active = _image_gen_enabled
+
+        if not active:
+            continue  # paused — model stays warm, no prompts sent
 
         with _state_lock:
             snapshot = dict(_state)
@@ -230,6 +248,7 @@ d.map("/prompt/mood_tags",    _on_mood_tags)
 d.map("/prompt/danceability", _on_danceability)
 d.map("/prompt/bpm",          _on_bpm)
 d.map("/prompt/tempo_feel",   _on_tempo_feel)
+d.map("/musinfo/image_gen_enabled",   _on_image_gen_enabled) 
 
 server = osc_server.ThreadingOSCUDPServer((LISTEN_HOST, LISTEN_PORT), d)
 server_thread = threading.Thread(target=server.serve_forever, daemon=True)
