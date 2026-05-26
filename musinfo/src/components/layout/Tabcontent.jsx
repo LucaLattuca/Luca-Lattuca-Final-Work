@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import styles from './Tabcontent.module.css';
 import Performance from '../tabs/Performance/Performance';
 import Setup from '../tabs/Setup/Setup';
@@ -15,10 +15,21 @@ const Tabcontent = ({
   onDeleteInstrument,
   pipelineStatus,
 }) => {
+  const [performanceState, setPerformanceState] = useState({
+    enabled: false,
+    selectedKey: 'C',
+    selectedScale: 'major',
+  });
+
   console.log('[Tabcontent] pipelineStatus:', pipelineStatus);
   return (
     <div className={styles.tabcontent}>
-      {activeTab === 'performance' && <Performance />}
+      {activeTab === 'performance' && (
+        <Performance
+          performanceState={performanceState}
+          setPerformanceState={setPerformanceState}
+        />
+      )}
       {activeTab === 'setup' && (
         <div className={styles.setupWrapper}>
           {(pipelineStatus === 'launching' || pipelineStatus === 'running' || pipelineStatus === 'stopping') && <div className={styles.veil} />}

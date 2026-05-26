@@ -6,7 +6,7 @@
       ],
       "enabled": true,
       "midi_device": {
-        "connected": true,
+        "connected": false,
         "name": "Digital Piano-1",
         "port": "input"
       },

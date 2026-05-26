@@ -8,18 +8,44 @@ musical key, and how dissonant the sound is.
 """
 
 import os
-from unittest import result
-os.environ['ESSENTIA_LOG_LEVEL'] = 'error'
-
-import sys
 import subprocess
-from collections import deque
+import sys
 
+from collections import deque
 import numpy as np
 import librosa
 import essentia.standard as es
 from pythonosc import udp_client
+
+
+import threading
+import time
+
 import json 
+os.environ['ESSENTIA_LOG_LEVEL'] = 'error'
+
+# Resolve performance.json from WSL — walks up from this file to the project root.
+def get_performance_config_path():
+    here = os.path.abspath(__file__)
+    # wsl/analysers/harmony_analyser.py -> wsl -> project root -> backend/config
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(here)))
+    return os.path.join(project_root, "backend", "config", "performance.json")
+
+# Returns (enabled, key_root, key_scale) from performance.json, or defaults on any error.
+def load_performance_config():
+    try:
+        path = get_performance_config_path()
+        with open(path, "r") as f:
+            data = json.load(f)
+        fk = data["Performance"]["forcedKey"]
+        enabled = bool(fk.get("enabled", False))
+        raw_key = fk.get("key")
+        scale   = fk.get("scale") or "major"
+        return enabled, raw_key, scale
+    except Exception:
+        return False, None, "major"
+
+
 
 
 # Debugging
@@ -156,12 +182,27 @@ class HarmonyAnalyser:
         self._chord_history_labels = deque(maxlen=SMOOTHING_WINDOW)
 
         self._init_algorithms()
+        self._start_config_poll()
 
         if INFO : 
             print(f"[harmony] Ready for '{instrument_name}' @ {sample_rate}Hz")
             sys.stdout.flush()
             print(f"[harmony] OSC target: {OSC_HOST}:{OSC_PORT}")
             sys.stdout.flush()
+
+    # Background thread: re-reads performance.json every second and updates forced_key.
+    def _start_config_poll(self):
+        def poll():
+            while True:
+                time.sleep(1)
+                enabled, raw_key, scale = load_performance_config()
+                if enabled and raw_key:
+                    root = raw_key.split("/")[0]
+                    self.forced_key = (root, scale)
+                else:
+                    self.forced_key = None
+        t = threading.Thread(target=poll, daemon=True)
+        t.start()
 
     # Essentia algorithms are created once and reused — building them per
     # frame would be wasteful. Each is told the device's sample rate here.
