@@ -2,8 +2,10 @@
   "instruments": {
     "piano": {
       "analysers": [
-        "dynamics",
-        "tempo"
+        "tempo",
+        "mood",
+        "genre",
+        "dynamics"
       ],
       "audio_device": {
         "channel": 0,

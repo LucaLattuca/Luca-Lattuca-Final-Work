@@ -61,7 +61,7 @@ def load_instrument_indices():
             config = json.load(f)
         audio_instruments = sorted(
             name for name, inst in config.get("instruments", {}).items()
-            if inst.get("type") == "audio"
+            if inst.get("type") in ("audio", "virtual")
         )
         return {name: idx for idx, name in enumerate(audio_instruments)}
     except Exception:
