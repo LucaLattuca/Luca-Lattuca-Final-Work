@@ -2,11 +2,8 @@
   "instruments": {
     "piano": {
       "analysers": [
-        "harmony",
         "dynamics",
-        "timbre",
-        "genre",
-        "mood"
+        "tempo"
       ],
       "audio_device": {
         "channel": 0,
