@@ -214,7 +214,7 @@ class HarmonyAnalyser:
                     FORCED_KEY_SCALE = scale
 
                 # reset KS state so detection rebuilds cleanly
-                if _was_enabled and not self.forced_key:
+                if _was_enabled and not FORCED_KEY_ENABLED:
                     self._key_buffer.clear()
                     self._key_history.clear()
                     self._last_key_result = (None, None, 0.0, False)
