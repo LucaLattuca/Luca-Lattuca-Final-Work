@@ -92,6 +92,9 @@ _pending_negative = None
 _new_prompt_event = threading.Event()
 
 
+# controlled by the Performance tab toggle via OSC from Tauri
+_image_gen_enabled = False
+_image_gen_lock    = threading.Lock()
 
 
 # ── Pipeline ───────────────────────────────────────────────────────────────────
@@ -129,6 +132,14 @@ def _on_negative_prompt(address, *args):
         _pending_negative = value
     print(f"[gen_image] negative prompt received ({len(value)} chars)", flush=True)
 
+def _on_image_gen_enabled(address, *args):
+    global _image_gen_enabled
+    value = int(args[0]) if args else 0
+    with _image_gen_lock:
+        _image_gen_enabled = bool(value)
+    state = "ENABLED" if _image_gen_enabled else "DISABLED"
+    print(f"[gen_image] image generation {state}", flush=True)
+
 
 def _send_fade_trigger():
     _td_client.send_message("/musinfo/image_change", 1.0)
@@ -141,6 +152,13 @@ def _generation_loop(pipe):
     while True:
         _new_prompt_event.wait()
         _new_prompt_event.clear()
+
+        with _image_gen_lock:
+            active = _image_gen_enabled
+
+        if not active:
+            print("[gen_image] generation paused — toggle enabled to resume", flush=True)
+            continue  # prompt discarded, model stays warm
 
         with _prompt_lock:
             positive = _pending_positive
@@ -165,14 +183,13 @@ def _generation_loop(pipe):
             elapsed = time.time() - t0
             print(f"[gen_image] Done in {elapsed:.2f}s", flush=True)
 
-            # Send NDI frame first, then notify TouchDesigner to start the fade
             _send_ndi_frame(image)
-            # send ffade trigger
             threading.Thread(target=_send_fade_trigger, daemon=True).start()
             print("[gen_image] OSC fade trigger sent to TD", flush=True)
 
         except Exception as e:
             print(f"[gen_image] Generation error: {e}", flush=True)
+
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 _pipe = _load_pipeline()
@@ -184,6 +201,7 @@ gen_thread.start()
 d = dispatcher.Dispatcher()
 d.map("/image/prompt/positive", _on_positive_prompt)
 d.map("/image/prompt/negative", _on_negative_prompt)
+d.map("/musinfo/image_gen_enabled",  _on_image_gen_enabled)
 
 server = osc_server.ThreadingOSCUDPServer((LISTEN_HOST, LISTEN_PORT), d)
 server_thread = threading.Thread(target=server.serve_forever, daemon=True)
