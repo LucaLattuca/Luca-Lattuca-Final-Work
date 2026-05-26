@@ -56,7 +56,7 @@ def load_performance_config():
 
 
 # Debugging
-DEBUG = False
+DEBUG = True
 INFO = True
 
 # --- OSC config --------------------------------------------------------------
@@ -95,9 +95,16 @@ HPCP_SIZE        = 12  # one value per pitch class: C, C#, D, ... B
 # the most common one so the reported chord is stable.
 SMOOTHING_WINDOW = 9
 
+# HPSS (Harmonic-Percussive Source Separation) filters out percussion. 
+HPSS_ENABLED = False
+
 # HPSS needs surrounding context to distinguish harmonic from percussive energy.
 # This is how many samples of recent audio we feed it — roughly 0.34s at 48kHz.
 HPSS_CONTEXT_SIZE = 16384
+
+# only re-run HPSS every 8 frames, reuse last result otherwise
+HPSS_EVERY_N_FRAMES = 8  
+
 
 # When forced key is on, we skip key detection and assume this key instead.
 # This narrows chord detection to that key's chords. Off by default.
@@ -107,7 +114,7 @@ FORCED_KEY_SCALE   = "major"
 
 # Key detection needs more context than chord detection to be stable.
 # We run it less frequently and smooth the result.
-KEY_DETECTION_WINDOW = 100  # frames before re-evaluating the key
+KEY_DETECTION_WINDOW = 20  # frames before re-evaluating the key
 KEY_SMOOTHING_WINDOW = 10   # keep last N key results and take the most common
 
 
@@ -172,15 +179,20 @@ class HarmonyAnalyser:
         # We collect them here until there's enough for a full frame.
         self._accumulator = np.array([], dtype=np.float32)
 
+
+        
         self._hpcp_buffer = deque(maxlen=CHORD_DETECTION_WINDOW)
 
         # Last frame's chroma, kept so we can measure how much the harmony
         # changed between this frame and the previous one.
         self._hpcp_prev = None
 
+
+        self._last_harmonic_frame = None
+        self._hpss_frame_counter = 0
         # Rolling window of recent audio that HPSS runs across.
         self._hpss_context = np.zeros(HPSS_CONTEXT_SIZE, dtype=np.float32)
-
+        
         self.osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
         self.td_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_TD_PORT)
         
@@ -214,7 +226,7 @@ class HarmonyAnalyser:
                     FORCED_KEY_SCALE = scale
 
                 # reset KS state so detection rebuilds cleanly
-                if _was_enabled and not self.forced_key:
+                if _was_enabled and not FORCED_KEY_ENABLED:
                     self._key_buffer.clear()
                     self._key_history.clear()
                     self._last_key_result = (None, None, 0.0, False)
@@ -300,15 +312,18 @@ class HarmonyAnalyser:
     # from vertical lines (short bursts = percussive) in the spectrogram.
     # margin=3.0 means energy has to look clearly harmonic to be kept.
     def _filter_percussive(self, frame: np.ndarray) -> np.ndarray:
+        if not HPSS_ENABLED:
+            return frame
         self._hpss_context = np.concatenate([
             self._hpss_context[len(frame):], frame
         ]).astype(np.float32)
 
-        harmonic = librosa.effects.harmonic(self._hpss_context, margin=3.0)
+        self._hpss_frame_counter += 1
+        if self._hpss_frame_counter % HPSS_EVERY_N_FRAMES == 0 or self._last_harmonic_frame is None:
+            harmonic = librosa.effects.harmonic(self._hpss_context, margin=3.0)
+            self._last_harmonic_frame = harmonic[-len(frame):]
 
-        # Return only the harmonic version of the current frame,
-        # which is the tail end of the context window.
-        return harmonic[-len(frame):]
+        return self._last_harmonic_frame
 
 
 
@@ -353,9 +368,8 @@ class HarmonyAnalyser:
     # KeyExtractor is only re-run when the buffer is full, then the result is
     # smoothed across the last few detections so the key doesn't flicker.
     def _detect_key(self, hpcp: np.ndarray) -> tuple:
-        if self.forced_key is not None:
-            root, scale = self.forced_key
-            return root, scale, 1.0, True
+        if FORCED_KEY_ENABLED:
+            return FORCED_KEY_ROOT, FORCED_KEY_SCALE, 1.0, True
 
         self._key_buffer.append(hpcp)
 

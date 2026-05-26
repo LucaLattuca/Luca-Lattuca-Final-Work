@@ -153,6 +153,14 @@ def log_routing(name, analysers):
 def handle_connection(conn, addr):
     print(f"[wsl_receiver_heavy] broadcaster connected from {addr}")
     sys.stdout.flush()
+
+    # Clear stale registry from previous connection — important for persistent tier
+    for inst_analysers in analyser_registry.values():
+        for threaded in inst_analysers.values():
+            threaded.stop()
+    analyser_registry.clear()
+
+
     logged_instruments = set()
 
     try:

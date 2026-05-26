@@ -5,6 +5,7 @@ import os
 os.environ["SD_ENABLE_ASIO"] = "1"
 import socket
 import struct
+import time
 import queue
 import threading
 import numpy as np
@@ -220,18 +221,34 @@ def main():
         print("[capture.py] No devices to capture from.")
         return
 
-    if INFO : print(f"[capture.py] Connecting to broadcaster at {BROADCASTER_HOST}:{BROADCASTER_PORT}")
+    if INFO: print(f"[capture.py] Connecting to broadcaster at {BROADCASTER_HOST}:{BROADCASTER_PORT}")
 
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.connect((BROADCASTER_HOST, BROADCASTER_PORT))
-        if INFO : print("[capture.py] Connected to broadcaster.")
+    # Retry loop — broadcaster may not be ready yet after pipeline start
+    MAX_RETRIES = 10
+    RETRY_DELAY = 0.5
 
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    for attempt in range(MAX_RETRIES):
+        try:
+            sock.connect((BROADCASTER_HOST, BROADCASTER_PORT))
+            if INFO: print("[capture.py] Connected to broadcaster.")
+            break
+        except ConnectionRefusedError:
+            if attempt < MAX_RETRIES - 1:
+                print(f"[capture.py] Broadcaster not ready, retrying... ({attempt + 1}/{MAX_RETRIES})")
+                time.sleep(RETRY_DELAY)
+            else:
+                print("[capture.py] Could not connect to broadcaster after max retries. Exiting.")
+                sock.close()
+                return
+
+    try:
         device_threads = []
 
         for key, device_config in devices_config.items():
             thread = threading.Thread(
                 target=stream_device,
-                args=(device_config, sock),   # no device_id arg — resolved inside
+                args=(device_config, sock),
                 daemon=True,
                 name=f"Device-{key[0]}"
             )
@@ -240,6 +257,9 @@ def main():
 
         for thread in device_threads:
             thread.join()
+
+    finally:
+        sock.close()
 
 
 

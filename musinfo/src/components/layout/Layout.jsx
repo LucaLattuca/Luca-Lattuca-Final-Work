@@ -19,7 +19,7 @@ const Layout = ({
     onStart,
     onStop,
 }) => {
-    const [activeTab, setActiveTab] = React.useState('performance');
+    const [activeTab, setActiveTab] = React.useState('setup');
 
     return (
         <>
