@@ -19,7 +19,7 @@ from essentia.standard import PitchCREPE
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 # Debugging
-DEBUG = False
+DEBUG = True
 INFO = True
 
 MODEL_RATE       = 16000
@@ -132,8 +132,9 @@ def classify(audio, model):
 
 
 class PitchCREPEAnalyser:
-    def __init__(self, instrument_name="unknown", sample_rate=48000):
+    def __init__(self, instrument_name="unknown", sample_rate=48000, instrument_index=0):
         self.instrument_name = instrument_name
+        self.instrument_index = instrument_index
         self.model  = load_model()
         self.buffer = AudioBuffer(sample_rate)  
         self.buffer.buffer = np.array([], dtype=np.float32)  # discard pre-load audio
