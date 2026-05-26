@@ -9,48 +9,38 @@ use std::process::Stdio;
 use std::process::{Child, Command};
 use std::sync::Mutex;
 use std::thread;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
-// holds the test audio state
+// ─── PROCESS STATE ────────────────────────────────────────────────────────────
+
+// Test processes — killed on demand only
 struct TestProcess(Mutex<Option<Child>>);
-
-// holds the test midi state
 struct MidiTestProcess(Mutex<Option<Child>>);
 
-// holds the capture.py process handle so stop_pipeline can kill it
+// PIPELINE TIER — fast processes, killed/restarted freely on stop/start
 struct CaptureProcess(Mutex<Option<Child>>);
-
-// holds the wsl_receiver.py process handle so stop_pipeline can kill it
-struct WslProcess(Mutex<Option<Child>>);
-
-
-// holds the wsl_receiver_heavy.py process handle so stop_pipeline can kill it
-struct WslHeavyProcess(Mutex<Option<Child>>);
-
-// holds the broadcaster.py process handle so stop_pipeline can kill it
 struct BroadcasterProcess(Mutex<Option<Child>>);
-
-// holds the windows_receiver.py process handle so stop_pipeline can kill it
 struct WindowsReceiverProcess(Mutex<Option<Child>>);
-
-// holds the midi_capture.py process handle so stop_pipeline can kill it
-// midi_harmony_analyser.py is a child of wsl_receiver.py — lib.rs does not manage it directly
 struct MidiCaptureProcess(Mutex<Option<Child>>);
+
+// PERSISTENT TIER — spawned once at app startup, killed only on app exit.
+// These hold the heavy ML models in memory so stop/start is near-instant.
+// midi_harmony_analyser runs in-process inside midi_capture.py — not managed here.
+struct WslProcess(Mutex<Option<Child>>);
+struct WslHeavyProcess(Mutex<Option<Child>>);
 
 // DEBUGGING
 const OSC_DEBUG: bool = false;
 
-// HELPER FUNCTIONS
+// ─── PATH HELPERS ─────────────────────────────────────────────────────────────
 
-// Resolves the path to instruments.json relative to the project root.
 fn instruments_path() -> Result<std::path::PathBuf, String> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-    .parent()
-    .ok_or("Could not resolve project root")?;
-Ok(root.join("backend/config/instruments.json"))
+        .parent()
+        .ok_or("Could not resolve project root")?;
+    Ok(root.join("backend/config/instruments.json"))
 }
 
-// Resolves the path to performance.json relative to the project root.
 fn performance_path() -> Result<std::path::PathBuf, String> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -58,7 +48,6 @@ fn performance_path() -> Result<std::path::PathBuf, String> {
     Ok(root.join("backend/config/performance.json"))
 }
 
-// Resolves the path to the sessions folder
 fn sessions_path() -> Result<std::path::PathBuf, String> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -66,31 +55,112 @@ fn sessions_path() -> Result<std::path::PathBuf, String> {
     Ok(root.join("sessions"))
 }
 
-// Reads and parses instruments.json into a mutable JSON map.
+fn project_root_windows() -> Result<&'static Path, String> {
+    // CARGO_MANIFEST_DIR is baked in at compile time — safe to return as 'static
+    static ROOT: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
+    let root = ROOT.get_or_init(|| {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("Could not resolve project root")
+            .to_path_buf()
+    });
+    Ok(root.as_path())
+}
+
+fn project_root_wsl() -> Result<String, String> {
+    let win = project_root_windows()?;
+    Ok(win
+        .to_string_lossy()
+        .replace("C:\\", "/mnt/c/")
+        .replace('\\', "/")
+        .to_lowercase())
+}
+
+// ─── CONFIG HELPERS ───────────────────────────────────────────────────────────
+
 fn read_config(path: &Path) -> Result<serde_json::Map<String, Value>, String> {
     let raw = fs::read_to_string(path).map_err(|e| format!("Failed to read: {}", e))?;
     serde_json::from_str(&raw).map_err(|e| format!("Failed to parse: {}", e))
 }
 
-// Serializes the config map and writes it back to disk with pretty formatting.
 fn write_config(path: &Path, config: &serde_json::Map<String, Value>) -> Result<(), String> {
     let out =
         serde_json::to_string_pretty(config).map_err(|e| format!("Serialize error: {}", e))?;
     fs::write(path, out).map_err(|e| format!("Write error: {}", e))
 }
 
-// PERFORMANCE
+// ─── PERSISTENT TIER — spawned once, kept alive across pipeline stop/start ───
+
+/// Spawns wsl_receiver.py and wsl_receiver_heavy.py inside WSL.
+/// Called once from setup(). These processes hold all TensorFlow/Essentia
+/// models in memory — killing them forces a full reload, so we don't.
+fn spawn_persistent_processes(
+    wsl_state: &WslProcess,
+    wsl_heavy_state: &WslHeavyProcess,
+) -> Result<(), String> {
+    let wsl_root = project_root_wsl()?;
+    let venv = format!("{}/backend/wsl/.venv/bin/activate", wsl_root);
+
+    // wsl_receiver.py
+    {
+        let mut guard = wsl_state.0.lock().unwrap();
+        if guard.is_none() {
+            let script = format!("{}/backend/wsl/wsl_receiver.py", wsl_root);
+            let cmd = format!("source {} && python3 {}", venv, script);
+            println!("[Tauri] Spawning persistent wsl_receiver.py...");
+            let child = Command::new("wsl")
+                .args(["-d", "Ubuntu", "/bin/bash", "-c", &cmd])
+                .spawn()
+                .map_err(|e| format!("Failed to spawn wsl_receiver.py: {}", e))?;
+            *guard = Some(child);
+            println!("[Tauri] wsl_receiver.py spawned.");
+        }
+    }
+
+    // wsl_receiver_heavy.py
+    {
+        let mut guard = wsl_heavy_state.0.lock().unwrap();
+        if guard.is_none() {
+            let script = format!("{}/backend/wsl/wsl_receiver_heavy.py", wsl_root);
+            let cmd = format!("source {} && python3 {}", venv, script);
+            println!("[Tauri] Spawning persistent wsl_receiver_heavy.py...");
+            let child = Command::new("wsl")
+                .args(["-d", "Ubuntu", "/bin/bash", "-c", &cmd])
+                .spawn()
+                .map_err(|e| format!("Failed to spawn wsl_receiver_heavy.py: {}", e))?;
+            *guard = Some(child);
+            println!("[Tauri] wsl_receiver_heavy.py spawned.");
+        }
+    }
+
+    Ok(())
+}
+
+/// Kills both persistent WSL processes. Called only on app exit.
+fn kill_persistent_processes(wsl_state: &WslProcess, wsl_heavy_state: &WslHeavyProcess) {
+    if let Some(mut child) = wsl_state.0.lock().unwrap().take() {
+        let _ = child.kill();
+        println!("[Tauri] wsl_receiver.py stopped.");
+    }
+    if let Some(mut child) = wsl_heavy_state.0.lock().unwrap().take() {
+        let _ = child.kill();
+        println!("[Tauri] wsl_receiver_heavy.py stopped.");
+    }
+}
+
+// ─── PERFORMANCE CONFIG ───────────────────────────────────────────────────────
 
 #[tauri::command]
-fn save_performance_config(enabled: bool, key: Option<String>, scale: Option<String>) -> Result<(), String> {
+fn save_performance_config(
+    enabled: bool,
+    key: Option<String>,
+    scale: Option<String>,
+) -> Result<(), String> {
     let path = performance_path()?;
-
-    // ensure the config directory exists
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
             .map_err(|e| format!("Failed to create config dir: {}", e))?;
     }
-
     let config = serde_json::json!({
         "Performance": {
             "forcedKey": {
@@ -100,65 +170,48 @@ fn save_performance_config(enabled: bool, key: Option<String>, scale: Option<Str
             }
         }
     });
-
     let out = serde_json::to_string_pretty(&config)
         .map_err(|e| format!("Serialize error: {}", e))?;
-    fs::write(&path, out)
-        .map_err(|e| format!("Write error: {}", e))?;
-
+    fs::write(&path, out).map_err(|e| format!("Write error: {}", e))?;
     Ok(())
 }
 
-// INSTRUMENTS
+// ─── INSTRUMENTS ──────────────────────────────────────────────────────────────
 
-//  Save instrument configuration to instruments.json.
 #[tauri::command]
 fn save_instrument(_app: AppHandle, instrument: Value) -> Result<String, String> {
-    // resolve path to instruments.json relative to the project root
-    let project_root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .ok_or("Could not resolve project root")?;
+    let root = project_root_windows()?;
+    let config_path = root.join("backend/config/instruments.json");
 
-    let config_path = project_root.join("backend/config/instruments.json");
-
-    // read existing file
     let raw = fs::read_to_string(&config_path)
         .map_err(|e| format!("Failed to read instruments.json: {}", e))?;
-
     let mut config: serde_json::Map<String, Value> = serde_json::from_str(&raw)
         .map_err(|e| format!("Failed to parse instruments.json: {}", e))?;
 
-    // extract name from instrument, use it as the key
     let name = instrument["name"]
         .as_str()
         .ok_or("Instrument has no name")?
         .to_string();
 
-    // build the entry without the name field (name is the key, not a field)
     let mut entry = instrument.clone();
     if let Some(obj) = entry.as_object_mut() {
         obj.remove("name");
     }
 
-    // insert into instruments map
-    let instruments = config
+    config
         .get_mut("instruments")
         .and_then(|v| v.as_object_mut())
-        .ok_or("instruments.json has no 'instruments' key")?;
+        .ok_or("instruments.json has no 'instruments' key")?
+        .insert(name, entry);
 
-    instruments.insert(name, entry);
-
-    // write back with pretty formatting
-    let output =
-        serde_json::to_string_pretty(&config).map_err(|e| format!("Failed to serialize: {}", e))?;
-
+    let output = serde_json::to_string_pretty(&config)
+        .map_err(|e| format!("Failed to serialize: {}", e))?;
     fs::write(&config_path, output)
         .map_err(|e| format!("Failed to write instruments.json: {}", e))?;
 
     Ok("Instrument saved".to_string())
 }
 
-// Removes an instrument entry by key
 #[tauri::command]
 fn delete_instrument(_app: AppHandle, name: String) -> Result<String, String> {
     let path = instruments_path()?;
@@ -172,15 +225,13 @@ fn delete_instrument(_app: AppHandle, name: String) -> Result<String, String> {
     Ok("Instrument deleted".to_string())
 }
 
-// AUDIO DEVICES
+// ─── AUDIO DEVICES ────────────────────────────────────────────────────────────
 
-// rematches device id with name and channel, since device_id can change
 #[tauri::command]
 fn reconcile_devices(_app: AppHandle) -> Result<Value, String> {
     let path = instruments_path()?;
     let mut config = read_config(&path)?;
 
-    // strips Windows MME port suffix so "Digital Piano-2" matches "Digital Piano-1"
     fn strip_midi_suffix(name: &str) -> &str {
         if let Some(pos) = name.rfind('-') {
             let suffix = &name[pos + 1..];
@@ -191,7 +242,6 @@ fn reconcile_devices(_app: AppHandle) -> Result<Value, String> {
         name
     }
 
-    // query live audio devices
     let live_audio: Vec<Value> = Command::new("python")
         .env("SD_ENABLE_ASIO", "1")
         .args([
@@ -217,7 +267,6 @@ print(json.dumps(result))
         })
         .unwrap_or_default();
 
-    // query live MIDI devices
     let live_midi: Vec<Value> = Command::new("python")
         .args([
             "-c",
@@ -252,7 +301,6 @@ pygame.midi.quit()
             None => continue,
         };
 
-        // audio reconcile — exact match on name + channel + host_api
         if let Some(dev) = inst_obj
             .get_mut("audio_device")
             .and_then(|v| v.as_object_mut())
@@ -286,7 +334,6 @@ pygame.midi.quit()
             }
         }
 
-        // midi reconcile — fuzzy match on base name (strips trailing -N suffix)
         if let Some(dev) = inst_obj
             .get_mut("midi_device")
             .and_then(|v| v.as_object_mut())
@@ -318,7 +365,6 @@ pygame.midi.quit()
     Ok(Value::Object(config))
 }
 
-// Runs a Python script to query all available audio devices on the system and filter them by type.
 #[tauri::command]
 fn get_audio_devices(device_type: String) -> Vec<Value> {
     let python_script = format!(
@@ -329,16 +375,15 @@ host_apis = sd.query_hostapis()
 result = []
 VIRTUAL_KEYWORDS = ["vb", "virtual", "cable", "voicemeeter", "stereo mix"]
 
-
 EXCLUDE_KEYWORDS = [
-    "mapper",       
-    "ndi",           
-    "webcam",       
-    "asio4all",     
-    "realtek asio", 
-    "pc speaker",   
-    "hfenum",       
-    "hands-free",   
+    "mapper",
+    "ndi",
+    "webcam",
+    "asio4all",
+    "realtek asio",
+    "pc speaker",
+    "hfenum",
+    "hands-free",
     "microphone array",
     "microphone (realtek",
 ]
@@ -352,28 +397,22 @@ for i, d in enumerate(devices):
 
     name_lower = d["name"].lower()
 
-    # exclude noise devices from all tabs
     if any(k in name_lower for k in EXCLUDE_KEYWORDS):
         continue
-    
-    # for Focusrite: only show ASIO, skip all other APIs
+
     if "focusrite" in name_lower and api_name != "ASIO":
         continue
-    
 
     is_virtual = any(k in name_lower for k in VIRTUAL_KEYWORDS)
 
-    # Filter by device type (unless "all")
     if "{device_type}" != "all":
         if "{device_type}" == "virtual" and not is_virtual:
             continue
         if "{device_type}" == "audio" and is_virtual:
             continue
-    
-    # Limit virtual devices to 4 channels, show all channels for real devices
+
     max_channels_to_show = 4 if is_virtual else d["max_input_channels"]
 
-    # one entry per input channel
     for ch in range(min(max_channels_to_show, d["max_input_channels"])):
         result.append({{
             "device_index": i,
@@ -384,7 +423,7 @@ for i, d in enumerate(devices):
             "sample_rate": int(d["default_samplerate"]),
             "latency": round(d["default_low_input_latency"] * 1000, 2),
         }})
-        
+
 print(json.dumps(result))
 "#
     );
@@ -405,7 +444,6 @@ print(json.dumps(result))
     serde_json::from_str(stdout.trim()).unwrap_or_default()
 }
 
-// Runs a Python script to query all available MIDI input devices on the system.
 #[tauri::command]
 fn get_midi_devices() -> Vec<Value> {
     let output = match Command::new("python")
@@ -438,9 +476,8 @@ pygame.midi.quit()
     serde_json::from_str(String::from_utf8_lossy(&output.stdout).trim()).unwrap_or_default()
 }
 
-// TEST MIDI
+// ─── TEST MIDI ────────────────────────────────────────────────────────────────
 
-// Spawns a Python script that listens to a MIDI input device and emits events.
 #[tauri::command]
 fn test_midi_input(
     device_name: String,
@@ -512,7 +549,7 @@ while True:
     thread::spawn(move || {
         for line in std::io::BufRead::lines(std::io::BufReader::new(stdout)) {
             if let Ok(line) = line {
-                eprintln!("[test_midi_input stdout] {}", line); // ← add
+                eprintln!("[test_midi_input stdout] {}", line);
                 if let Ok(event) = serde_json::from_str::<Value>(&line) {
                     let _ = app.emit("midi-event", event);
                 }
@@ -531,7 +568,7 @@ fn stop_midi_test(midi_state: State<MidiTestProcess>) -> Result<String, String> 
     Ok("MIDI listener stopped".to_string())
 }
 
-// TEST AUDIO
+// ─── TEST AUDIO ───────────────────────────────────────────────────────────────
 
 #[tauri::command]
 fn test_device_audio(
@@ -540,7 +577,6 @@ fn test_device_audio(
     app: AppHandle,
     test_state: State<TestProcess>,
 ) -> Result<String, String> {
-    // kill any existing test stream first
     if let Some(mut child) = test_state.0.lock().unwrap().take() {
         let _ = child.kill();
     }
@@ -550,10 +586,9 @@ fn test_device_audio(
 import sounddevice as sd
 import numpy as np
 
-# query the device's default sample rate
 device_info = sd.query_devices({device_id}, 'input')
 RATE = int(device_info['default_samplerate'])
-CHUNK = int(RATE * 0.05) # 50ms buffer
+CHUNK = int(RATE * 0.05)
 
 def callback(indata, frames, time, status):
     channel_data = indata[:, {channel}]
@@ -581,12 +616,10 @@ with sd.InputStream(
         .spawn()
         .map_err(|e| format!("Failed to spawn test stream: {}", e))?;
 
-    // take stdout before moving child into state
     let stdout = child.stdout.take().ok_or("No stdout")?;
     let stderr = child.stderr.take().ok_or("No stderr")?;
     *test_state.0.lock().unwrap() = Some(child);
 
-    // log stderr in a separate thread so you can see Python errors
     thread::spawn(move || {
         let reader = std::io::BufReader::new(stderr);
         for line in std::io::BufRead::lines(reader) {
@@ -596,7 +629,6 @@ with sd.InputStream(
         }
     });
 
-    // read stdout in background thread, emit each RMS value as an event
     thread::spawn(move || {
         let reader = std::io::BufReader::new(stdout);
         for line in std::io::BufRead::lines(reader) {
@@ -621,247 +653,165 @@ fn stop_device_test(test_state: State<TestProcess>) -> Result<String, String> {
     Ok("Test stream stopped".to_string())
 }
 
-// AUDIO PIPELINE
+// ─── PIPELINE TIER ────────────────────────────────────────────────────────────
+//
+// start_pipeline spawns only the 4 fast pipeline processes.
+// The WSL receivers are already running from app startup — no sleeps needed.
+//
+// stop_pipeline kills only those same 4 processes + writes the broadcaster
+// sentinel. The WSL receivers stay alive, keeping models warm in memory.
 
-// spawns the full pipeline: wsl_receiver -> wsl_receiver_heavy -> windows_receiver -> broadcaster -> capture -> midi_capture
 #[tauri::command]
 fn start_pipeline(
     app: AppHandle,
     capture_state: State<CaptureProcess>,
-    wsl_state: State<WslProcess>,
-    wsl_heavy_state: State<WslHeavyProcess>,
     broadcaster_state: State<BroadcasterProcess>,
     windows_receiver_state: State<WindowsReceiverProcess>,
     midi_capture_state: State<MidiCaptureProcess>,
 ) -> Result<String, String> {
-    let project_root_windows = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .ok_or("Could not resolve project root")?;
+    let root = project_root_windows()?;
 
-    let project_root_wsl = project_root_windows
-        .to_string_lossy()
-        .replace("C:\\", "/mnt/c/")
-        .replace("\\", "/")
-        .to_lowercase();
+    // Guard: don't double-spawn if already running
+    if capture_state.0.lock().unwrap().is_some() {
+        println!("[Tauri] Pipeline already running — ignoring start.");
+        return Ok("Already running".to_string());
+    }
 
-    // --- 1. Spawn wsl_receiver.py inside WSL ---
-    let wsl_script = format!("{}/backend/wsl/wsl_receiver.py", project_root_wsl);
-    let bash_cmd = format!(
-        "source {}/backend/wsl/.venv/bin/activate && python3 {}",
-        project_root_wsl, wsl_script
-    );
+    // 1. windows_receiver.py — must be up before broadcaster connects
+    {
+        let script = root.join("backend/windows/windows_receiver.py");
+        println!("[Tauri] Spawning windows_receiver.py...");
+        let child = Command::new("python")
+            .arg(&script)
+            .spawn()
+            .map_err(|e| format!("Failed to spawn windows_receiver.py: {}", e))?;
+        *windows_receiver_state.0.lock().unwrap() = Some(child);
+        println!("[Tauri] windows_receiver.py spawned.");
+    }
 
-    println!("[Tauri] Spawning wsl_receiver.py...");
+    // 2. broadcaster.py
+    {
+        let script = root.join("backend/windows/broadcaster.py");
+        println!("[Tauri] Spawning broadcaster.py...");
+        let child = Command::new("python")
+            .arg(&script)
+            .spawn()
+            .map_err(|e| format!("Failed to spawn broadcaster.py: {}", e))?;
+        *broadcaster_state.0.lock().unwrap() = Some(child);
+        println!("[Tauri] broadcaster.py spawned.");
+    }
 
-    let wsl_child = Command::new("wsl")
-        .args(["-d", "Ubuntu", "/bin/bash", "-c", &bash_cmd])
-        .spawn()
-        .map_err(|e| format!("Failed to spawn wsl_receiver.py: {}", e))?;
+    // 3. capture.py
+    {
+        let script = root.join("backend/windows/capture.py");
+        println!("[Tauri] Spawning capture.py...");
+        let child = Command::new("python")
+            .env("SD_ENABLE_ASIO", "1")
+            .arg(&script)
+            .spawn()
+            .map_err(|e| format!("Failed to spawn capture.py: {}", e))?;
+        *capture_state.0.lock().unwrap() = Some(child);
+        println!("[Tauri] capture.py spawned.");
+    }
 
-    *wsl_state.0.lock().unwrap() = Some(wsl_child);
-    println!("[Tauri] wsl_receiver.py spawned.");
+    // 4. midi_capture.py
+    {
+        let script = root.join("backend/windows/midi_capture.py");
+        println!("[Tauri] Spawning midi_capture.py...");
+        let child = Command::new("python")
+            .arg(&script)
+            .spawn()
+            .map_err(|e| format!("Failed to spawn midi_capture.py: {}", e))?;
+        *midi_capture_state.0.lock().unwrap() = Some(child);
+        println!("[Tauri] midi_capture.py spawned.");
+    }
 
-    std::thread::sleep(std::time::Duration::from_millis(1500));
-
-
-    // --- 1b. Spawn wsl_receiver_heavy.py inside WSL ---
-    let wsl_heavy_script = format!("{}/backend/wsl/wsl_receiver_heavy.py", project_root_wsl);
-    let bash_cmd_heavy = format!(
-        "source {}/backend/wsl/.venv/bin/activate && python3 {}",
-        project_root_wsl, wsl_heavy_script
-    );
-
-    println!("[Tauri] Spawning wsl_receiver_heavy.py...");
-
-    let wsl_heavy_child = Command::new("wsl")
-        .args(["-d", "Ubuntu", "/bin/bash", "-c", &bash_cmd_heavy])
-        .spawn()
-        .map_err(|e| format!("Failed to spawn wsl_receiver_heavy.py: {}", e))?;
-
-    *wsl_heavy_state.0.lock().unwrap() = Some(wsl_heavy_child);
-    println!("[Tauri] wsl_receiver_heavy.py spawned.");
-
-    std::thread::sleep(std::time::Duration::from_millis(500));
-
-    // --- 2. Spawn windows_receiver.py on Windows ---
-    let windows_receiver_script = project_root_windows.join("backend/windows/windows_receiver.py");
-
-    println!("[Tauri] Spawning windows_receiver.py...");
-
-    let windows_receiver_child = Command::new("python")
-        .arg(&windows_receiver_script)
-        .spawn()
-        .map_err(|e| format!("Failed to spawn windows_receiver.py: {}", e))?;
-
-    *windows_receiver_state.0.lock().unwrap() = Some(windows_receiver_child);
-    println!("[Tauri] windows_receiver.py spawned.");
-
-    std::thread::sleep(std::time::Duration::from_millis(500));
-
-    // --- 3. Spawn broadcaster.py on Windows ---
-    let broadcaster_script = project_root_windows.join("backend/windows/broadcaster.py");
-
-    println!("[Tauri] Spawning broadcaster.py...");
-
-    let broadcaster_child = Command::new("python")
-        .arg(&broadcaster_script)
-        .spawn()
-        .map_err(|e| format!("Failed to spawn broadcaster.py: {}", e))?;
-
-    *broadcaster_state.0.lock().unwrap() = Some(broadcaster_child);
-    println!("[Tauri] broadcaster.py spawned.");
-
-    std::thread::sleep(std::time::Duration::from_millis(500));
-
-    // --- 4. Spawn capture.py on Windows ---
-    let capture_script = project_root_windows.join("backend/windows/capture.py");
-
-    println!("[Tauri] Spawning capture.py...");
-
-    let capture_child = Command::new("python")
-        .env("SD_ENABLE_ASIO", "1")
-        .arg(&capture_script)
-        .spawn()
-        .map_err(|e| format!("Failed to spawn capture.py: {}", e))?;
-
-    *capture_state.0.lock().unwrap() = Some(capture_child);
-    println!("[Tauri] capture.py spawned.");
-
-    // --- 5. Spawn midi_capture.py on Windows ---
-    // midi_harmony_analyser runs in-process inside midi_capture.py — no WSL or socket needed.
-    let midi_capture_script = project_root_windows.join("backend/windows/midi_capture.py");
-
-    println!("[Tauri] Spawning midi_capture.py...");
-
-    let midi_capture_child = Command::new("python")
-        .arg(&midi_capture_script)
-        .spawn()
-        .map_err(|e| format!("Failed to spawn midi_capture.py: {}", e))?;
-
-    *midi_capture_state.0.lock().unwrap() = Some(midi_capture_child);
-    println!("[Tauri] midi_capture.py spawned.");
-
-    // Signal frontend that pipeline is ready
-    app.emit("pipeline-ready", ()).unwrap_or_else(|e| eprintln!("[Tauri] emit error: {}", e));
+    app.emit("pipeline-ready", ())
+        .unwrap_or_else(|e| eprintln!("[Tauri] emit error: {}", e));
 
     Ok("Pipeline started".to_string())
 }
 
-// kills all pipeline processes in reverse order: capture + midi_capture -> broadcaster -> windows_receiver -> wsl_receiver_heavy -> wsl_receiver
 #[tauri::command]
 fn stop_pipeline(
     capture_state: State<CaptureProcess>,
-    wsl_state: State<WslProcess>,
-    wsl_heavy_state: State<WslHeavyProcess>,
     broadcaster_state: State<BroadcasterProcess>,
     windows_receiver_state: State<WindowsReceiverProcess>,
     midi_capture_state: State<MidiCaptureProcess>,
 ) -> Result<String, String> {
-    let project_root_windows = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .ok_or("Could not resolve project root")?;
+    let root = project_root_windows()?;
 
-    // if capture.py is running, kill it
+    // Kill capture first — stops audio flowing into broadcaster
     if let Some(mut child) = capture_state.0.lock().unwrap().take() {
-        child
-            .kill()
-            .map_err(|e| format!("Failed to kill capture.py: {}", e))?;
+        let _ = child.kill();
         println!("[Tauri] capture.py stopped.");
     }
 
-    // if midi_capture.py is running, kill it
+    // Kill midi_capture
     if let Some(mut child) = midi_capture_state.0.lock().unwrap().take() {
-        child
-            .kill()
-            .map_err(|e| format!("Failed to kill midi_capture.py: {}", e))?;
+        let _ = child.kill();
         println!("[Tauri] midi_capture.py stopped.");
     }
 
-    let sentinel_path = project_root_windows
-        .join("backend")
-        .join("broadcaster.stop");
-
-    if let Err(e) = fs::write(&sentinel_path, b"stop") {
+    // Write stop sentinel — gives broadcaster a moment to flush/save state
+    let sentinel = root.join("backend/broadcaster.stop");
+    if let Err(e) = fs::write(&sentinel, b"stop") {
         eprintln!("[Tauri] Failed to write stop sentinel: {}", e);
     } else {
-        println!("[Tauri] Stop sentinel written — waiting for broadcaster to save...");
-        std::thread::sleep(std::time::Duration::from_millis(1500)); // give it time to save
+        println!("[Tauri] Stop sentinel written — waiting for broadcaster to flush...");
+        std::thread::sleep(std::time::Duration::from_millis(1500));
     }
 
-    // if broadcaster.py is running, kill it
+    // Kill broadcaster
     if let Some(mut child) = broadcaster_state.0.lock().unwrap().take() {
-        child
-            .kill()
-            .map_err(|e| format!("Failed to kill broadcaster.py: {}", e))?;
+        let _ = child.kill();
         println!("[Tauri] broadcaster.py stopped.");
     }
 
-    // if windows_receiver.py is running, kill it
+    // Kill windows_receiver last — it may still be processing the final frames
     if let Some(mut child) = windows_receiver_state.0.lock().unwrap().take() {
-        child
-            .kill()
-            .map_err(|e| format!("Failed to kill windows_receiver.py: {}", e))?;
+        let _ = child.kill();
         println!("[Tauri] windows_receiver.py stopped.");
     }
 
-    // if wsl_receiver.py is running, kill it
-    if let Some(mut child) = wsl_state.0.lock().unwrap().take() {
-        child
-            .kill()
-            .map_err(|e| format!("Failed to kill wsl_receiver.py: {}", e))?;
-        println!("[Tauri] receiver.py stopped.");
-    }
-
-    // if wsl_receiver_heavy.py is running, kill it
-    if let Some(mut child) = wsl_heavy_state.0.lock().unwrap().take() {
-        child
-            .kill()
-            .map_err(|e| format!("Failed to kill wsl_receiver_heavy.py: {}", e))?;
-        println!("[Tauri] wsl_receiver_heavy.py stopped.");
-    }
+    // WSL receivers stay alive — models remain loaded for next start.
+    println!("[Tauri] Pipeline stopped. WSL receivers remain warm.");
 
     Ok("Pipeline stopped".to_string())
 }
 
-/// Spawns a background thread that listens for incoming OSC messages from WSL.
-/// When a message arrives, it emits a Tauri event that the frontend can subscribe to.
+// ─── OSC LISTENER ─────────────────────────────────────────────────────────────
+
 fn start_osc_listener(app_handle: AppHandle) {
     thread::spawn(move || {
-        let socket =
-            UdpSocket::bind("0.0.0.0:9000").expect("[OSC] Failed to bind UDP socket on port 9000");
-
+        let socket = UdpSocket::bind("0.0.0.0:9000")
+            .expect("[OSC] Failed to bind UDP socket on port 9000");
         println!("[OSC] Listening for OSC messages on port 9000...");
 
         let mut buf = [0u8; 1024];
-
         loop {
             match socket.recv_from(&mut buf) {
                 Ok((size, addr)) => {
                     if OSC_DEBUG {
-                        println!("[OSC] Packet received from {} ({} bytes)", addr, size);
+                        println!("[OSC] Packet from {} ({} bytes)", addr, size);
                     }
-
                     match decode_udp(&buf[..size]) {
                         Ok((_, OscPacket::Message(msg))) => {
-
                             if OSC_DEBUG {
-                                println!("[OSC] Address: {}, Args: {:?}", msg.addr, msg.args);
+                                println!("[OSC] {}: {:?}", msg.addr, msg.args);
                             }
-
-                            // Extract the message payload
                             let payload = msg
                                 .args
                                 .first()
                                 .map(|a| match a {
                                     rosc::OscType::String(s) => s.clone(),
-                                    rosc::OscType::Float(f)  => f.to_string(),
+                                    rosc::OscType::Float(f) => f.to_string(),
                                     rosc::OscType::Double(d) => d.to_string(),
-                                    rosc::OscType::Int(i)    => i.to_string(),
-                                    _                        => String::new(),
+                                    rosc::OscType::Int(i) => i.to_string(),
+                                    _ => String::new(),
                                 })
                                 .unwrap_or_default();
 
-                            // Send BOTH address and payload as JSON
                             let osc_data = serde_json::json!({
                                 "address": msg.addr,
                                 "payload": payload
@@ -869,9 +819,9 @@ fn start_osc_listener(app_handle: AppHandle) {
 
                             app_handle
                                 .emit("osc-message", osc_data)
-                                .unwrap_or_else(|e| eprintln!("[OSC] Failed to emit event: {}", e));
+                                .unwrap_or_else(|e| eprintln!("[OSC] emit error: {}", e));
                         }
-                        Ok(_) => println!("[OSC] Received OSC bundle (ignored for now)"),
+                        Ok(_) => {}
                         Err(e) => eprintln!("[OSC] Decode error: {}", e),
                     }
                 }
@@ -881,7 +831,8 @@ fn start_osc_listener(app_handle: AppHandle) {
     });
 }
 
-// save current session configuration 
+// ─── SESSIONS ─────────────────────────────────────────────────────────────────
+
 #[tauri::command]
 async fn save_session(app: AppHandle) -> Result<String, String> {
     use tauri_plugin_dialog::DialogExt;
@@ -911,18 +862,16 @@ async fn save_session(app: AppHandle) -> Result<String, String> {
         return Ok("cancelled".to_string());
     };
 
-    let path = path.into_path()
+    let path = path
+        .into_path()
         .map_err(|e| format!("Invalid path: {}", e))?;
 
-    fs::write(&path, contents)
-        .map_err(|e| format!("Failed to write session file: {}", e))?;
+    fs::write(&path, contents).map_err(|e| format!("Failed to write session file: {}", e))?;
 
     menu::rebuild_menu(&app)?;
-
     Ok("saved".to_string())
 }
 
-// dynamic save session names
 fn next_session_name(sessions_dir: &Path) -> String {
     let mut i = 1;
     loop {
@@ -934,7 +883,6 @@ fn next_session_name(sessions_dir: &Path) -> String {
     }
 }
 
-// Loads in a previous session 
 #[tauri::command]
 async fn load_session(app: AppHandle, name: String) -> Result<Option<Value>, String> {
     let sessions_dir = sessions_path()?;
@@ -942,7 +890,6 @@ async fn load_session(app: AppHandle, name: String) -> Result<Option<Value>, Str
 
     let contents = fs::read_to_string(&path)
         .map_err(|e| format!("Failed to read session file: {}", e))?;
-
     let config: serde_json::Map<String, Value> = serde_json::from_str(&contents)
         .map_err(|e| format!("Invalid session file: {}", e))?;
 
@@ -955,23 +902,19 @@ async fn load_session(app: AppHandle, name: String) -> Result<Option<Value>, Str
 
     drop(config);
     let reconciled = reconcile_devices(app)?;
-
     Ok(Some(reconciled))
 }
 
-// Returns all session names (without .json extension) from the sessions/ folder.
 #[tauri::command]
 fn list_sessions() -> Result<Vec<String>, String> {
     let sessions_dir = sessions_path()?;
-
-    // folder might not exist yet if no sessions saved
     if !sessions_dir.exists() {
         return Ok(vec![]);
     }
 
     let mut names = vec![];
-    for entry in fs::read_dir(&sessions_dir)
-        .map_err(|e| format!("Failed to read sessions dir: {}", e))?
+    for entry in
+        fs::read_dir(&sessions_dir).map_err(|e| format!("Failed to read sessions dir: {}", e))?
     {
         let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
         let path = entry.path();
@@ -986,31 +929,52 @@ fn list_sessions() -> Result<Vec<String>, String> {
     Ok(names)
 }
 
+// ─── APP ENTRY POINT ──────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        // Pipeline tier — killed/restarted freely
         .manage(CaptureProcess(Mutex::new(None)))
         .manage(MidiCaptureProcess(Mutex::new(None)))
-        .manage(TestProcess(Mutex::new(None)))
-        .manage(MidiTestProcess(Mutex::new(None)))
+        .manage(BroadcasterProcess(Mutex::new(None)))
+        .manage(WindowsReceiverProcess(Mutex::new(None)))
+        // Persistent tier — survive stop/start, killed only on exit
         .manage(WslProcess(Mutex::new(None)))
         .manage(WslHeavyProcess(Mutex::new(None)))
-        .manage(WindowsReceiverProcess(Mutex::new(None)))
-        .manage(BroadcasterProcess(Mutex::new(None)))
+        // Test processes
+        .manage(TestProcess(Mutex::new(None)))
+        .manage(MidiTestProcess(Mutex::new(None)))
         .setup(|app| {
-            // build and attach the native menu
             let menu = menu::build_menu(&app.handle())?;
             app.set_menu(menu)?;
 
-            // start OSC listener
             start_osc_listener(app.handle().clone());
+
+            // Spawn persistent WSL processes immediately at startup.
+            // Models begin loading in the background while the user configures the session.
+            let wsl_state = app.state::<WslProcess>();
+            let wsl_heavy_state = app.state::<WslHeavyProcess>();
+            if let Err(e) = spawn_persistent_processes(&wsl_state, &wsl_heavy_state) {
+                eprintln!("[Tauri] Warning: failed to spawn persistent processes: {}", e);
+                // Non-fatal — user can still start the pipeline, it will just be slower
+            }
 
             Ok(())
         })
         .on_menu_event(menu::handle_menu_event)
+        // Kill persistent processes when the main window closes
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::Destroyed = event {
+                let app = window.app_handle();
+                let wsl = app.state::<WslProcess>();
+                let wsl_heavy = app.state::<WslHeavyProcess>();
+                kill_persistent_processes(&wsl, &wsl_heavy);
+                println!("[Tauri] App closing — persistent processes killed.");
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             get_audio_devices,
             get_midi_devices,
