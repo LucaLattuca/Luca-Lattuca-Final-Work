@@ -54,7 +54,7 @@ const Performance = ({ performanceState, setPerformanceState }) => {
 
             />
              {!enabled && (
-              <p className={Styles.infoText}>using automatic key detection according to harmony_analyser</p>
+              <p className={Styles.infoText}>using automatic key detection through harmony analyser</p>
             )}
             {enabled && (
               <>
