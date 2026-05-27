@@ -215,7 +215,12 @@ d.map("/image/prompt/negative",     _on_negative_prompt)
 d.map("/musinfo/image_gen_enabled", _on_image_gen_enabled)
 d.map("/musinfo/pipeline_running", _on_pipeline_running)
 
-server = osc_server.ThreadingOSCUDPServer((LISTEN_HOST, LISTEN_PORT), d)
+# allow Reuse of the adress
+class ReusableOSCServer(osc_server.ThreadingOSCUDPServer):
+    allow_reuse_address = True
+
+server = ReusableOSCServer((LISTEN_HOST, LISTEN_PORT), d)
+
 server_thread = threading.Thread(target=server.serve_forever, daemon=True)
 server_thread.start()
 print(f"[gen_image] OSC server listening on {LISTEN_HOST}:{LISTEN_PORT}", flush=True)
