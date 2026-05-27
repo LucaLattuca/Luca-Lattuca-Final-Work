@@ -19,6 +19,11 @@ from pythonosc import dispatcher, osc_server, udp_client
 import torch
 from diffusers import AutoPipelineForText2Image
 
+
+# pipeline state — set by Tauri when start/stop_pipeline fires
+_pipeline_running = False
+_pipeline_lock    = threading.Lock()
+
 # ── OSC config ─────────────────────────────────────────────────────────────────
 LISTEN_HOST = "127.0.0.1"
 LISTEN_PORT = 9002
@@ -49,6 +54,15 @@ GUIDANCE_SCALE      = 0.0  # CFG-free for Turbo
 
 _width, _height = RESOLUTION_MAP.get(RESOLUTION)
 
+
+# Pipeline Handler
+def _on_pipeline_running(address, *args):
+    global _pipeline_running
+    value = int(args[0]) if args else 0
+    with _pipeline_lock:
+        _pipeline_running = bool(value)
+    state = "RUNNING" if _pipeline_running else "STOPPED"
+    print(f"[gen_image] pipeline {state}", flush=True)
 
 
 # ── NDI output ─────────────────────────────────────────────────────────────────
@@ -153,12 +167,13 @@ def _generation_loop(pipe):
         _new_prompt_event.wait()
         _new_prompt_event.clear()
 
+        with _pipeline_lock:
+            pipeline = _pipeline_running
         with _image_gen_lock:
             active = _image_gen_enabled
 
-        if not active:
-            print("[gen_image] generation paused — toggle enabled to resume", flush=True)
-            continue  # prompt discarded, model stays warm
+        if not (pipeline and active):
+            continue  # silent — prompt_generator already logs the pause
 
         with _prompt_lock:
             positive = _pending_positive
@@ -190,23 +205,26 @@ def _generation_loop(pipe):
         except Exception as e:
             print(f"[gen_image] Generation error: {e}", flush=True)
 
-
 # ── Main ───────────────────────────────────────────────────────────────────────
+
+# Start OSC server immediately — before model loads so port 9002 is ready
+# for incoming prompts. They'll be held back by _image_gen_enabled = False.
+d = dispatcher.Dispatcher()
+d.map("/image/prompt/positive",     _on_positive_prompt)
+d.map("/image/prompt/negative",     _on_negative_prompt)
+d.map("/musinfo/image_gen_enabled", _on_image_gen_enabled)
+d.map("/musinfo/pipeline_running", _on_pipeline_running)
+
+server = osc_server.ThreadingOSCUDPServer((LISTEN_HOST, LISTEN_PORT), d)
+server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+server_thread.start()
+print(f"[gen_image] OSC server listening on {LISTEN_HOST}:{LISTEN_PORT}", flush=True)
+
+# Now load the heavy model — OSC is already accepting while this runs
 _pipe = _load_pipeline()
 _init_ndi()
 
 gen_thread = threading.Thread(target=_generation_loop, args=(_pipe,), daemon=True)
 gen_thread.start()
-
-d = dispatcher.Dispatcher()
-d.map("/image/prompt/positive", _on_positive_prompt)
-d.map("/image/prompt/negative", _on_negative_prompt)
-d.map("/musinfo/image_gen_enabled",  _on_image_gen_enabled)
-
-server = osc_server.ThreadingOSCUDPServer((LISTEN_HOST, LISTEN_PORT), d)
-server_thread = threading.Thread(target=server.serve_forever, daemon=True)
-server_thread.start()
-
-print(f"[gen_image] OSC server listening on {LISTEN_HOST}:{LISTEN_PORT}", flush=True)
 
 server_thread.join()
