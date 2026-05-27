@@ -56,7 +56,7 @@ def load_performance_config():
 
 
 # Debugging
-DEBUG = True
+DEBUG = False
 INFO = True
 
 # --- OSC config --------------------------------------------------------------

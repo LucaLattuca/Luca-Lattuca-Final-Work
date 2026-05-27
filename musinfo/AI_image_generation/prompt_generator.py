@@ -31,6 +31,10 @@ EMIT_PORT = 9002
 PROMPT_INTERVAL = 2.0  # seconds between prompt emissions
 
 
+# pipeline state — set by Tauri when start/stop_pipeline fires
+_pipeline_running = False
+_pipeline_lock    = threading.Lock()
+
 # ── State store ────────────────────────────────────────────────────────────────
 # None = not yet received from analyser. Defaults are applied at prompt assembly.
 _state_lock = threading.Lock()
@@ -42,6 +46,10 @@ _state = {
     "bpm":          None,   # float
     "tempo_feel":   None,   # str
 }
+
+# controlled by the Performance tab toggle via OSC from Tauri
+_image_gen_enabled = False
+_image_gen_lock    = threading.Lock()
 
 
 # ── Prompt assembly ────────────────────────────────────────────────────────────
@@ -98,6 +106,15 @@ KNOWN_TAG_MAP = {
     "motivational":"inspiring motivational energy",
     "nature":      "natural organic environment",
 }
+
+
+def _on_pipeline_running(address, *args):
+    global _pipeline_running
+    value = int(args[0]) if args else 0
+    with _pipeline_lock:
+        _pipeline_running = bool(value)
+    state = "RUNNING" if _pipeline_running else "STOPPED"
+    print(f"[prompt_gen] pipeline {state}", flush=True)
 
 def _clean_tags(raw_tags: str) -> str:
     if not raw_tags:
@@ -206,20 +223,43 @@ def _on_tempo_feel(address, *args):
         _state["tempo_feel"] = value
     print(f"[prompt_gen] tempo_feel: {value}", flush=True)
 
+def _on_image_gen_enabled(address, *args):
+    global _image_gen_enabled
+    value = int(args[0]) if args else 0
+    with _image_gen_lock:
+        _image_gen_enabled = bool(value)
+    state = "ENABLED" if _image_gen_enabled else "DISABLED"
+    print(f"[prompt_gen] image generation {state}", flush=True)
+
 
 # ── Emission loop ──────────────────────────────────────────────────────────────
 def _prompt_loop(emit_client):
+    _pipeline_was_running = False
+
     while True:
         time.sleep(PROMPT_INTERVAL)
+
+        with _pipeline_lock:
+            pipeline = _pipeline_running
+        with _image_gen_lock:
+            active = _image_gen_enabled
+
+        if not (pipeline and active):
+            _pipeline_was_running = pipeline
+            continue
+
+        # pipeline just became ready — wait 2s for analysers to warm up
+        if not _pipeline_was_running:
+            print("[prompt_gen] pipeline just started — waiting 2s for analysers...", flush=True)
+            time.sleep(2.0)
+            _pipeline_was_running = True
 
         with _state_lock:
             snapshot = dict(_state)
 
         positive = assemble_prompt(snapshot)
-
         emit_client.send_message("/image/prompt/positive", positive)
         emit_client.send_message("/image/prompt/negative", NEGATIVE_PROMPT)
-
         print(f"[prompt_gen] PROMPT: {positive}", flush=True)
 
 # ── Main ───────────────────────────────────────────────────────────────────────
@@ -230,6 +270,8 @@ d.map("/prompt/mood_tags",    _on_mood_tags)
 d.map("/prompt/danceability", _on_danceability)
 d.map("/prompt/bpm",          _on_bpm)
 d.map("/prompt/tempo_feel",   _on_tempo_feel)
+d.map("/musinfo/image_gen_enabled",   _on_image_gen_enabled) 
+d.map("/musinfo/pipeline_running", _on_pipeline_running)
 
 server = osc_server.ThreadingOSCUDPServer((LISTEN_HOST, LISTEN_PORT), d)
 server_thread = threading.Thread(target=server.serve_forever, daemon=True)

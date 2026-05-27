@@ -9,6 +9,7 @@ use std::process::Stdio;
 use std::process::{Child, Command};
 use std::sync::Mutex;
 use std::thread;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 // ─── PROCESS STATE ────────────────────────────────────────────────────────────
@@ -28,6 +29,11 @@ struct MidiCaptureProcess(Mutex<Option<Child>>);
 // midi_harmony_analyser runs in-process inside midi_capture.py — not managed here.
 struct WslProcess(Mutex<Option<Child>>);
 struct WslHeavyProcess(Mutex<Option<Child>>);
+
+// IMAGE GENERATION TIER — spawned at startup, persistent like WSL processes
+struct PromptGeneratorProcess(Mutex<Option<Child>>);
+struct ImageGenProcess(Mutex<Option<Child>>);
+static PIPELINE_RUNNING: AtomicBool = AtomicBool::new(false);
 
 // DEBUGGING
 const OSC_DEBUG: bool = false;
@@ -76,6 +82,11 @@ fn project_root_wsl() -> Result<String, String> {
         .to_lowercase())
 }
 
+fn project_root_image_gen() -> Result<std::path::PathBuf, String> {
+    let root = project_root_windows()?;
+    Ok(root.join("AI_image_generation"))
+}
+
 // ─── CONFIG HELPERS ───────────────────────────────────────────────────────────
 
 fn read_config(path: &Path) -> Result<serde_json::Map<String, Value>, String> {
@@ -95,18 +106,21 @@ fn write_config(path: &Path, config: &serde_json::Map<String, Value>) -> Result<
 /// Called once from setup(). These processes hold all TensorFlow/Essentia
 /// models in memory — killing them forces a full reload, so we don't.
 fn spawn_persistent_processes(
-    wsl_state: &WslProcess,
-    wsl_heavy_state: &WslHeavyProcess,
+    wsl_state:             &WslProcess,
+    wsl_heavy_state:       &WslHeavyProcess,
+    prompt_gen_state:      &PromptGeneratorProcess,
+    image_gen_state:       &ImageGenProcess,
 ) -> Result<(), String> {
     let wsl_root = project_root_wsl()?;
-    let venv = format!("{}/backend/wsl/.venv/bin/activate", wsl_root);
+    let venv     = format!("{}/backend/wsl/.venv/bin/activate", wsl_root);
+    let img_root = project_root_image_gen()?;
 
-    // wsl_receiver.py
+    // wsl_receiver.py — unchanged
     {
         let mut guard = wsl_state.0.lock().unwrap();
         if guard.is_none() {
             let script = format!("{}/backend/wsl/wsl_receiver.py", wsl_root);
-            let cmd = format!("source {} && python3 {}", venv, script);
+            let cmd    = format!("source {} && python3 {}", venv, script);
             println!("[Tauri] Spawning persistent wsl_receiver.py...");
             let child = Command::new("wsl")
                 .args(["-d", "Ubuntu", "/bin/bash", "-c", &cmd])
@@ -117,12 +131,12 @@ fn spawn_persistent_processes(
         }
     }
 
-    // wsl_receiver_heavy.py
+    // wsl_receiver_heavy.py — unchanged
     {
         let mut guard = wsl_heavy_state.0.lock().unwrap();
         if guard.is_none() {
             let script = format!("{}/backend/wsl/wsl_receiver_heavy.py", wsl_root);
-            let cmd = format!("source {} && python3 {}", venv, script);
+            let cmd    = format!("source {} && python3 {}", venv, script);
             println!("[Tauri] Spawning persistent wsl_receiver_heavy.py...");
             let child = Command::new("wsl")
                 .args(["-d", "Ubuntu", "/bin/bash", "-c", &cmd])
@@ -133,11 +147,48 @@ fn spawn_persistent_processes(
         }
     }
 
+    // prompt_generator.py — Windows side, AI_image_generation/
+    {
+        let mut guard = prompt_gen_state.0.lock().unwrap();
+        if guard.is_none() {
+            let script = img_root.join("prompt_generator.py");
+            println!("[Tauri] Spawning persistent prompt_generator.py...");
+            let child = Command::new("python")
+                .arg(&script)
+                .spawn()
+                .map_err(|e| format!("Failed to spawn prompt_generator.py: {}", e))?;
+            *guard = Some(child);
+            println!("[Tauri] prompt_generator.py spawned.");
+        }
+    }
+
+    // generate_image.py — Windows side, AI_image_generation/
+    // This takes 15-30s to load the model — spawned early so it's ready by the time
+    // the user starts a session.
+    {
+        let mut guard = image_gen_state.0.lock().unwrap();
+        if guard.is_none() {
+            let script = img_root.join("generate_image.py");
+            println!("[Tauri] Spawning persistent generate_image.py (model loading ~15-30s)...");
+            let child = Command::new("python")
+                .arg(&script)
+                .spawn()
+                .map_err(|e| format!("Failed to spawn generate_image.py: {}", e))?;
+            *guard = Some(child);
+            println!("[Tauri] generate_image.py spawned.");
+        }
+    }
+
     Ok(())
 }
 
 /// Kills both persistent WSL processes. Called only on app exit.
-fn kill_persistent_processes(wsl_state: &WslProcess, wsl_heavy_state: &WslHeavyProcess) {
+fn kill_persistent_processes(
+    wsl_state:        &WslProcess,
+    wsl_heavy_state:  &WslHeavyProcess,
+    prompt_gen_state: &PromptGeneratorProcess,
+    image_gen_state:  &ImageGenProcess,
+) {
     if let Some(mut child) = wsl_state.0.lock().unwrap().take() {
         let _ = child.kill();
         println!("[Tauri] wsl_receiver.py stopped.");
@@ -145,6 +196,14 @@ fn kill_persistent_processes(wsl_state: &WslProcess, wsl_heavy_state: &WslHeavyP
     if let Some(mut child) = wsl_heavy_state.0.lock().unwrap().take() {
         let _ = child.kill();
         println!("[Tauri] wsl_receiver_heavy.py stopped.");
+    }
+    if let Some(mut child) = prompt_gen_state.0.lock().unwrap().take() {
+        let _ = child.kill();
+        println!("[Tauri] prompt_generator.py stopped.");
+    }
+    if let Some(mut child) = image_gen_state.0.lock().unwrap().take() {
+        let _ = child.kill();
+        println!("[Tauri] generate_image.py stopped.");
     }
 }
 
@@ -176,6 +235,31 @@ fn save_performance_config(
     Ok(())
 }
 
+// ─── IMAGE GENERATION ──────────────────────────────────────────────────────────────
+
+#[tauri::command]
+fn toggle_image_generation(enabled: bool) -> Result<(), String> {
+    let socket = UdpSocket::bind("0.0.0.0:0")
+        .map_err(|e| format!("Failed to bind OSC socket: {}", e))?;
+
+    fn build_osc(address: &str, value: i32) -> Vec<u8> {
+        use rosc::{OscMessage, OscPacket, OscType};
+        rosc::encoder::encode(&OscPacket::Message(OscMessage {
+            addr: address.to_string(),
+            args: vec![OscType::Int(value)],
+        })).unwrap_or_default()
+    }
+
+    let flag: i32 = if enabled { 1 } else { 0 };
+    let msg = build_osc("/musinfo/image_gen_enabled", flag);
+    socket.send_to(&msg, "127.0.0.1:9001")
+        .map_err(|e| format!("Failed to send OSC to prompt_generator: {}", e))?;
+    socket.send_to(&msg, "127.0.0.1:9002")
+        .map_err(|e| format!("Failed to send OSC to generate_image: {}", e))?;
+
+    println!("[Tauri] image_gen_enabled -> {} (prompt_generator + generate_image)", flag);
+    Ok(())
+}
 // ─── INSTRUMENTS ──────────────────────────────────────────────────────────────
 
 #[tauri::command]
@@ -726,6 +810,24 @@ fn start_pipeline(
         println!("[Tauri] midi_capture.py spawned.");
     }
 
+    // notify image gen processes that pipeline is now running
+    {
+        let socket = UdpSocket::bind("0.0.0.0:0").ok();
+        if let Some(sock) = socket {
+            fn build_osc(address: &str, value: i32) -> Vec<u8> {
+                use rosc::{OscMessage, OscPacket, OscType};
+                rosc::encoder::encode(&OscPacket::Message(OscMessage {
+                    addr: address.to_string(),
+                    args: vec![OscType::Int(value)],
+                })).unwrap_or_default()
+            }
+            let msg = build_osc("/musinfo/pipeline_running", 1);
+            let _ = sock.send_to(&msg, "127.0.0.1:9001");
+            let _ = sock.send_to(&msg, "127.0.0.1:9002");
+            println!("[Tauri] pipeline_running -> 1 sent to image gen processes");
+        }
+    }
+
     app.emit("pipeline-ready", ())
         .unwrap_or_else(|e| eprintln!("[Tauri] emit error: {}", e));
 
@@ -739,6 +841,26 @@ fn stop_pipeline(
     windows_receiver_state: State<WindowsReceiverProcess>,
     midi_capture_state: State<MidiCaptureProcess>,
 ) -> Result<String, String> {
+    PIPELINE_RUNNING.store(false, Ordering::SeqCst);
+
+    // notify image gen processes that pipeline has stopped
+    {
+        let socket = UdpSocket::bind("0.0.0.0:0").ok();
+        if let Some(sock) = socket {
+            fn build_osc(address: &str, value: i32) -> Vec<u8> {
+                use rosc::{OscMessage, OscPacket, OscType};
+                rosc::encoder::encode(&OscPacket::Message(OscMessage {
+                    addr: address.to_string(),
+                    args: vec![OscType::Int(value)],
+                })).unwrap_or_default()
+            }
+            let msg = build_osc("/musinfo/pipeline_running", 0);
+            let _ = sock.send_to(&msg, "127.0.0.1:9001");
+            let _ = sock.send_to(&msg, "127.0.0.1:9002");
+            println!("[Tauri] pipeline_running -> 0 sent to image gen processes");
+        }
+    }
+    
     let root = project_root_windows()?;
 
     // Kill capture first — stops audio flowing into broadcaster
@@ -944,6 +1066,9 @@ pub fn run() {
         // Persistent tier — survive stop/start, killed only on exit
         .manage(WslProcess(Mutex::new(None)))
         .manage(WslHeavyProcess(Mutex::new(None)))
+        // image generation processes
+        .manage(PromptGeneratorProcess(Mutex::new(None)))  
+        .manage(ImageGenProcess(Mutex::new(None)))          
         // Test processes
         .manage(TestProcess(Mutex::new(None)))
         .manage(MidiTestProcess(Mutex::new(None)))
@@ -957,7 +1082,12 @@ pub fn run() {
             // Models begin loading in the background while the user configures the session.
             let wsl_state = app.state::<WslProcess>();
             let wsl_heavy_state = app.state::<WslHeavyProcess>();
-            if let Err(e) = spawn_persistent_processes(&wsl_state, &wsl_heavy_state) {
+
+            let prompt_gen      = app.state::<PromptGeneratorProcess>();
+            let image_gen       = app.state::<ImageGenProcess>();
+
+
+            if let Err(e) = spawn_persistent_processes(&wsl_state, &wsl_heavy_state, &prompt_gen, &image_gen) {
                 eprintln!("[Tauri] Warning: failed to spawn persistent processes: {}", e);
                 // Non-fatal — user can still start the pipeline, it will just be slower
             }
@@ -971,7 +1101,9 @@ pub fn run() {
                 let app = window.app_handle();
                 let wsl = app.state::<WslProcess>();
                 let wsl_heavy = app.state::<WslHeavyProcess>();
-                kill_persistent_processes(&wsl, &wsl_heavy);
+                let prompt_gen = app.state::<PromptGeneratorProcess>();
+                let image_gen  = app.state::<ImageGenProcess>();
+                kill_persistent_processes(&wsl, &wsl_heavy, &prompt_gen, &image_gen);
                 println!("[Tauri] App closing — persistent processes killed.");
             }
         })
@@ -991,6 +1123,7 @@ pub fn run() {
             load_session,
             list_sessions,
             save_performance_config,
+            toggle_image_generation,  
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

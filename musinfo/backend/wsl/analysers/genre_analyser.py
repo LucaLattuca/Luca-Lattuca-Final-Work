@@ -23,7 +23,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 MODEL_RATE     = 16000
 CHUNK_DURATION = 4
 CHUNK_SAMPLES  = MODEL_RATE * CHUNK_DURATION
-HOP_FRACTION   = 0.5
+HOP_FRACTION   = 0.5 # 0.5 = 2s, 0.25 = 1s
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR = os.path.join(os.path.dirname(SCRIPT_DIR), "models")
