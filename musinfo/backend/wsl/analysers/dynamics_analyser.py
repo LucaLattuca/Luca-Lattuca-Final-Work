@@ -85,6 +85,7 @@ class DynamicsAnalyser:
         self.rms_history = []
         self.frame_counter = 0
         self.last_onset_frame_global = -1
+        self.onset_pending_reset = False  # reset onset value on next tick
 
         # OSC client
         self.osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
@@ -93,10 +94,7 @@ class DynamicsAnalyser:
         self.addr_strength  = f"/dynamics/{self.instrument_name}/onset_strength"
         self.addr_rms_onset = f"/dynamics/{self.instrument_name}/rms_at_onset"
 
-        
         self.td_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_TD_PORT)
-
-        
 
         if INFO : 
             print(f"[dynamics] Ready for '{instrument_name}' @ {sample_rate}Hz (method={method})")
@@ -111,6 +109,7 @@ class DynamicsAnalyser:
         if chunk_rms < SILENCE_THRESHOLD:
             self.smoothed_rms = (1 - RMS_EMA_ALPHA) * self.smoothed_rms
             self._send_rms()
+            self._maybe_reset_onset()
             return
 
         # Accumulate into frame buffer and process as many full frames as available
@@ -126,6 +125,7 @@ class DynamicsAnalyser:
             + (1 - RMS_EMA_ALPHA) * self.smoothed_rms
         )
         self._send_rms()
+        self._maybe_reset_onset()
 
     def _process_frame(self, frame):
         windowed = self.windower(frame)
@@ -199,7 +199,18 @@ class DynamicsAnalyser:
         self.td_client.send_message(f"/td/dynamics/{self.instrument_index}/onset_strength", float(onset_strength))
         self.td_client.send_message(f"/td/dynamics/{self.instrument_index}/rms_at_onset",   float(scaled_rms_at_onset))
 
+        # Flag a reset for the next tick so onset value drops back to 0
+        self.onset_pending_reset = True
+
         if DEBUG : 
             print(f"[dynamics/{self.instrument_name}] onset "
                   f"strength={onset_strength:.3f} rms@onset={scaled_rms_at_onset:.1f}")
             sys.stdout.flush()
+
+    def _maybe_reset_onset(self):
+        # Called every tick after _send_rms — clears onset value 1 tick after firing
+        if not self.onset_pending_reset:
+            return
+        self.osc_client.send_message(self.addr_onset, 0)
+        self.td_client.send_message(f"/td/dynamics/{self.instrument_index}/onset", 0)
+        self.onset_pending_reset = False
