@@ -282,11 +282,17 @@ fn save_instrument(_app: AppHandle, instrument: Value) -> Result<String, String>
         obj.remove("name");
     }
 
-    config
+    let instruments = config
         .get_mut("instruments")
         .and_then(|v| v.as_object_mut())
-        .ok_or("instruments.json has no 'instruments' key")?
-        .insert(name, entry);
+        .ok_or("instruments.json has no 'instruments' key")?;
+
+    instruments.insert(name, entry);
+
+    // Sink mix to last entry after every save
+    if let Some(mix_entry) = instruments.remove("mix") {
+        instruments.insert("mix".to_string(), mix_entry);
+    }
 
     let output = serde_json::to_string_pretty(&config)
         .map_err(|e| format!("Failed to serialize: {}", e))?;
@@ -295,6 +301,7 @@ fn save_instrument(_app: AppHandle, instrument: Value) -> Result<String, String>
 
     Ok("Instrument saved".to_string())
 }
+
 
 #[tauri::command]
 fn delete_instrument(_app: AppHandle, name: String) -> Result<String, String> {
