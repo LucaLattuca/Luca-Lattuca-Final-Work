@@ -87,12 +87,16 @@ def _send_ndi_frame(image):
     import NDIlib as ndi
     import numpy as np
 
-    # Convert PIL → numpy RGBA and assign directly to frame.data
     rgba = np.array(image.convert("RGBA"), dtype=np.uint8)
+    # ensure C-contiguous memory layout — required by some NDI binding versions
+    rgba = np.ascontiguousarray(rgba)
 
-    frame        = ndi.VideoFrameV2()
-    frame.data   = rgba
-    frame.FourCC = ndi.FOURCC_VIDEO_TYPE_RGBA
+    frame           = ndi.VideoFrameV2()
+    frame.width     = image.width
+    frame.height    = image.height
+    frame.data      = rgba
+    frame.FourCC    = ndi.FOURCC_VIDEO_TYPE_RGBA
+    frame.line_stride_in_bytes = image.width * 4
 
     ndi.send_send_video_v2(_ndi_send, frame)
     print(f"[gen_image] NDI frame sent ({image.width}×{image.height})", flush=True)
