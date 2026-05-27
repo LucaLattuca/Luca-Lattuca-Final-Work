@@ -44,6 +44,8 @@ _width, _height = RESOLUTION_MAP.get(RESOLUTION)
 _pipeline_running = False
 _pipeline_lock    = threading.Lock()
 
+
+_model_ready = False
 _image_gen_enabled = False
 _image_gen_lock    = threading.Lock()
 
@@ -97,13 +99,14 @@ def _load_pipeline():
 
 # ── OSC handlers ───────────────────────────────────────────────────────────────
 def _on_positive_prompt(address, *args):
-    global _pending_positive
+    global _pending_positive, _model_ready
     value = str(args[0]) if args else ""
     if not value:
         return
     with _prompt_lock:
         _pending_positive = value
-    _new_prompt_event.set()
+    if _model_ready:
+        _new_prompt_event.set()
 
 def _on_negative_prompt(address, *args):
     global _pending_negative
@@ -136,6 +139,8 @@ def _send_fade_trigger():
 
 # ── Generation loop ────────────────────────────────────────────────────────────
 def _generation_loop(pipe):
+    global _pending_positive, _pending_negative
+    print("[gen_image] Generation loop started", flush=True)
     while True:
         _new_prompt_event.wait()
         _new_prompt_event.clear()
@@ -159,7 +164,7 @@ def _generation_loop(pipe):
         t0 = time.time()
 
         try:
-            result  = pipe(
+            result = pipe(
                 prompt              = positive,
                 negative_prompt     = negative,
                 width               = _width,
@@ -171,6 +176,10 @@ def _generation_loop(pipe):
             print(f"[gen_image] Done in {time.time() - t0:.2f}s", flush=True)
         except Exception as e:
             print(f"[gen_image] Generation error: {e}", flush=True)
+            # clear stale prompt so the next cycle uses a fresh one
+            with _prompt_lock:
+                _pending_positive = None
+                _pending_negative = None
             continue
 
         try:
@@ -196,6 +205,10 @@ print(f"[gen_image] OSC server listening on {LISTEN_HOST}:{LISTEN_PORT}", flush=
 
 _pipe = _load_pipeline()
 _init_ndi()
+
+_model_ready = True  # now prompts will actually trigger generation
+print("[gen_image] Ready for generation", flush=True)
+
 
 gen_thread = threading.Thread(target=_generation_loop, args=(_pipe,), daemon=True)
 gen_thread.start()
