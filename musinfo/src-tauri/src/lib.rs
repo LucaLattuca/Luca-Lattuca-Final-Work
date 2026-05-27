@@ -9,6 +9,7 @@ use std::process::Stdio;
 use std::process::{Child, Command};
 use std::sync::Mutex;
 use std::thread;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 // ─── PROCESS STATE ────────────────────────────────────────────────────────────
@@ -32,6 +33,7 @@ struct WslHeavyProcess(Mutex<Option<Child>>);
 // IMAGE GENERATION TIER — spawned at startup, persistent like WSL processes
 struct PromptGeneratorProcess(Mutex<Option<Child>>);
 struct ImageGenProcess(Mutex<Option<Child>>);
+static PIPELINE_RUNNING: AtomicBool = AtomicBool::new(false);
 
 // DEBUGGING
 const OSC_DEBUG: bool = false;
@@ -237,40 +239,27 @@ fn save_performance_config(
 
 #[tauri::command]
 fn toggle_image_generation(enabled: bool) -> Result<(), String> {
-
-    // bind any available local port for sending
     let socket = UdpSocket::bind("0.0.0.0:0")
         .map_err(|e| format!("Failed to bind OSC socket: {}", e))?;
 
-    // tell prompt_generator.py to pause/resume emission
-    let prompt_addr = "127.0.0.1:9001";
-    let gen_addr    = "127.0.0.1:9002";
-
-    let flag: i32 = if enabled { 1 } else { 0 };
-
-    // build a minimal OSC message manually:
-    // address: /musinfo/image_gen_enabled
-    // type tag: ,i
-    // value: 0 or 1
     fn build_osc(address: &str, value: i32) -> Vec<u8> {
         use rosc::{OscMessage, OscPacket, OscType};
         rosc::encoder::encode(&OscPacket::Message(OscMessage {
             addr: address.to_string(),
             args: vec![OscType::Int(value)],
-        }))
-        .unwrap_or_default()
+        })).unwrap_or_default()
     }
 
+    let flag: i32 = if enabled { 1 } else { 0 };
     let msg = build_osc("/musinfo/image_gen_enabled", flag);
-    socket.send_to(&msg, prompt_addr)
+    socket.send_to(&msg, "127.0.0.1:9001")
         .map_err(|e| format!("Failed to send OSC to prompt_generator: {}", e))?;
-    socket.send_to(&msg, gen_addr)
+    socket.send_to(&msg, "127.0.0.1:9002")
         .map_err(|e| format!("Failed to send OSC to generate_image: {}", e))?;
 
     println!("[Tauri] image_gen_enabled -> {} (prompt_generator + generate_image)", flag);
     Ok(())
 }
-
 // ─── INSTRUMENTS ──────────────────────────────────────────────────────────────
 
 #[tauri::command]
@@ -821,6 +810,24 @@ fn start_pipeline(
         println!("[Tauri] midi_capture.py spawned.");
     }
 
+    // notify image gen processes that pipeline is now running
+    {
+        let socket = UdpSocket::bind("0.0.0.0:0").ok();
+        if let Some(sock) = socket {
+            fn build_osc(address: &str, value: i32) -> Vec<u8> {
+                use rosc::{OscMessage, OscPacket, OscType};
+                rosc::encoder::encode(&OscPacket::Message(OscMessage {
+                    addr: address.to_string(),
+                    args: vec![OscType::Int(value)],
+                })).unwrap_or_default()
+            }
+            let msg = build_osc("/musinfo/pipeline_running", 1);
+            let _ = sock.send_to(&msg, "127.0.0.1:9001");
+            let _ = sock.send_to(&msg, "127.0.0.1:9002");
+            println!("[Tauri] pipeline_running -> 1 sent to image gen processes");
+        }
+    }
+
     app.emit("pipeline-ready", ())
         .unwrap_or_else(|e| eprintln!("[Tauri] emit error: {}", e));
 
@@ -834,6 +841,26 @@ fn stop_pipeline(
     windows_receiver_state: State<WindowsReceiverProcess>,
     midi_capture_state: State<MidiCaptureProcess>,
 ) -> Result<String, String> {
+    PIPELINE_RUNNING.store(false, Ordering::SeqCst);
+
+    // notify image gen processes that pipeline has stopped
+    {
+        let socket = UdpSocket::bind("0.0.0.0:0").ok();
+        if let Some(sock) = socket {
+            fn build_osc(address: &str, value: i32) -> Vec<u8> {
+                use rosc::{OscMessage, OscPacket, OscType};
+                rosc::encoder::encode(&OscPacket::Message(OscMessage {
+                    addr: address.to_string(),
+                    args: vec![OscType::Int(value)],
+                })).unwrap_or_default()
+            }
+            let msg = build_osc("/musinfo/pipeline_running", 0);
+            let _ = sock.send_to(&msg, "127.0.0.1:9001");
+            let _ = sock.send_to(&msg, "127.0.0.1:9002");
+            println!("[Tauri] pipeline_running -> 0 sent to image gen processes");
+        }
+    }
+    
     let root = project_root_windows()?;
 
     // Kill capture first — stops audio flowing into broadcaster
