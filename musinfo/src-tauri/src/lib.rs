@@ -835,6 +835,23 @@ fn start_pipeline(
         }
     }
 
+    // Notify TouchDesigner to reset OSC state
+    {
+        let socket = UdpSocket::bind("0.0.0.0:0").ok();
+        if let Some(sock) = socket {
+            fn build_osc_reset(address: &str, value: i32) -> Vec<u8> {
+                use rosc::{OscMessage, OscPacket, OscType};
+                rosc::encoder::encode(&OscPacket::Message(OscMessage {
+                    addr: address.to_string(),
+                    args: vec![OscType::Int(value)],
+                })).unwrap_or_default()
+            }
+            let _ = sock.send_to(&build_osc_reset("/musinfo/reset", 1), "127.0.0.1:9099");
+            let _ = sock.send_to(&build_osc_reset("/musinfo/reset", 0), "127.0.0.1:9099");
+            println!("[Tauri] /musinfo/reset pulse sent to TouchDesigner on port 9099");
+        }
+    }
+
     app.emit("pipeline-ready", ())
         .unwrap_or_else(|e| eprintln!("[Tauri] emit error: {}", e));
 
@@ -865,6 +882,23 @@ fn stop_pipeline(
             let _ = sock.send_to(&msg, "127.0.0.1:9001");
             let _ = sock.send_to(&msg, "127.0.0.1:9002");
             println!("[Tauri] pipeline_running -> 0 sent to image gen processes");
+        }
+    }
+
+    // Notify TouchDesigner to reset OSC state
+    {
+        let socket = UdpSocket::bind("0.0.0.0:0").ok();
+        if let Some(sock) = socket {
+            fn build_osc_reset(address: &str, value: i32) -> Vec<u8> {
+                use rosc::{OscMessage, OscPacket, OscType};
+                rosc::encoder::encode(&OscPacket::Message(OscMessage {
+                    addr: address.to_string(),
+                    args: vec![OscType::Int(value)],
+                })).unwrap_or_default()
+            }
+            let _ = sock.send_to(&build_osc_reset("/musinfo/reset", 1), "127.0.0.1:9099");
+            let _ = sock.send_to(&build_osc_reset("/musinfo/reset", 0), "127.0.0.1:9099");
+            println!("[Tauri] /musinfo/reset pulse sent to TouchDesigner on port 9099");
         }
     }
     
