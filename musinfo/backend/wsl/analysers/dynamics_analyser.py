@@ -188,7 +188,7 @@ class DynamicsAnalyser:
         if scaled < 0.01:  # floor — don't send noise
             scaled = 0.0
         self.osc_client.send_message(self.addr_rms, scaled)
-        self.td_client.send_message(f"/td/dynamics/{self.instrument_role}/rms", scaled)
+        self.td_client.send_message(f"/td/dynamics/{self.instrument_role}/{self.role_index}/rms", scaled)
 
     def _send_onset(self, onset_strength, rms_at_onset):
         scaled_rms_at_onset = min(100.0, rms_at_onset * 300.0)
@@ -196,9 +196,9 @@ class DynamicsAnalyser:
         self.osc_client.send_message(self.addr_strength, float(onset_strength))
         self.osc_client.send_message(self.addr_rms_onset, float(scaled_rms_at_onset))
 
-        self.td_client.send_message(f"/td/dynamics/{self.instrument_role}/onset",          1)
-        self.td_client.send_message(f"/td/dynamics/{self.instrument_role}/onset_strength", float(onset_strength))
-        self.td_client.send_message(f"/td/dynamics/{self.instrument_role}/rms_at_onset",   float(scaled_rms_at_onset))
+        self.td_client.send_message(f"/td/dynamics/{self.instrument_role}/{self.role_index}/onset",          1)
+        self.td_client.send_message(f"/td/dynamics/{self.instrument_role}/{self.role_index}/onset_strength", float(onset_strength))
+        self.td_client.send_message(f"/td/dynamics/{self.instrument_role}/{self.role_index}/rms_at_onset",   float(scaled_rms_at_onset))
 
         # Flag a reset for the next tick so onset value drops back to 0
         self.onset_pending_reset = True
@@ -213,5 +213,5 @@ class DynamicsAnalyser:
         if not self.onset_pending_reset:
             return
         self.osc_client.send_message(self.addr_onset, 0)
-        self.td_client.send_message(f"/td/dynamics/{self.instrument_role}/onset", 0)
+        self.td_client.send_message(f"/td/dynamics/{self.instrument_role}/{self.role_index}/onset", 0)
         self.onset_pending_reset = False

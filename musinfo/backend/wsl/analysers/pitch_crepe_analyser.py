@@ -168,7 +168,8 @@ class PitchCREPEAnalyser:
         if DEBUG : 
             self._display(best)
         self.osc.send_message(f"/pitch_crepe/{self.instrument_name}", best["note"])
-
+        
+        self.td_client.send_message(f"/td/pitch/{self.instrument_role}/{self.role_index}/hz", best["freq_hz"])
         if DEBUG :
             print(f"[Pitch_crepe] → /pitch_crepe/{self.instrument_name}  {best['note']}  {best['freq_hz']}Hz  conf={best['confidence']:.3f}")
             sys.stdout.flush()

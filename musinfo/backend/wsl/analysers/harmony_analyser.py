@@ -530,15 +530,15 @@ class HarmonyAnalyser:
         )
         
         # send to touchdesigner
-        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/chord",          result["chord"] or "")
-        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/chord_quality",  result["chord_quality"] or "")
-        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/chord_strength", result["chord_strength"])
-        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/roman_degree",   result["roman_degree"] or "")
-        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/key",            result["key"] or "")
-        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/scale",          result["scale"] or "")
-        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/dissonance",     result["dissonance"])
-        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/harmonic_change",result["harmonic_change"])
-        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/hpcp",           result["hpcp"])
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/{self.role_index}/chord",          result["chord"] or "")
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/{self.role_index}/chord_quality",  result["chord_quality"] or "")
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/{self.role_index}/chord_strength", result["chord_strength"])
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/{self.role_index}/roman_degree",   result["roman_degree"] or "")
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/{self.role_index}/key",            result["key"] or "")
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/{self.role_index}/scale",          result["scale"] or "")
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/{self.role_index}/dissonance",     result["dissonance"])
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/{self.role_index}/harmonic_change",result["harmonic_change"])
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/{self.role_index}/hpcp",           result["hpcp"])
 
     def _display(self, result: dict):
         chord   = result["chord"] or "—"

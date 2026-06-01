@@ -163,7 +163,7 @@ class TimbreAnalyser:
             f"/timbre/{self.instrument_name}/mfcc", mfcc.tolist()
         )
 
-        self.td_client.send_message(f"/td/timbre/{self.instrument_role}/mfcc", mfcc.tolist())
+        self.td_client.send_message(f"/td/timbre/{self.instrument_role}/{self.role_index}/mfcc", mfcc.tolist())
 
 
 
@@ -242,12 +242,12 @@ class TimbreAnalyser:
         
         self.osc.send_message(f"/timbre/{self.instrument_name}/attack", attack_sec)
 
-        self.td_client.send_message(f"/td/timbre/{self.instrument_role}/attack", attack_sec)
+        self.td_client.send_message(f"/td/timbre/{self.instrument_role}/{self.role_index}/attack", attack_sec)
 
     def _send_continuous(self, name, value):
         smoothed = self._smooth(name, float(value))
         self.osc.send_message(f"/timbre/{self.instrument_name}/{name}", smoothed)
-        self.td_client.send_message(f"/td/timbre/{self.instrument_role}/{name}", smoothed)
+        self.td_client.send_message(f"/td/timbre/{self.instrument_role}/{self.role_index}/{name}", smoothed)
 
     def _smooth(self, key, value):
         prev = self._ema.get(key, value)
