@@ -282,11 +282,17 @@ fn save_instrument(_app: AppHandle, instrument: Value) -> Result<String, String>
         obj.remove("name");
     }
 
-    config
+    let instruments = config
         .get_mut("instruments")
         .and_then(|v| v.as_object_mut())
-        .ok_or("instruments.json has no 'instruments' key")?
-        .insert(name, entry);
+        .ok_or("instruments.json has no 'instruments' key")?;
+
+    instruments.insert(name, entry);
+
+    // Sink mix to last entry after every save
+    if let Some(mix_entry) = instruments.remove("mix") {
+        instruments.insert("mix".to_string(), mix_entry);
+    }
 
     let output = serde_json::to_string_pretty(&config)
         .map_err(|e| format!("Failed to serialize: {}", e))?;
@@ -295,6 +301,7 @@ fn save_instrument(_app: AppHandle, instrument: Value) -> Result<String, String>
 
     Ok("Instrument saved".to_string())
 }
+
 
 #[tauri::command]
 fn delete_instrument(_app: AppHandle, name: String) -> Result<String, String> {
@@ -828,6 +835,41 @@ fn start_pipeline(
         }
     }
 
+    // Auto-enable image gen when pipeline starts
+    {
+        let socket = UdpSocket::bind("0.0.0.0:0").ok();
+        if let Some(sock) = socket {
+            fn build_osc_img(address: &str, value: i32) -> Vec<u8> {
+                use rosc::{OscMessage, OscPacket, OscType};
+                rosc::encoder::encode(&OscPacket::Message(OscMessage {
+                    addr: address.to_string(),
+                    args: vec![OscType::Int(value)],
+                })).unwrap_or_default()
+            }
+            let msg = build_osc_img("/musinfo/image_gen_enabled", 1);
+            let _ = sock.send_to(&msg, "127.0.0.1:9001");
+            let _ = sock.send_to(&msg, "127.0.0.1:9002");
+            println!("[Tauri] image_gen_enabled -> 1 sent to image gen processes");
+        }
+    }
+
+    // Notify TouchDesigner to reset OSC state
+    {
+        let socket = UdpSocket::bind("0.0.0.0:0").ok();
+        if let Some(sock) = socket {
+            fn build_osc_reset(address: &str, value: i32) -> Vec<u8> {
+                use rosc::{OscMessage, OscPacket, OscType};
+                rosc::encoder::encode(&OscPacket::Message(OscMessage {
+                    addr: address.to_string(),
+                    args: vec![OscType::Int(value)],
+                })).unwrap_or_default()
+            }
+            let _ = sock.send_to(&build_osc_reset("/musinfo/reset", 1), "127.0.0.1:9099");
+            let _ = sock.send_to(&build_osc_reset("/musinfo/reset", 0), "127.0.0.1:9099");
+            println!("[Tauri] /musinfo/reset pulse sent to TouchDesigner on port 9099");
+        }
+    }
+
     app.emit("pipeline-ready", ())
         .unwrap_or_else(|e| eprintln!("[Tauri] emit error: {}", e));
 
@@ -860,7 +902,42 @@ fn stop_pipeline(
             println!("[Tauri] pipeline_running -> 0 sent to image gen processes");
         }
     }
+
+    // Notify TouchDesigner to reset OSC state
+    {
+        let socket = UdpSocket::bind("0.0.0.0:0").ok();
+        if let Some(sock) = socket {
+            fn build_osc_reset(address: &str, value: i32) -> Vec<u8> {
+                use rosc::{OscMessage, OscPacket, OscType};
+                rosc::encoder::encode(&OscPacket::Message(OscMessage {
+                    addr: address.to_string(),
+                    args: vec![OscType::Int(value)],
+                })).unwrap_or_default()
+            }
+            let _ = sock.send_to(&build_osc_reset("/musinfo/reset", 1), "127.0.0.1:9099");
+            let _ = sock.send_to(&build_osc_reset("/musinfo/reset", 0), "127.0.0.1:9099");
+            println!("[Tauri] /musinfo/reset pulse sent to TouchDesigner on port 9099");
+        }
+    }
     
+
+    // Disable image gen when pipeline stops
+    {
+        let socket = UdpSocket::bind("0.0.0.0:0").ok();
+        if let Some(sock) = socket {
+            fn build_osc_img(address: &str, value: i32) -> Vec<u8> {
+                use rosc::{OscMessage, OscPacket, OscType};
+                rosc::encoder::encode(&OscPacket::Message(OscMessage {
+                    addr: address.to_string(),
+                    args: vec![OscType::Int(value)],
+                })).unwrap_or_default()
+            }
+            let msg = build_osc_img("/musinfo/image_gen_enabled", 0);
+            let _ = sock.send_to(&msg, "127.0.0.1:9001");
+            let _ = sock.send_to(&msg, "127.0.0.1:9002");
+            println!("[Tauri] image_gen_enabled -> 0 sent to image gen processes");
+        }
+    }
     let root = project_root_windows()?;
 
     // Kill capture first — stops audio flowing into broadcaster
