@@ -131,14 +131,15 @@ def read_frame(conn):
 
     return instrument_info, audio
 
-def initialise_analyser(instrument, analyser_name):
+# genre/mood send to prompt_generator (not TD index paths) so role is accepted but not forwarded
+def initialise_analyser(instrument, analyser_name, role="default", instrument_index=0):
     if instrument not in analyser_registry:
         analyser_registry[instrument] = {}
     if analyser_name not in analyser_registry[instrument]:
         cls = AVAILABLE_ANALYSERS.get(analyser_name)
         if cls:
             sample_rate = SAMPLE_RATES.get(instrument, 48000)
-            print(f"[wsl_receiver_heavy] Starting {analyser_name} for {instrument} @ {sample_rate}Hz")
+            print(f"[wsl_receiver_heavy] Starting {analyser_name} for {instrument} (role={role}) @ {sample_rate}Hz")
             sys.stdout.flush()
             instance   = cls(instrument_name=instrument, sample_rate=sample_rate)
             queue_size = ANALYSER_QUEUE_SIZES.get(analyser_name, 1)
@@ -146,8 +147,8 @@ def initialise_analyser(instrument, analyser_name):
                 instance, queue_size=queue_size
             )
 
-def log_routing(name, analysers):
-    print(f"[wsl_receiver_heavy] {name:<16} -> {', '.join(analysers) if analysers else 'none'}")
+def log_routing(name, analysers, role="?", instrument_index="?"):
+    print(f"[wsl_receiver_heavy] {name:<16} role={role:<10} -> {', '.join(analysers) if analysers else 'none'}")
     sys.stdout.flush()
 
 def handle_connection(conn, addr):
@@ -169,14 +170,16 @@ def handle_connection(conn, addr):
             if instrument_info is None:
                 break
 
-            name      = instrument_info.get("instrument", "unknown")
-            analysers = instrument_info.get("analysers", [])
+            name             = instrument_info.get("instrument", "unknown")
+            analysers        = instrument_info.get("analysers", [])
+            role             = instrument_info.get("role", "default")
+            instrument_index = instrument_info.get("instrument_index", 0)
 
             if name not in logged_instruments:
                 logged_instruments.add(name)
-                log_routing(name, analysers)
+                log_routing(name, analysers, role, instrument_index)
                 for analyser in analysers:
-                    initialise_analyser(name, analyser)
+                    initialise_analyser(name, analyser, role, instrument_index)
 
             for analyser in analysers:
                 analyser_instance = analyser_registry.get(name, {}).get(analyser)

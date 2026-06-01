@@ -45,10 +45,10 @@ def load_midi_instruments() -> dict:
         print(f"[midi_capture] Failed to parse instruments.json: {e}", flush=True)
         return {}
 
-    # load instrument indices the same way windows_receiver does — sorted audio instruments
+    # Load alphabetical index across audio+virtual instruments (same logic as receivers)
     audio_instruments = sorted(
         name for name, inst in config.get("instruments", {}).items()
-        if inst.get("type") == "audio"
+        if inst.get("type") in ("audio", "virtual")
     )
     instrument_indices = {name: idx for idx, name in enumerate(audio_instruments)}
 
@@ -69,10 +69,11 @@ def load_midi_instruments() -> dict:
         result[name] = {
             "device_name":      dev_name,
             "analysers":        inst.get("analysers", []),
+            "instrument_role":  inst.get("role", "default"),
             "instrument_index": instrument_indices.get(name, 0),
         }
         if INFO:
-            print(f"[midi_capture] Found: '{name}' -> '{dev_name}'", flush=True)
+            print(f"[midi_capture] Found: '{name}' -> '{dev_name}' (role={inst.get('role', 'default')})", flush=True)
 
     return result
 
@@ -260,6 +261,7 @@ def main():
         # instantiate one analyser per instrument
         analyser = MidiHarmonyAnalyser(
             instrument_name  = name,
+            instrument_role  = cfg["instrument_role"],
             instrument_index = cfg["instrument_index"],
         )
 
