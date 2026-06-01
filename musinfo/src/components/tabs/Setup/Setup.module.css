@@ -1,38 +1,75 @@
-
+@import url('https://fonts.googleapis.com/css2?family=Goldman&display=swap');
 .setup > * {
-    margin: 20px 0 20px 0;
-    padding: 0px 20px 0px 20px;
+    margin: 20px 0;
+    padding: 0 20px;
+}
+
+.setup {
     position: relative;
     height: 85vh;
 }
 
 
 .setupContent {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+    display: flex;
+    flex-direction: column;
+    height: calc(85vh - 60px); 
 
 }
 
 .setupMixContent {
-  display: flex;
-  flex-direction: column;
+    display: flex;
+    flex-direction: column;
+    height: calc(85vh - 60px);
 }
+
+.subTabs {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #4343433f;
+}
+
+.subTab {
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -11px; /* pulls the border flush with the subTabs bottom border */
+    color: rgb(190, 190, 190);
+    padding: 4px 16px;
+    cursor: pointer;
+    font-size: 18px;
+    font-family: 'Goldman', sans-serif;
+}
+
+.subTab:hover {
+    color: white;
+}
+
+.subTabActive {
+    color: #ffffff;
+    border-bottom: 3px solid #ffffff;
+}
+
+
 
 .instrumentControls {
     display: flex;
     justify-content: space-between;
-    border-bottom: 1px solid gray;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.262);
     padding: 5px;
+    height: 170px;
 }
 
 
 .audioControls {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     gap: 20px;
-    border-bottom: 1px solid gray;
-    padding: 5px;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.262);
+    padding: 10px;
 }
 
 .signalPath {
@@ -61,7 +98,6 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    
 }
 
 /* Delete instrument prompt */
@@ -159,7 +195,7 @@
 }
 
 .sourceOption {
-  border: 2px outset 2E7088;
+  border: 2px outset #2E7088;
   border-radius: 5px;
   background: transparent;
   color: white;
@@ -169,9 +205,6 @@
   cursor: pointer;
 }
 
-.sourceOption:hover {
-    
-}
 
 .sourceOption.selected {
   border: 2px outset #2E7088;
