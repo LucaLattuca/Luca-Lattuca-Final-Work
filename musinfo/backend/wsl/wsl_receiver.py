@@ -189,21 +189,22 @@ def read_frame(conn):
 
 
 # creates one analyser instance per instrument+analyser combination
-# role and instrument_index come from the broadcaster frame header so they stay in sync with config
-def initialise_analyser(instrument, analyser_name, role, instrument_index):
+# role, role_index and instrument_index come from the broadcaster frame header
+def initialise_analyser(instrument, analyser_name, role, role_index, instrument_index):
     if instrument not in analyser_registry:
         analyser_registry[instrument] = {}
     if analyser_name not in analyser_registry[instrument]:
         cls = AVAILABLE_ANALYSERS.get(analyser_name)
         if cls:
             sample_rate = SAMPLE_RATES.get(instrument, 48000)
-            print(f"[wsl_receiver] Starting {analyser_name} for {instrument} (role={role}, idx={instrument_index}) @ {sample_rate}Hz")
+            print(f"[wsl_receiver] Starting {analyser_name} for {instrument} (role={role}/{role_index}, idx={instrument_index}) @ {sample_rate}Hz")
             sys.stdout.flush()
 
             instance = cls(
                 instrument_name=instrument,
                 sample_rate=sample_rate,
                 instrument_role=role,
+                role_index=role_index,
                 instrument_index=instrument_index,
             )
             queue_size = ANALYSER_QUEUE_SIZES.get(analyser_name, 2)
@@ -212,9 +213,9 @@ def initialise_analyser(instrument, analyser_name, role, instrument_index):
             )
 
 # prints instrument/analyser combination
-def log_routing(name, analysers, role="?", instrument_index="?"):
+def log_routing(name, analysers, role="?", role_index="?", instrument_index="?"):
     analysers_str = ", ".join(analysers) if analysers else "none"
-    print(f"[wsl_receiver] {name:<16} role={role:<10} idx={instrument_index}  -> {analysers_str}")
+    print(f"[wsl_receiver] {name:<16} role={role}/{role_index}  idx={instrument_index}  -> {analysers_str}")
     sys.stdout.flush()
 
 
@@ -243,13 +244,14 @@ def handle_connection(conn, addr):
             name             = instrument_info.get("instrument", "unknown")
             analysers        = instrument_info.get("analysers", [])
             role             = instrument_info.get("role", INSTRUMENT_ROLES.get(name, "default"))
+            role_index       = instrument_info.get("role_index", 0)
             instrument_index = instrument_info.get("instrument_index", INSTRUMENT_INDICES.get(name, 0))
 
             if name not in logged_instruments:
                 logged_instruments.add(name)
-                log_routing(name, analysers, role, instrument_index)
+                log_routing(name, analysers, role, role_index, instrument_index)
                 for analyser in analysers:
-                    initialise_analyser(name, analyser, role, instrument_index)
+                    initialise_analyser(name, analyser, role, role_index, instrument_index)
 
             for analyser in analysers:
                 analyser_instance = analyser_registry.get(name, {}).get(analyser)
