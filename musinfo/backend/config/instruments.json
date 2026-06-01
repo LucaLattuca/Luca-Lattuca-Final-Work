@@ -1,9 +1,9 @@
 {
   "instruments": {
     "bass": {
-      "enabled": true,
-      "type": "audio",
-      "analysers": [],
+      "role": "bass",
+      "role_index": 0,
+      "analysers": ["timbre", "dynamics"],
       "audio_device": {
         "channel": 5,
         "connected": false,
@@ -12,13 +12,14 @@
         "max_input_channels": 20,
         "name": "Focusrite USB ASIO",
         "sample_rate": 44100
-      }
+      },
+      "enabled": true,
+      "type": "audio"
     },
     "drums": {
-      "analysers": [
-        "dynamics",
-        "tempo"
-      ],
+      "role": "drums",
+      "role_index": 0,
+      "analysers": ["tempo", "dynamics"],
       "audio_device": {
         "channel": 7,
         "connected": false,
@@ -32,9 +33,9 @@
       "type": "audio"
     },
     "guitar": {
-      "enabled": true,
-      "type": "audio",
-      "analysers": [],
+      "role": "guitar",
+      "role_index": 0,
+      "analysers": ["timbre", "dynamics"],
       "audio_device": {
         "channel": 6,
         "connected": false,
@@ -43,13 +44,14 @@
         "max_input_channels": 20,
         "name": "Focusrite USB ASIO",
         "sample_rate": 44100
-      }
+      },
+      "enabled": true,
+      "type": "audio"
     },
     "vocals": {
-      "analysers": [
-        "pitch",
-        "dynamics"
-      ],
+      "role": "vocals",
+      "role_index": 0,
+      "analysers": ["pitch", "timbre", "dynamics"],
       "audio_device": {
         "channel": 4,
         "connected": false,
@@ -63,11 +65,9 @@
       "type": "audio"
     },
     "mix": {
-      "type": "mix",
-      "analysers": [
-        "genre",
-        "mood"
-      ],
+      "role": "mix",
+      "role_index": 0,
+      "analysers": ["genre", "mood"],
       "audio_device": {
         "channel": 10,
         "connected": false,
@@ -79,10 +79,8 @@
       },
       "enabled": true,
       "mix_source": "external",
-      "source_instruments": [
-        "computer_audio",
-        "piano"
-      ]
+      "source_instruments": ["computer_audio", "piano"],
+      "type": "mix"
     }
   }
 }
