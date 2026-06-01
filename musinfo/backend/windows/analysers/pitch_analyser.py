@@ -50,6 +50,8 @@ class PitchAnalyser:
         self.osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
         self.td_client = udp_client.SimpleUDPClient("127.0.0.1", OSC_TD_PORT)
 
+        self.last_pitch = 0.0
+
         if INFO :
             print(f"[pitch] Ready for '{instrument_name}' @ {sample_rate}Hz")
             sys.stdout.flush() 
@@ -62,7 +64,8 @@ class PitchAnalyser:
         # Check if audio is loud enough overall
         rms = np.sqrt(np.mean(audio ** 2))
         if rms < SILENCE_THRESHOLD:
-            return  # Too quiet, skip analysis
+            self.td_client.send_message(f"/td/pitch/{self.instrument_index}/hz", self.last_pitch)
+            return
 
         # Process audio in HOP_SIZE chunks
         for i in range(0, len(audio), HOP_SIZE):
@@ -88,6 +91,12 @@ class PitchAnalyser:
                 
                 # Send via OSC to Tauri frontend
                 self.osc_client.send_message(f"/pitch/{self.instrument_name}", message)
-                self.td_client.send_message(f"/td/pitch/{self.instrument_index}/note", message)
-                # Only send one detection per chunk to avoid spam
+                
+                # Send pitch to touchdesigner
+                self.last_pitch = float(pitch)
+                self.td_client.send_message(f"/td/pitch/{self.instrument_index}/hz", self.last_pitch)
+
+
+
+                
                 break
