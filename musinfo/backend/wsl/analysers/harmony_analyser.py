@@ -162,9 +162,10 @@ class HarmonyAnalyser:
 
     # forced_key: None means detect the key normally; ("C", "major") overrides it.
 
-    def __init__(self, instrument_name: str, sample_rate: int, forced_key=None, instrument_role: str = "default", instrument_index: int = 0):
+    def __init__(self, instrument_name: str, sample_rate: int, forced_key=None, instrument_role: str = "default", role_index: int = 0, instrument_index: int = 0):
         self.instrument_role  = instrument_role
-        self.instrument_index = instrument_index    
+        self.role_index       = role_index
+        self.instrument_index = instrument_index
         self.instrument_name = instrument_name
         
         self._frame_count = 0

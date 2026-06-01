@@ -58,13 +58,17 @@ OSC_TD_PORT = 9100
 
 
 class DynamicsAnalyser:
-    def __init__(self, instrument_name: str, sample_rate: int, instrument_role: str = "default", instrument_index: int = 0):
+    def __init__(self, instrument_name: str, sample_rate: int, instrument_role: str = "default", role_index: int = 0, instrument_index: int = 0):
         self.instrument_role  = instrument_role
+        self.role_index       = role_index
         self.instrument_index = instrument_index
         self.instrument_name = instrument_name
         self.sender_rate = sample_rate
 
-        self.method = ONSET_METHODS[DEFAULT_METHOD]
+        if method not in ONSET_METHODS:
+            print(f"[dynamics] unknown method '{method}', falling back to '{DEFAULT_METHOD}'")
+            method = DEFAULT_METHOD
+        self.method = ONSET_METHODS[method]
 
         # Essentia algorithms
         self.windower = es.Windowing(type="hann", size=FRAME_SIZE)
@@ -94,7 +98,7 @@ class DynamicsAnalyser:
         self.td_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_TD_PORT)
 
         if INFO : 
-            print(f"[dynamics] Ready for '{instrument_name}' @ {sample_rate}Hz (method={DEFAULT_METHOD})")
+            print(f"[dynamics] Ready for '{instrument_name}' @ {sample_rate}Hz (method={method})")
             sys.stdout.flush()
             print(f"[dynamics] OSC target: {OSC_HOST}:{OSC_PORT}")
             sys.stdout.flush()

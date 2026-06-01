@@ -56,9 +56,10 @@ class TimbreAnalyser:
       /timbre/{instrument}/attack       attack sharpness      (float, sec, event)
     """
 
-    def __init__(self, instrument_name: str, sample_rate: int, instrument_role: str = "default", instrument_index: int = 0):
+    def __init__(self, instrument_name: str, sample_rate: int, instrument_role: str = "default", role_index: int = 0, instrument_index: int = 0):
         self.instrument_role  = instrument_role
-        self.instrument_index = instrument_index 
+        self.role_index       = role_index
+        self.instrument_index = instrument_index
         self.instrument_name = instrument_name
         self.sample_rate = sample_rate
 

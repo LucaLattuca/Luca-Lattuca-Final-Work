@@ -36,8 +36,9 @@ def hz_to_note(freq):
 
 # TODO add median filter for inaccurate octave readings
 class PitchAnalyser:
-    def __init__(self, instrument_name: str, sample_rate: int, instrument_role: str = "default", instrument_index: int = 0):
+    def __init__(self, instrument_name: str, sample_rate: int, instrument_role: str = "default", role_index: int = 0, instrument_index: int = 0):
         self.instrument_role  = instrument_role
+        self.role_index       = role_index
         self.instrument_index = instrument_index
         self.instrument_name = instrument_name
         self.sample_rate = sample_rate
@@ -97,4 +98,7 @@ class PitchAnalyser:
                 self.last_pitch = float(pitch)
                 self.td_client.send_message(f"/td/pitch/{self.instrument_role}/hz", self.last_pitch)
 
+
+
+                
                 break
