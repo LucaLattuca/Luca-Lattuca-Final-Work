@@ -58,16 +58,13 @@ OSC_TD_PORT = 9100
 
 
 class DynamicsAnalyser:
-    def __init__(self, instrument_name="unknown", sample_rate=SAMPLE_RATE,
-             method=DEFAULT_METHOD, instrument_index=0):
+    def __init__(self, instrument_name: str, sample_rate: int, instrument_role: str = "default", instrument_index: int = 0):
+        self.instrument_role  = instrument_role
+        self.instrument_index = instrument_index
         self.instrument_name = instrument_name
         self.sender_rate = sample_rate
-        self.instrument_index = instrument_index
 
-        if method not in ONSET_METHODS:
-            print(f"[dynamics] unknown method '{method}', falling back to '{DEFAULT_METHOD}'")
-            method = DEFAULT_METHOD
-        self.method = ONSET_METHODS[method]
+        self.method = ONSET_METHODS[DEFAULT_METHOD]
 
         # Essentia algorithms
         self.windower = es.Windowing(type="hann", size=FRAME_SIZE)
@@ -97,7 +94,7 @@ class DynamicsAnalyser:
         self.td_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_TD_PORT)
 
         if INFO : 
-            print(f"[dynamics] Ready for '{instrument_name}' @ {sample_rate}Hz (method={method})")
+            print(f"[dynamics] Ready for '{instrument_name}' @ {sample_rate}Hz (method={DEFAULT_METHOD})")
             sys.stdout.flush()
             print(f"[dynamics] OSC target: {OSC_HOST}:{OSC_PORT}")
             sys.stdout.flush()
@@ -187,7 +184,7 @@ class DynamicsAnalyser:
         if scaled < 0.01:  # floor — don't send noise
             scaled = 0.0
         self.osc_client.send_message(self.addr_rms, scaled)
-        self.td_client.send_message(f"/td/dynamics/{self.instrument_index}/rms", scaled)
+        self.td_client.send_message(f"/td/dynamics/{self.instrument_role}/rms", scaled)
 
     def _send_onset(self, onset_strength, rms_at_onset):
         scaled_rms_at_onset = min(100.0, rms_at_onset * 300.0)
@@ -195,9 +192,9 @@ class DynamicsAnalyser:
         self.osc_client.send_message(self.addr_strength, float(onset_strength))
         self.osc_client.send_message(self.addr_rms_onset, float(scaled_rms_at_onset))
 
-        self.td_client.send_message(f"/td/dynamics/{self.instrument_index}/onset",          1)
-        self.td_client.send_message(f"/td/dynamics/{self.instrument_index}/onset_strength", float(onset_strength))
-        self.td_client.send_message(f"/td/dynamics/{self.instrument_index}/rms_at_onset",   float(scaled_rms_at_onset))
+        self.td_client.send_message(f"/td/dynamics/{self.instrument_role}/onset",          1)
+        self.td_client.send_message(f"/td/dynamics/{self.instrument_role}/onset_strength", float(onset_strength))
+        self.td_client.send_message(f"/td/dynamics/{self.instrument_role}/rms_at_onset",   float(scaled_rms_at_onset))
 
         # Flag a reset for the next tick so onset value drops back to 0
         self.onset_pending_reset = True
@@ -212,5 +209,5 @@ class DynamicsAnalyser:
         if not self.onset_pending_reset:
             return
         self.osc_client.send_message(self.addr_onset, 0)
-        self.td_client.send_message(f"/td/dynamics/{self.instrument_index}/onset", 0)
+        self.td_client.send_message(f"/td/dynamics/{self.instrument_role}/onset", 0)
         self.onset_pending_reset = False

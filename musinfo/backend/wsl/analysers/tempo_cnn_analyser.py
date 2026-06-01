@@ -52,7 +52,9 @@ MODEL_FILE = os.path.join(_MODEL_DIR, "deepsquare-k16-3.pb")
 #   /tempo/{instrument}/feel         -> tempo feel label derived from BPM
 class TempoCNNAnalyser:
 
-    def __init__(self, instrument_name: str, sample_rate: int = 48000, instrument_index: int = 0):
+    def __init__(self, instrument_name: str, sample_rate: int, instrument_role: str = "default", instrument_index: int = 0):
+        self.instrument_role  = instrument_role
+        self.instrument_index = instrument_index 
         self.instrument_name = instrument_name
         self.input_sr        = sample_rate
 

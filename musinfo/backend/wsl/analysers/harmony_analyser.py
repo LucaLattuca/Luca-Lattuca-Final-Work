@@ -161,14 +161,15 @@ class HarmonyAnalyser:
     """One instance per instrument. Holds that stream's audio and history."""
 
     # forced_key: None means detect the key normally; ("C", "major") overrides it.
-    def __init__(self, instrument_name="unknown", sample_rate=48000,
-                 forced_key=None, instrument_index=0):
+
+    def __init__(self, instrument_name: str, sample_rate: int, forced_key=None, instrument_role: str = "default", instrument_index: int = 0):
+        self.instrument_role  = instrument_role
+        self.instrument_index = instrument_index    
+        self.instrument_name = instrument_name
         
         self._frame_count = 0
 
-        self.instrument_name = instrument_name
         self.sample_rate     = sample_rate
-        self.instrument_index = instrument_index
         self.forced_key      = forced_key
 
         self._key_buffer        = deque(maxlen=KEY_DETECTION_WINDOW)
@@ -528,16 +529,15 @@ class HarmonyAnalyser:
         )
         
         # send to touchdesigner
-        idx = self.instrument_index
-        self.td_client.send_message(f"/td/harmony/{idx}/chord",          result["chord"] or "")
-        self.td_client.send_message(f"/td/harmony/{idx}/chord_quality",  result["chord_quality"] or "")
-        self.td_client.send_message(f"/td/harmony/{idx}/chord_strength", result["chord_strength"])
-        self.td_client.send_message(f"/td/harmony/{idx}/roman_degree",   result["roman_degree"] or "")
-        self.td_client.send_message(f"/td/harmony/{idx}/key",            result["key"] or "")
-        self.td_client.send_message(f"/td/harmony/{idx}/scale",          result["scale"] or "")
-        self.td_client.send_message(f"/td/harmony/{idx}/dissonance",     result["dissonance"])
-        self.td_client.send_message(f"/td/harmony/{idx}/harmonic_change",result["harmonic_change"])
-        self.td_client.send_message(f"/td/harmony/{idx}/hpcp",           result["hpcp"])
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/chord",          result["chord"] or "")
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/chord_quality",  result["chord_quality"] or "")
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/chord_strength", result["chord_strength"])
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/roman_degree",   result["roman_degree"] or "")
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/key",            result["key"] or "")
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/scale",          result["scale"] or "")
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/dissonance",     result["dissonance"])
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/harmonic_change",result["harmonic_change"])
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/hpcp",           result["hpcp"])
 
     def _display(self, result: dict):
         chord   = result["chord"] or "—"

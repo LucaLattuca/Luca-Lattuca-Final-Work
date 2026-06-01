@@ -56,10 +56,11 @@ class TimbreAnalyser:
       /timbre/{instrument}/attack       attack sharpness      (float, sec, event)
     """
 
-    def __init__(self, instrument_name="unknown", sample_rate=48000,  instrument_index=0):
+    def __init__(self, instrument_name: str, sample_rate: int, instrument_role: str = "default", instrument_index: int = 0):
+        self.instrument_role  = instrument_role
+        self.instrument_index = instrument_index 
         self.instrument_name = instrument_name
         self.sample_rate = sample_rate
-        self.instrument_index = instrument_index
 
         self._buffer = np.zeros(0, dtype=np.float32)
 
@@ -161,7 +162,7 @@ class TimbreAnalyser:
             f"/timbre/{self.instrument_name}/mfcc", mfcc.tolist()
         )
 
-        self.td_client.send_message(f"/td/timbre/{self.instrument_index}/mfcc", mfcc.tolist())
+        self.td_client.send_message(f"/td/timbre/{self.instrument_role}/mfcc", mfcc.tolist())
 
 
 
@@ -240,12 +241,12 @@ class TimbreAnalyser:
         
         self.osc.send_message(f"/timbre/{self.instrument_name}/attack", attack_sec)
 
-        self.td_client.send_message(f"/td/timbre/{self.instrument_index}/attack", attack_sec)
+        self.td_client.send_message(f"/td/timbre/{self.instrument_role}/attack", attack_sec)
 
     def _send_continuous(self, name, value):
         smoothed = self._smooth(name, float(value))
         self.osc.send_message(f"/timbre/{self.instrument_name}/{name}", smoothed)
-        self.td_client.send_message(f"/td/timbre/{self.instrument_index}/{name}", smoothed)
+        self.td_client.send_message(f"/td/timbre/{self.instrument_role}/{name}", smoothed)
 
     def _smooth(self, key, value):
         prev = self._ema.get(key, value)
