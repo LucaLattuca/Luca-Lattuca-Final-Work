@@ -835,6 +835,24 @@ fn start_pipeline(
         }
     }
 
+    // Auto-enable image gen when pipeline starts
+    {
+        let socket = UdpSocket::bind("0.0.0.0:0").ok();
+        if let Some(sock) = socket {
+            fn build_osc_img(address: &str, value: i32) -> Vec<u8> {
+                use rosc::{OscMessage, OscPacket, OscType};
+                rosc::encoder::encode(&OscPacket::Message(OscMessage {
+                    addr: address.to_string(),
+                    args: vec![OscType::Int(value)],
+                })).unwrap_or_default()
+            }
+            let msg = build_osc_img("/musinfo/image_gen_enabled", 1);
+            let _ = sock.send_to(&msg, "127.0.0.1:9001");
+            let _ = sock.send_to(&msg, "127.0.0.1:9002");
+            println!("[Tauri] image_gen_enabled -> 1 sent to image gen processes");
+        }
+    }
+
     // Notify TouchDesigner to reset OSC state
     {
         let socket = UdpSocket::bind("0.0.0.0:0").ok();
@@ -902,6 +920,24 @@ fn stop_pipeline(
         }
     }
     
+
+    // Disable image gen when pipeline stops
+    {
+        let socket = UdpSocket::bind("0.0.0.0:0").ok();
+        if let Some(sock) = socket {
+            fn build_osc_img(address: &str, value: i32) -> Vec<u8> {
+                use rosc::{OscMessage, OscPacket, OscType};
+                rosc::encoder::encode(&OscPacket::Message(OscMessage {
+                    addr: address.to_string(),
+                    args: vec![OscType::Int(value)],
+                })).unwrap_or_default()
+            }
+            let msg = build_osc_img("/musinfo/image_gen_enabled", 0);
+            let _ = sock.send_to(&msg, "127.0.0.1:9001");
+            let _ = sock.send_to(&msg, "127.0.0.1:9002");
+            println!("[Tauri] image_gen_enabled -> 0 sent to image gen processes");
+        }
+    }
     let root = project_root_windows()?;
 
     // Kill capture first — stops audio flowing into broadcaster
