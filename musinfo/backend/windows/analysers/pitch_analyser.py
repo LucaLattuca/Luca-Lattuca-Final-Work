@@ -66,7 +66,7 @@ class PitchAnalyser:
         # Check if audio is loud enough overall
         rms = np.sqrt(np.mean(audio ** 2))
         if rms < SILENCE_THRESHOLD:
-            self.td_client.send_message(f"/td/pitch/{self.instrument_role}/hz", self.last_pitch)
+            self.td_client.send_message(f"/td/pitch/{self.instrument_role}/{self.role_index}/hz", self.last_pitch)
             return
 
         # Process audio in HOP_SIZE chunks
@@ -96,7 +96,7 @@ class PitchAnalyser:
                 
                 # Send pitch to touchdesigner
                 self.last_pitch = float(pitch)
-                self.td_client.send_message(f"/td/pitch/{self.instrument_role}/hz", self.last_pitch)
+                self.td_client.send_message(f"/td/pitch/{self.instrument_role}/{self.role_index}/hz", self.last_pitch)
 
 
 
