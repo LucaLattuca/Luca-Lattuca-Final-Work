@@ -22,13 +22,25 @@ const INPUT_TYPES = [
   },
 ]
 
+const INSTRUMENT_ROLES = [
+  { id: 'vocals',  label: 'Vocals'  },
+  { id: 'piano',   label: 'Piano'   },
+  { id: 'drums',   label: 'Drums'   },
+  { id: 'guitar',  label: 'Guitar'  },
+  { id: 'bass',    label: 'Bass'    },
+  { id: 'default', label: 'Default' },
+];
+
 const InstrumentConfig = ({
   name        = '',
   onNameChange,
   type        = '',
   onTypeChange,
+  role         = '',
+  onRoleChange,
   showName    = true,
   showType    = true,
+  showRole     = true,
   variant     = 'setup' //setup | modal
 }) => {
 
@@ -41,27 +53,48 @@ const InstrumentConfig = ({
 
   return (
     <div className={`${styles[variant]}`}>
-      {showName && (
-        <div className={styles.instrumentNameInput}>
-          <label>Instrument name</label>
-          <input
-            type="text"
-            placeholder="vocals, guitar, piano, synthesizer"
-            maxLength={24}
-            value={name}
-            onChange={e => {
-              const cleaned = e.target.value
-                .toLowerCase()
-                .replace(/\s+/g, '_')
-                .replace(/[^a-z0-9_]/g, '');
-              onNameChange(cleaned);
-            }}
-          />
-        </div>
-      )}
+      {(showName || (showRole && onRoleChange)) && (
+    <div className={styles.nameAndRole}>
+
+        {showName && (
+            <div className={styles.instrumentNameInput}>
+                <label>Instrument name</label>
+                <input
+                    type="text"
+                    placeholder="vocals, guitar, piano, synthesizer"
+                    maxLength={24}
+                    value={name}
+                    onChange={e => {
+                        const cleaned = e.target.value
+                            .toLowerCase()
+                            .replace(/\s+/g, '_')
+                            .replace(/[^a-z0-9_]/g, '');
+                        onNameChange(cleaned);
+                    }}
+                />
+            </div>
+        )}
+
+        {showRole && onRoleChange && (
+            <div className={styles.instrumentRoleSelect}>
+                <label>Role</label>
+                <select
+                    value={role}
+                    onChange={e => onRoleChange(e.target.value)}
+                >
+                    <option value="" disabled>Select role...</option>
+                    {INSTRUMENT_ROLES.map(r => (
+                        <option key={r.id} value={r.id}>{r.label}</option>
+                    ))}
+                </select>
+            </div>
+        )}
+
+    </div>
+)}
       
       
-       {showType && (
+      {showType && (
         <div className={styles.InputCards}>
           {INPUT_TYPES.map(({ id, label, description, icon }) => (
             <button
@@ -71,7 +104,6 @@ const InstrumentConfig = ({
               onMouseEnter={() => variant === 'setup' && setHoveredType({ id, description })}
               onMouseLeave={() => variant === 'setup' && setHoveredType(null)}
             >
-              {/* only show icon and description when on modal*/}
               {variant === 'modal' && <p className={styles.cardIcon}>{icon}</p>}
               <h2 className={styles.cardLabel}>{label}</h2>
               {variant === 'modal' && <p className={styles.cardDesc}>{description}</p>}
@@ -79,16 +111,15 @@ const InstrumentConfig = ({
           ))}
         </div>
       )}
-
-      {/* show description outside of element within setup tab */}
+ 
       {showType && variant === 'setup' && (
         <p className={styles.typeDescription}>
           {displayedType ? displayedType.description : '\u00A0'}
         </p>
       )}
-
+ 
     </div>
   );
 };
-
+ 
 export default InstrumentConfig;

@@ -122,6 +122,24 @@ def build_channel_map(config):
     channel_map = {}
     analysers_config = config.get("analysers", {})
 
+    # Build alphabetical index map (audio + virtual instruments only — matches receiver logic)
+    audio_instruments = sorted(
+        n for n, inst in config.get("instruments", {}).items()
+        if inst.get("type") in ("audio", "virtual")
+    )
+    instrument_indices = {n: idx for idx, n in enumerate(audio_instruments)}
+
+    # role_index is stored in instruments.json as the single source of truth.
+    # The frontend assigns and resequences it on add/delete/role-change.
+    if INFO:
+        for n, inst in sorted(config.get("instruments", {}).items()):
+            if inst.get("type") == "mix":
+                continue
+            role = inst.get("role", "default")
+            role_idx = inst.get("role_index", 0)
+            print(f"[broadcaster] role_index: {n:<20} -> {role}/{role_idx}")
+        sys.stdout.flush()
+
     # Build regular instrument routing
     for name, instrument in config.get("instruments", {}).items():
         if not instrument.get("enabled", False):
@@ -141,10 +159,14 @@ def build_channel_map(config):
 
         sample_rate      = audio_device.get("sample_rate", 48000)   # ← pulled from config
         active_analysers = instrument.get("analysers", [])
+        role             = instrument.get("role", "default")
 
         channel_map[channel_id] = {
             "name":                name,
-            "sample_rate":         sample_rate,                      # ← stored per channel
+            "role":                role,
+            "role_index":          instrument.get("role_index", 0),
+            "instrument_index":    instrument_indices.get(name, 0),
+            "sample_rate":         sample_rate,
             "wsl_analysers":       [m for m in active_analysers if _target(analysers_config, m, "wsl")],
             "wsl_heavy_analysers": [m for m in active_analysers if _target(analysers_config, m, "wsl_heavy")],
             "windows_analysers":   [m for m in active_analysers if _target(analysers_config, m, "windows")],
@@ -199,7 +221,10 @@ def build_channel_map(config):
         mix_analysers = mix_inst.get("analysers", [])
         mix_configs[mix_name] = {
             "source_channels":     source_channels,
-            "sample_rate":         mix_sample_rate,                  # ← output rate of the mix
+            "sample_rate":         mix_sample_rate,
+            "role":                mix_inst.get("role", "mix"),
+            "role_index":          mix_inst.get("role_index", 0),
+            "instrument_index":    instrument_indices.get(mix_name, 0),
             "buffer": {
                 ch: {
                     "queue":      deque(maxlen=MAX_QUEUE_SIZE),
@@ -284,18 +309,27 @@ def recv_exact(sock, n):
 
 
 # packs instrument name + analysers list + raw PCM into a framed TCP message and sends to a receiver
-def send_framed_chunk(sock, instrument_name, analysers, audio_bytes):
+def send_framed_chunk(sock, instrument_name, analysers, audio_bytes, role="default", instrument_index=0, role_index=0):
     """
     Frame format:
       [4 bytes: header length  (uint32 big-endian)]
       [N bytes: header JSON                       ]
       [4 bytes: audio length   (uint32 big-endian)]
       [K bytes: raw float32 PCM                   ] (Pulse Code Modulation : uncompressed raw audio data)
-      
+
+    Header fields:
+      instrument       — instrument name (str)
+      analysers        — list of analyser IDs for this destination
+      role             — instrument role string for TD OSC paths (e.g. "drums", "piano")
+      role_index       — 0-based index within this role (e.g. vocals/0, vocals/1)
+      instrument_index — global alphabetical index among audio/virtual instruments (for frontend OSC)
     """
     header = json.dumps({
-        "instrument": instrument_name,
-        "analysers":     analysers,
+        "instrument":       instrument_name,
+        "analysers":        analysers,
+        "role":             role,
+        "role_index":       role_index,
+        "instrument_index": instrument_index,
     }).encode("utf-8")
 
     frame = (
@@ -419,7 +453,7 @@ def handle_capture_connection(conn, config_holder):
             # ── 1. Route individual instrument ──────────────────────────────
             if instrument_info["windows_analysers"]:
                 try:
-                    send_framed_chunk(windows_sock, instrument_info["name"], instrument_info["windows_analysers"], audio_bytes)
+                    send_framed_chunk(windows_sock, instrument_info["name"], instrument_info["windows_analysers"], audio_bytes, instrument_info["role"], instrument_info["instrument_index"], instrument_info["role_index"])
                 except OSError:
                     print("[broadcaster] Lost Windows connection — reconnecting")
                     sys.stdout.flush()
@@ -427,7 +461,7 @@ def handle_capture_connection(conn, config_holder):
 
             if instrument_info["wsl_analysers"]:
                 try:
-                    send_framed_chunk(wsl_sock, instrument_info["name"], instrument_info["wsl_analysers"], audio_bytes)
+                    send_framed_chunk(wsl_sock, instrument_info["name"], instrument_info["wsl_analysers"], audio_bytes, instrument_info["role"], instrument_info["instrument_index"], instrument_info["role_index"])
                 except OSError:
                     print("[broadcaster] Lost WSL connection — reconnecting")
                     sys.stdout.flush()
@@ -435,7 +469,7 @@ def handle_capture_connection(conn, config_holder):
 
             if instrument_info["wsl_heavy_analysers"]:
                 try:
-                    send_framed_chunk(wsl_heavy_sock, instrument_info["name"], instrument_info["wsl_heavy_analysers"], audio_bytes)
+                    send_framed_chunk(wsl_heavy_sock, instrument_info["name"], instrument_info["wsl_heavy_analysers"], audio_bytes, instrument_info["role"], instrument_info["instrument_index"], instrument_info["role_index"])
                 except OSError:
                     print("[broadcaster] Lost WSL heavy connection — reconnecting")
                     sys.stdout.flush()
@@ -492,7 +526,7 @@ def handle_capture_connection(conn, config_holder):
 
                 if mix_config["windows_analysers"]:
                     try:
-                        send_framed_chunk(windows_sock, mix_name, mix_config["windows_analysers"], mixed_audio)
+                        send_framed_chunk(windows_sock, mix_name, mix_config["windows_analysers"], mixed_audio, mix_config["role"], mix_config["instrument_index"], mix_config["role_index"])
                     except OSError:
                         print("[broadcaster] Lost Windows connection — reconnecting")
                         sys.stdout.flush()
@@ -500,7 +534,7 @@ def handle_capture_connection(conn, config_holder):
 
                 if mix_config["wsl_analysers"]:
                     try:
-                        send_framed_chunk(wsl_sock, mix_name, mix_config["wsl_analysers"], mixed_audio)
+                        send_framed_chunk(wsl_sock, mix_name, mix_config["wsl_analysers"], mixed_audio, mix_config["role"], mix_config["instrument_index"], mix_config["role_index"])
                     except OSError:
                         print("[broadcaster] Lost WSL connection — reconnecting")
                         sys.stdout.flush()
@@ -508,7 +542,7 @@ def handle_capture_connection(conn, config_holder):
 
                 if mix_config["wsl_heavy_analysers"]:
                     try:
-                        send_framed_chunk(wsl_heavy_sock, mix_name, mix_config["wsl_heavy_analysers"], mixed_audio)
+                        send_framed_chunk(wsl_heavy_sock, mix_name, mix_config["wsl_heavy_analysers"], mixed_audio, mix_config["role"], mix_config["instrument_index"], mix_config["role_index"])
                     except OSError:
                         print("[broadcaster] Lost WSL heavy connection — reconnecting")
                         sys.stdout.flush()

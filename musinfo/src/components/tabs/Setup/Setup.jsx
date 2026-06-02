@@ -21,6 +21,19 @@ const Setup = ({
 
     const [formData, setFormData] = useState(null);
     const [deleteInstrumentPrompt,  setDeleteInstrumentPrompt]  = useState(null);
+    const [activeSubTab, setActiveSubTab] = useState('instrument');
+     // Tracks current instrument in instruments.json
+    const [savedInstrumentKey, setSavedInstrumentKey] = useState(null);
+
+
+    // reset to instrument tab when switching instruments
+    useEffect(() => {
+        if (selectedInstrument) {
+            setFormData({ ...selectedInstrument });
+            setSavedInstrumentKey(selectedInstrument.name);
+            setActiveSubTab('instrument');
+        }
+    }, [switchInstrument]);
 
 
     const confirmDelete = () => {
@@ -29,15 +42,6 @@ const Setup = ({
       setDeleteInstrumentPrompt(null);
     };
 
-    // Tracks current instrument in instruments.json
-    const [savedInstrumentKey, setSavedInstrumentKey] = useState(null);
-
-    useEffect(() => {
-        if (selectedInstrument) {
-          setFormData({ ...selectedInstrument });
-          setSavedInstrumentKey(selectedInstrument.name);
-        }
-    }, [switchInstrument]);
 
 
     const patch = (fields) =>
@@ -45,18 +49,22 @@ const Setup = ({
 
 
     const save = (fields) => {
-        if (fields.name === '') return; 
-        setFormData(prev => {
-          const updated = { ...prev, ...fields };
+        if (fields.name === '') return;
 
-          // disable mix when no anlysers are selected
-          if (isMix && fields.analysers !== undefined) {
-            updated.enabled = fields.analysers.length > 0;
-          }
+        // Compute updated outside the setFormData updater — React StrictMode double-invokes
+        // updater functions in development, which would call onUpdateInstrument twice and
+        // trigger double saves. Computing here and calling setFormData with the value directly
+        // keeps the side-effect (onUpdateInstrument) to a single call.
+        const updated = { ...(formData ?? {}), ...fields };
 
-          onUpdateInstrument(savedInstrumentKey, updated);
-          return updated;
-        });
+        // disable mix when no analysers are selected
+        if (isMix && fields.analysers !== undefined) {
+          updated.enabled = fields.analysers.length > 0;
+        }
+
+        setFormData(updated);
+        onUpdateInstrument(savedInstrumentKey, updated);
+
         // keep originalName in sync so the next save uses the correct key
         if (fields.name && fields.name !== savedInstrumentKey) {
           setSavedInstrumentKey(fields.name);
@@ -186,63 +194,84 @@ const Setup = ({
             {/* add signal path */}
           </>
         ) : (
-          /* REGULAR INSTRUMENT CONFIGURATION */
           <>
-            <div className={styles.setupContent}>
-              <div className={styles.instrumentControls}>
-              <InstrumentConfig
-                name={formData.name}
-                type={formData.type}
-                showName={true}
-                showType={true}
-                onNameChange={(n) => save({ name: n })}
-                onTypeChange={(t) => patch({ type: t })}
-              />
-              {/* Guard testaudio */}
-              { formData.type === 'midi'
-                 ? <TestMidi deviceName={formData.midi_device?.name} />
-                 : <TestAudio deviceId={formData.audio_device?.device_id} channel={formData.audio_device?.channel} />
-              }
-              </div>
-              
-              <div className={styles.audioControls}>
-              <AudioDevicesConfig
-                inputType={formData.type}
-                selectedDevice={formData.type === 'midi' ? formData.midi_device : formData.audio_device}
-                onSelectDevice={(device) => {
-                  if (formData.type === 'midi') {
-                    const midiDevice = { name: device.name, device_id: device.index, port: 'input', connected: true };
-                    patch({ midi_device: midiDevice, audio_device: undefined });
-                    save({ midi_device: midiDevice, audio_device: undefined });
-                  } else {
-                    save({ audio_device: device, midi_device: undefined });
-                  }
-                }}
-                onSwapDevice={formData.type === 'midi' ? null : handleSwapDevice}
-                currentInstrumentName={formData.name}
-                allInstruments={instruments}
-                onReconcile={onReconcile}
-              />
-              <AnalyserConfig
-                selectedAnalysers={formData.analysers}
-                onAnalysersChange={(analysers) => save({ analysers })}
-              />
-              </div>
+            {/* Subtab nav */}
+            <div className={styles.subTabs}>
+              <button
+                className={`${styles.subTab} ${activeSubTab === 'instrument' ? styles.subTabActive : ''}`}
+                onClick={() => setActiveSubTab('instrument')}
+              >
+                Instrument
+              </button>
+              <button
+                className={`${styles.subTab} ${activeSubTab === 'analysers' ? styles.subTabActive : ''}`}
+                onClick={() => setActiveSubTab('analysers')}
+              >
+                Analysers
+              </button>
+            </div>
                 
-              <div className={styles.setupFooter}>
-              <div className={styles.signalPath}>
-                <SignalPath
-                  name={formData.name}
-                  audioDevice={formData.type !== 'midi' ? formData.audio_device : null}
-                  analysers={formData.analysers}
+            {activeSubTab === 'instrument' && (
+              <div className={styles.setupContent}>
+                <div className={styles.instrumentControls}>
+                  <InstrumentConfig
+                    name={formData.name}
+                    type={formData.type}
+                    role={formData.role ?? ''}
+                    showName={true}
+                    showType={true}
+                    onNameChange={(n) => save({ name: n })}
+                    onTypeChange={(t) => patch({ type: t })}
+                    onRoleChange={(r) => save({ role: r })}
+                  />
+                  
+                </div>
+                <div className={styles.audioControls}>
+                  <AudioDevicesConfig
+                    inputType={formData.type}
+                    selectedDevice={formData.type === 'midi' ? formData.midi_device : formData.audio_device}
+                    onSelectDevice={(device) => {
+                      if (formData.type === 'midi') {
+                        const midiDevice = { name: device.name, device_id: device.index, port: 'input', connected: true };
+                        patch({ midi_device: midiDevice, audio_device: undefined });
+                        save({ midi_device: midiDevice, audio_device: undefined });
+                      } else {
+                        save({ audio_device: device, midi_device: undefined });
+                      }
+                    }}
+                    onSwapDevice={formData.type === 'midi' ? null : handleSwapDevice}
+                    currentInstrumentName={formData.name}
+                    allInstruments={instruments}
+                    onReconcile={onReconcile}
+                  />
+                  {formData.type === 'midi'
+                    ? <TestMidi deviceName={formData.midi_device?.name} />
+                    : <TestAudio deviceId={formData.audio_device?.device_id} channel={formData.audio_device?.channel} />
+                  }
+                </div>
+                <div className={styles.setupFooter}>
+                  <div className={styles.signalPath}>
+                    <SignalPath
+                      name={formData.name}
+                      audioDevice={formData.type !== 'midi' ? formData.audio_device : null}
+                      analysers={formData.analysers}
+                    />
+                  </div>
+                  <div className={styles.removeInstrument}>
+                    <button onClick={() => setDeleteInstrumentPrompt(true)}>Delete instrument</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeSubTab === 'analysers' && (
+              <div className={styles.setupContent}>
+                <AnalyserConfig
+                  selectedAnalysers={formData.analysers}
+                  onAnalysersChange={(analysers) => save({ analysers })}
                 />
               </div>
-              <div className={styles.removeInstrument}>
-                <button onClick={() => setDeleteInstrumentPrompt(true)}>Delete instrument</button>
-              </div>
-              </div>
-
-            </div>
+            )}
           </>
         )}
     

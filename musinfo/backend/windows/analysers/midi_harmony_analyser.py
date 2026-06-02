@@ -177,10 +177,11 @@ class MidiHarmonyAnalyser:
     same OSC addresses — so TouchDesigner and the frontend need no changes.
     """
 
-    def __init__(self, instrument_name="unknown", instrument_index=0):
-
-        self.instrument_name  = instrument_name
+    def __init__(self, instrument_name: str, sample_rate: int = 0, instrument_role: str = "default", role_index: int = 0, instrument_index: int = 0):
+        self.instrument_role  = instrument_role
+        # role_index not used but here for consistency
         self.instrument_index = instrument_index
+        self.instrument_name  = instrument_name
 
         # held notes: { midi_note_int: velocity_int }
         self._active_notes: dict[int, int] = {}
@@ -580,18 +581,17 @@ class MidiHarmonyAnalyser:
         )
 
         # per-field messages to TouchDesigner
-        idx = self.instrument_index
-        self.td_client.send_message(f"/td/harmony/{idx}/key",            result["key"] or "")
-        self.td_client.send_message(f"/td/harmony/{idx}/scale",          result["scale"] or "")
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/{self.role_index}/key",            result["key"] or "")
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/{self.role_index}/scale",          result["scale"] or "")
 
-        self.td_client.send_message(f"/td/harmony/{idx}/chord",          result["chord"] or "")
-        self.td_client.send_message(f"/td/harmony/{idx}/chord_quality",  result["chord_quality"] or "")
-        self.td_client.send_message(f"/td/harmony/{idx}/chord_strength", result["chord_strength"])
-        self.td_client.send_message(f"/td/harmony/{idx}/roman_degree",   result["roman_degree"] or "")
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/{self.role_index}/chord",          result["chord"] or "")
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/{self.role_index}/chord_quality",  result["chord_quality"] or "")
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/{self.role_index}/chord_strength", result["chord_strength"])
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/{self.role_index}/roman_degree",   result["roman_degree"] or "")
         
-        self.td_client.send_message(f"/td/harmony/{idx}/dissonance",     result["dissonance"])
-        self.td_client.send_message(f"/td/harmony/{idx}/harmonic_change",result["harmonic_change"])
-        self.td_client.send_message(f"/td/harmony/{idx}/hpcp",           result["hpcp"])
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/{self.role_index}/dissonance",     result["dissonance"])
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/{self.role_index}/harmonic_change",result["harmonic_change"])
+        self.td_client.send_message(f"/td/harmony/{self.instrument_role}/{self.role_index}/hpcp",           result["hpcp"])
 
 
     # ── display ───────────────────────────────────────────────────────────────

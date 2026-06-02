@@ -166,7 +166,10 @@ JAMENDO_OFFSET = 2.0   # fires 2s later
 
 # ─── Analyser class ───────────────────────────────────────────────────────────
 class MoodAnalyser:
-    def __init__(self, instrument_name="unknown", sample_rate=48000):
+    def __init__(self, instrument_name: str, sample_rate: int, instrument_role: str = "default", role_index: int = 0, instrument_index: int = 0):
+        self.instrument_role  = instrument_role
+        self.role_index       = role_index
+        self.instrument_index = instrument_index
         self.instrument_name = instrument_name
         self.sender_rate     = sample_rate
 

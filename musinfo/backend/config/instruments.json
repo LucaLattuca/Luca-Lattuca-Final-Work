@@ -1,88 +1,28 @@
 {
   "instruments": {
-    "bass": {
-      "enabled": true,
-      "type": "audio",
-      "analysers": [],
-      "audio_device": {
-        "channel": 5,
-        "connected": false,
-        "device_id": 37,
-        "host_api": "ASIO",
-        "max_input_channels": 20,
-        "name": "Focusrite USB ASIO",
-        "sample_rate": 44100
-      }
-    },
-    "drums": {
-      "analysers": [
-        "dynamics",
-        "tempo"
-      ],
-      "audio_device": {
-        "channel": 7,
-        "connected": false,
-        "device_id": 37,
-        "host_api": "ASIO",
-        "max_input_channels": 20,
-        "name": "Focusrite USB ASIO",
-        "sample_rate": 44100
-      },
-      "enabled": true,
-      "type": "audio"
-    },
-    "guitar": {
-      "enabled": true,
-      "type": "audio",
-      "analysers": [],
-      "audio_device": {
-        "channel": 6,
-        "connected": false,
-        "device_id": 37,
-        "host_api": "ASIO",
-        "max_input_channels": 20,
-        "name": "Focusrite USB ASIO",
-        "sample_rate": 44100
-      }
-    },
-    "vocals": {
-      "analysers": [
-        "pitch",
-        "dynamics"
-      ],
-      "audio_device": {
-        "channel": 4,
-        "connected": false,
-        "device_id": 37,
-        "host_api": "ASIO",
-        "max_input_channels": 20,
-        "name": "Focusrite USB ASIO",
-        "sample_rate": 44100
-      },
-      "enabled": true,
-      "type": "audio"
-    },
-    "mix": {
-      "type": "mix",
+    "bbacking_track": {
       "analysers": [
         "genre",
-        "mood"
+        "pitch",
+        "mood",
+        "tempo",
+        "timbre",
+        "harmony",
+        "dynamics"
       ],
-      "audio_device": {
-        "channel": 10,
-        "connected": false,
-        "device_id": 37,
-        "host_api": "ASIO",
-        "max_input_channels": 20,
-        "name": "Focusrite USB ASIO",
-        "sample_rate": 44100
-      },
+      "role_index": 0,
+      "role": "default",
       "enabled": true,
-      "mix_source": "external",
-      "source_instruments": [
-        "computer_audio",
-        "piano"
-      ]
+      "type": "virtual",
+      "audio_device": {
+        "name": "Stereo Mix (Realtek(R) Audio)",
+        "device_id": 2,
+        "host_api": "MME",
+        "max_input_channels": 2,
+        "channel": 0,
+        "sample_rate": 44100,
+        "connected": true
+      }
     }
   }
 }

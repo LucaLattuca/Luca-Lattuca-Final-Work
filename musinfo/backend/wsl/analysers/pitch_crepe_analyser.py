@@ -132,9 +132,11 @@ def classify(audio, model):
 
 
 class PitchCREPEAnalyser:
-    def __init__(self, instrument_name="unknown", sample_rate=48000, instrument_index=0):
-        self.instrument_name = instrument_name
+    def __init__(self, instrument_name: str, sample_rate: int, instrument_role: str = "default", role_index: int = 0, instrument_index: int = 0):
+        self.instrument_role  = instrument_role
+        self.role_index       = role_index
         self.instrument_index = instrument_index
+        self.instrument_name = instrument_name
         self.model  = load_model()
         self.buffer = AudioBuffer(sample_rate)  
         self.buffer.buffer = np.array([], dtype=np.float32)  # discard pre-load audio
@@ -166,7 +168,8 @@ class PitchCREPEAnalyser:
         if DEBUG : 
             self._display(best)
         self.osc.send_message(f"/pitch_crepe/{self.instrument_name}", best["note"])
-
+        
+        self.td_client.send_message(f"/td/pitch/{self.instrument_role}/{self.role_index}/hz", best["freq_hz"])
         if DEBUG :
             print(f"[Pitch_crepe] → /pitch_crepe/{self.instrument_name}  {best['note']}  {best['freq_hz']}Hz  conf={best['confidence']:.3f}")
             sys.stdout.flush()

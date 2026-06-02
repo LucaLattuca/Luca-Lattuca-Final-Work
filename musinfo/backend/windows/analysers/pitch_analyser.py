@@ -36,10 +36,12 @@ def hz_to_note(freq):
 
 # TODO add median filter for inaccurate octave readings
 class PitchAnalyser:
-    def __init__(self, instrument_name="unknown", sample_rate=48000, instrument_index=0):
+    def __init__(self, instrument_name: str, sample_rate: int, instrument_role: str = "default", role_index: int = 0, instrument_index: int = 0):
+        self.instrument_role  = instrument_role
+        self.role_index       = role_index
+        self.instrument_index = instrument_index
         self.instrument_name = instrument_name
         self.sample_rate = sample_rate
-        self.instrument_index = instrument_index
 
         # Create Aubio pitch detector with the provided sample rate
         self.detector = aubio.pitch(DETECTION_MODE, BUF_SIZE, HOP_SIZE, sample_rate)
@@ -64,7 +66,7 @@ class PitchAnalyser:
         # Check if audio is loud enough overall
         rms = np.sqrt(np.mean(audio ** 2))
         if rms < SILENCE_THRESHOLD:
-            self.td_client.send_message(f"/td/pitch/{self.instrument_index}/hz", self.last_pitch)
+            self.td_client.send_message(f"/td/pitch/{self.instrument_role}/{self.role_index}/hz", self.last_pitch)
             return
 
         # Process audio in HOP_SIZE chunks
@@ -94,7 +96,7 @@ class PitchAnalyser:
                 
                 # Send pitch to touchdesigner
                 self.last_pitch = float(pitch)
-                self.td_client.send_message(f"/td/pitch/{self.instrument_index}/hz", self.last_pitch)
+                self.td_client.send_message(f"/td/pitch/{self.instrument_role}/{self.role_index}/hz", self.last_pitch)
 
 
 
