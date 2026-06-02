@@ -7,6 +7,7 @@ import "./App.css";
 import Layout from "./components/layout/Layout";
 import AddInstrumentModal from "./components/modal/AddInstrumentModal";
 import instrumentsConfig from "../backend/config/instruments.json";
+import { resequenceRole } from "./utils/roleUtils";
 
 function App() {
 
@@ -154,10 +155,25 @@ function App() {
 
   // Submit modal form handler
   const handleSubmit = async (formData) => {
+    console.log('[handleSubmit] called with:', JSON.stringify({ name: formData.name, role: formData.role }));
     try {
-      await invoke('save_instrument', { instrument: formData });
+      // Build next state including the new instrument, then resequence its entire role bucket.
+      // This correctly assigns role_index to the new instrument AND updates any existing
+      // instruments in the same role whose alphabetical position shifts.
+      const next = { ...instruments, [formData.name]: { ...formData } };
+      console.log('[handleSubmit] instruments before:', Object.keys(instruments));
+      console.log('[handleSubmit] resequencing role:', formData.role);
+      const bucketPatch = resequenceRole(next, formData.role);
+      console.log('[handleSubmit] bucketPatch:', JSON.stringify(Object.fromEntries(Object.entries(bucketPatch).map(([k,v]) => [k, v.role_index]))));
+
+      for (const [n, inst] of Object.entries(bucketPatch)) {
+        console.log('[handleSubmit] saving:', n, 'role_index:', inst.role_index);
+        const result = await invoke('save_instrument', { instrument: { name: n, ...inst } });
+        console.log('[handleSubmit] save_instrument result for', n, ':', result);
+      }
 
       const nonMixBefore = Object.keys(instruments).filter(k => k !== 'mix').length;
+      console.log('[handleSubmit] nonMixBefore:', nonMixBefore, '| has mix:', !!instruments.mix);
       if (nonMixBefore === 1 && !instruments.mix) {
         const mixToRestore = prevMixConfig.current ?? {
           name: 'mix',
@@ -167,16 +183,20 @@ function App() {
           source_instruments: [],
           type: 'mix',
         };
+        console.log('[handleSubmit] restoring mix instrument');
         await invoke('save_instrument', { instrument: { name: 'mix', ...mixToRestore } });
       }
 
+      console.log('[handleSubmit] calling reconcile_devices');
       const reconciled = await invoke('reconcile_devices');
+      console.log('[handleSubmit] reconciled keys:', Object.keys(reconciled.instruments));
       setInstruments(reconciled.instruments);
       setSelectedInstrument({ name: formData.name, ...reconciled.instruments[formData.name] });
       setSwitchInstrument(k => k + 1);
       setModalOpen(false);
+      console.log('[handleSubmit] complete');
     } catch (err) {
-      console.error('[App] Failed to save instrument:', err);
+      console.error('[handleSubmit] ERROR:', err);
     }
   };
 
@@ -185,25 +205,60 @@ function App() {
 
   // Update instrument in setup tab
   const handleUpdateInstrument = async (originalName, formData) => {
-    if (!formData.name) return; // don't persist an empty name
+    if (!formData.name) return;
 
-    const isRename = originalName !== formData.name;
+    const isRename    = originalName !== formData.name;
+    const oldRole     = instruments[originalName]?.role;
+    const newRole     = formData.role;
+    const roleChanged = oldRole !== newRole;
+
+    console.log('[handleUpdateInstrument] originalName:', originalName, '| newName:', formData.name);
+    console.log('[handleUpdateInstrument] oldRole:', oldRole, '| newRole:', newRole, '| roleChanged:', roleChanged, '| isRename:', isRename);
+
     try {
-      await invoke('save_instrument', { instrument: formData });
-      if (isRename) await invoke('delete_instrument', { name: originalName });
+      let next = { ...instruments };
+      if (isRename) delete next[originalName];
 
-      setInstruments(prev => {
-        const next = { ...prev };
-        if (isRename) delete next[originalName];
+      // If role changed, clear role_index so the instrument appends to end of new bucket.
+      // If role is unchanged (name/analyser change), keep existing role_index for stable ordering.
+      if (roleChanged) {
+        next[formData.name] = { ...formData, role_index: null };
+      } else {
         next[formData.name] = { ...formData };
-        return next;
-      });
+      }
 
-      // keep selectedInstrument in sync without triggering a switchKey bump
-      // (a switchKey bump would reset Setup's local draft mid-edit)
-      setSelectedInstrument({ ...formData });
+      // Always resequence the new role bucket
+      console.log('[handleUpdateInstrument] resequencing new bucket:', newRole);
+      const newBucketPatch = resequenceRole(next, newRole);
+      console.log('[handleUpdateInstrument] newBucketPatch:', JSON.stringify(Object.fromEntries(Object.entries(newBucketPatch).map(([k,v]) => [k, v.role_index]))));
+      Object.assign(next, newBucketPatch);
+      for (const [n, inst] of Object.entries(newBucketPatch)) {
+        console.log('[handleUpdateInstrument] saving', n, 'role_index:', inst.role_index);
+        await invoke('save_instrument', { instrument: { name: n, ...inst } });
+      }
+
+      // If role changed, also resequence the old bucket to fill the gap
+      if (roleChanged && oldRole && oldRole !== 'mix') {
+        console.log('[handleUpdateInstrument] resequencing old bucket:', oldRole);
+        const oldBucketPatch = resequenceRole(next, oldRole);
+        console.log('[handleUpdateInstrument] oldBucketPatch:', JSON.stringify(Object.fromEntries(Object.entries(oldBucketPatch).map(([k,v]) => [k, v.role_index]))));
+        Object.assign(next, oldBucketPatch);
+        for (const [n, inst] of Object.entries(oldBucketPatch)) {
+          console.log('[handleUpdateInstrument] saving', n, 'role_index:', inst.role_index);
+          await invoke('save_instrument', { instrument: { name: n, ...inst } });
+        }
+      }
+
+      if (isRename) {
+        console.log('[handleUpdateInstrument] deleting old key:', originalName);
+        await invoke('delete_instrument', { name: originalName });
+      }
+
+      setInstruments(next);
+      setSelectedInstrument({ name: formData.name, ...next[formData.name] });
+      console.log('[handleUpdateInstrument] complete');
     } catch (err) {
-      console.error('[App] Failed to update instrument:', err);
+      console.error('[handleUpdateInstrument] ERROR:', err);
     }
   };
 
@@ -211,6 +266,7 @@ function App() {
     try {
       await invoke('delete_instrument', { name });
 
+      const deletedRole = instruments[name]?.role;
       const next = { ...instruments };
       delete next[name];
 
@@ -221,6 +277,16 @@ function App() {
         // Drop to 1 or 0 non-mix instruments — remove mix from disk and state
         await invoke('delete_instrument', { name: 'mix' });
         delete next.mix;
+      }
+
+      // Resequence the role bucket the deleted instrument belonged to
+      // so the remaining instruments get contiguous 0-based indices
+      if (deletedRole && deletedRole !== 'mix') {
+        const patch = resequenceRole(next, deletedRole);
+        Object.assign(next, patch);
+        for (const [n, inst] of Object.entries(patch)) {
+          await invoke('save_instrument', { instrument: { name: n, ...inst } });
+        }
       }
 
       setInstruments(next);

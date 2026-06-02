@@ -129,25 +129,15 @@ def build_channel_map(config):
     )
     instrument_indices = {n: idx for idx, n in enumerate(audio_instruments)}
 
-    # Build role-scoped index map — per-role 0-based counter, alphabetical within each role.
-    # e.g. vocals_backing -> vocals/0, vocals_lead -> vocals/1
-    # Resets automatically on pipeline restart if an instrument is removed.
-    role_buckets = {}
-    for n, inst in config.get("instruments", {}).items():
-        if not inst.get("enabled", False):
-            continue
-        role = inst.get("role", "default")
-        role_buckets.setdefault(role, []).append(n)
-
-    role_indices = {}
-    for role, names in role_buckets.items():
-        for i, n in enumerate(sorted(names)):
-            role_indices[n] = i
-
+    # role_index is stored in instruments.json as the single source of truth.
+    # The frontend assigns and resequences it on add/delete/role-change.
     if INFO:
-        for n, i in sorted(role_indices.items()):
-            role = next(inst.get("role", "default") for nm, inst in config.get("instruments", {}).items() if nm == n)
-            print(f"[broadcaster] role_index: {n:<20} -> {role}/{i}")
+        for n, inst in sorted(config.get("instruments", {}).items()):
+            if inst.get("type") == "mix":
+                continue
+            role = inst.get("role", "default")
+            role_idx = inst.get("role_index", 0)
+            print(f"[broadcaster] role_index: {n:<20} -> {role}/{role_idx}")
         sys.stdout.flush()
 
     # Build regular instrument routing
@@ -174,7 +164,7 @@ def build_channel_map(config):
         channel_map[channel_id] = {
             "name":                name,
             "role":                role,
-            "role_index":          role_indices.get(name, 0),
+            "role_index":          instrument.get("role_index", 0),
             "instrument_index":    instrument_indices.get(name, 0),
             "sample_rate":         sample_rate,
             "wsl_analysers":       [m for m in active_analysers if _target(analysers_config, m, "wsl")],
@@ -233,7 +223,7 @@ def build_channel_map(config):
             "source_channels":     source_channels,
             "sample_rate":         mix_sample_rate,
             "role":                mix_inst.get("role", "mix"),
-            "role_index":          role_indices.get(mix_name, 0),
+            "role_index":          mix_inst.get("role_index", 0),
             "instrument_index":    instrument_indices.get(mix_name, 0),
             "buffer": {
                 ch: {

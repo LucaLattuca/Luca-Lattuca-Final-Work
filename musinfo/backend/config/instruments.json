@@ -1,86 +1,28 @@
 {
   "instruments": {
-    "bass": {
-      "role": "bass",
-      "role_index": 0,
-      "analysers": ["timbre", "dynamics"],
+    "backing_track": {
       "audio_device": {
-        "channel": 5,
-        "connected": false,
-        "device_id": 37,
-        "host_api": "ASIO",
-        "max_input_channels": 20,
-        "name": "Focusrite USB ASIO",
-        "sample_rate": 44100
+        "name": "Stereo Mix (Realtek(R) Audio)",
+        "device_id": 2,
+        "host_api": "MME",
+        "max_input_channels": 2,
+        "channel": 0,
+        "sample_rate": 44100,
+        "connected": true
       },
-      "enabled": true,
-      "type": "audio"
-    },
-    "drums": {
-      "role": "drums",
+      "analysers": [
+        "pitch",
+        "genre",
+        "mood",
+        "tempo",
+        "harmony",
+        "timbre",
+        "dynamics"
+      ],
       "role_index": 0,
-      "analysers": ["tempo", "dynamics"],
-      "audio_device": {
-        "channel": 7,
-        "connected": false,
-        "device_id": 37,
-        "host_api": "ASIO",
-        "max_input_channels": 20,
-        "name": "Focusrite USB ASIO",
-        "sample_rate": 44100
-      },
+      "role": "default",
       "enabled": true,
-      "type": "audio"
-    },
-    "guitar": {
-      "role": "guitar",
-      "role_index": 0,
-      "analysers": ["timbre", "dynamics"],
-      "audio_device": {
-        "channel": 6,
-        "connected": false,
-        "device_id": 37,
-        "host_api": "ASIO",
-        "max_input_channels": 20,
-        "name": "Focusrite USB ASIO",
-        "sample_rate": 44100
-      },
-      "enabled": true,
-      "type": "audio"
-    },
-    "vocals": {
-      "role": "vocals",
-      "role_index": 0,
-      "analysers": ["pitch", "timbre", "dynamics"],
-      "audio_device": {
-        "channel": 4,
-        "connected": false,
-        "device_id": 37,
-        "host_api": "ASIO",
-        "max_input_channels": 20,
-        "name": "Focusrite USB ASIO",
-        "sample_rate": 44100
-      },
-      "enabled": true,
-      "type": "audio"
-    },
-    "mix": {
-      "role": "mix",
-      "role_index": 0,
-      "analysers": ["genre", "mood"],
-      "audio_device": {
-        "channel": 10,
-        "connected": false,
-        "device_id": 37,
-        "host_api": "ASIO",
-        "max_input_channels": 20,
-        "name": "Focusrite USB ASIO",
-        "sample_rate": 44100
-      },
-      "enabled": true,
-      "mix_source": "external",
-      "source_instruments": ["computer_audio", "piano"],
-      "type": "mix"
+      "type": "virtual"
     }
   }
 }

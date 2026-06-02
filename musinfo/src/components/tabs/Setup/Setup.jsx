@@ -49,18 +49,22 @@ const Setup = ({
 
 
     const save = (fields) => {
-        if (fields.name === '') return; 
-        setFormData(prev => {
-          const updated = { ...prev, ...fields };
+        if (fields.name === '') return;
 
-          // disable mix when no anlysers are selected
-          if (isMix && fields.analysers !== undefined) {
-            updated.enabled = fields.analysers.length > 0;
-          }
+        // Compute updated outside the setFormData updater — React StrictMode double-invokes
+        // updater functions in development, which would call onUpdateInstrument twice and
+        // trigger double saves. Computing here and calling setFormData with the value directly
+        // keeps the side-effect (onUpdateInstrument) to a single call.
+        const updated = { ...(formData ?? {}), ...fields };
 
-          onUpdateInstrument(savedInstrumentKey, updated);
-          return updated;
-        });
+        // disable mix when no analysers are selected
+        if (isMix && fields.analysers !== undefined) {
+          updated.enabled = fields.analysers.length > 0;
+        }
+
+        setFormData(updated);
+        onUpdateInstrument(savedInstrumentKey, updated);
+
         // keep originalName in sync so the next save uses the correct key
         if (fields.name && fields.name !== savedInstrumentKey) {
           setSavedInstrumentKey(fields.name);
