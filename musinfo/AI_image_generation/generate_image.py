@@ -10,6 +10,9 @@ Sends to TouchDesigner on port 9099:
   /musinfo/image_change    1.0   fired after every new NDI frame
 """
 
+
+import signal
+import sys
 import threading
 import time
 from pythonosc import dispatcher, osc_server, udp_client
@@ -53,6 +56,26 @@ _prompt_lock      = threading.Lock()
 _pending_positive = None
 _pending_negative = None
 _new_prompt_event = threading.Event()
+
+
+# Helper functions
+
+
+def _shutdown(signum, frame):
+    global _pipe
+    print("[gen_image] Shutting down cleanly...", flush=True)
+    try:
+        if _pipe is not None:
+            del _pipe
+            torch.cuda.empty_cache()
+            print("[gen_image] CUDA context released.", flush=True)
+    except Exception as e:
+        print(f"[gen_image] Shutdown error: {e}", flush=True)
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, _shutdown)
+signal.signal(signal.SIGTERM, _shutdown)
+
 
 # ── NDI output ─────────────────────────────────────────────────────────────────
 NDI_SOURCE_NAME = "MUSINFO_Background"
@@ -172,11 +195,14 @@ def _generation_loop(pipe):
                 num_inference_steps = NUM_INFERENCE_STEPS,
                 guidance_scale      = GUIDANCE_SCALE,
             )
-            image   = result.images[0]
+            image = result.images[0]
             print(f"[gen_image] Done in {time.time() - t0:.2f}s", flush=True)
         except Exception as e:
             print(f"[gen_image] Generation error: {e}", flush=True)
-            # clear stale prompt so the next cycle uses a fresh one
+            if "22" in str(e) or "CUDA" in str(e).upper():
+                print("[gen_image] CUDA error detected — clearing cache and pausing 5s", flush=True)
+                torch.cuda.empty_cache()
+                time.sleep(5)
             with _prompt_lock:
                 _pending_positive = None
                 _pending_negative = None
