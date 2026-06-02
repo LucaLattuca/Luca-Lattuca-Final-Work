@@ -21,9 +21,8 @@ const AudioDevicesConfig = ({
   const [swapPrompt,  setSwapPrompt]  = useState(null);
 
   // Re-fetch the device list whenever the input type changes (audio / midi / virtual).
-  useEffect(() => { fetchDevices(); }, [inputType]); 
+  useEffect(() => { fetchDevices(); }, [inputType]);
 
-  // TODO: filter our WDKS devices. 
 
   // Recompute what decives are in use, runs when instruments gets updated
   useEffect(() => {
@@ -40,30 +39,31 @@ const AudioDevicesConfig = ({
   }, [allInstruments, currentInstrumentName]);
 
 
-  const fetchDevices = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = inputType === 'midi'
-        ? await invoke('get_midi_devices')
-        : await invoke('get_audio_devices', { deviceType: inputType });
-      setDevices(result);
-      // reconcile removed from here
-    } catch (err) {
-      setError('Could not load devices. Is the interface connected?');
-    } finally {
-      setLoading(false);
-    }
+  const fetchDevices = async (forceRefresh = false) => {
+      setLoading(true);
+      setError(null);
+      try {
+          const result = inputType === 'midi'
+              ? await invoke('get_midi_devices')
+              : await invoke('get_audio_devices', {
+                  deviceType:   inputType,
+                  forceRefresh,
+                });
+          setDevices(result);
+      } catch (err) {
+          setError('Could not load devices. Is the interface connected?');
+      } finally {
+          setLoading(false);
+      }
   };
-
+  
   const handleReload = async () => {
-    await fetchDevices();
-    if (onReconcile) {
-      const updated = await invoke('reconcile_devices');
-      onReconcile(updated.instruments);
-    }
+      await fetchDevices(true);
+      if (onReconcile) {
+          const updated = await invoke('reconcile_devices');
+          onReconcile(updated.instruments);
+      }
   };
-
 
   const handleDeviceClick = (device) => {
   const usedEntry = usedDevices.find(u =>

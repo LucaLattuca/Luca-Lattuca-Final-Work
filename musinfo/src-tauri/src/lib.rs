@@ -35,6 +35,10 @@ struct PromptGeneratorProcess(Mutex<Option<Child>>);
 struct ImageGenProcess(Mutex<Option<Child>>);
 static PIPELINE_RUNNING: AtomicBool = AtomicBool::new(false);
 
+// AUDIO DEVICES CACHE - cached list of audio devices to avoid expensive re-querying on every reconcile
+
+struct AudioDeviceCache(Mutex<Option<Vec<Value>>>);
+
 // DEBUGGING
 const OSC_DEBUG: bool = false;
 
@@ -316,8 +320,95 @@ fn delete_instrument(_app: AppHandle, name: String) -> Result<String, String> {
     Ok("Instrument deleted".to_string())
 }
 
+
 // ─── AUDIO DEVICES ────────────────────────────────────────────────────────────
 
+/// Spawns Python + PortAudio with ASIO. Only called on cache miss or force-refresh.
+/// Returns ALL filtered input devices; each entry carries `is_virtual` so Rust
+/// can filter by type without a second spawn.
+fn fetch_audio_devices_python() -> Vec<Value> {
+    let script = r#"
+import json, sounddevice as sd
+devices   = sd.query_devices()
+host_apis = sd.query_hostapis()
+result    = []
+VIRTUAL_KEYWORDS = ["vb", "virtual", "cable", "voicemeeter", "stereo mix"]
+EXCLUDE_KEYWORDS = [
+    "mapper", "ndi", "webcam", "asio4all", "realtek asio",
+    "pc speaker", "hfenum", "hands-free", "microphone array", "microphone (realtek",
+]
+for i, d in enumerate(devices):
+    api_name = host_apis[d["hostapi"]]["name"]
+    if d["max_input_channels"] == 0:
+        continue
+    if api_name not in ["Windows WASAPI", "MME", "ASIO"]:
+        continue
+    name_lower = d["name"].lower()
+    if any(k in name_lower for k in EXCLUDE_KEYWORDS):
+        continue
+    if "focusrite" in name_lower and api_name != "ASIO":
+        continue
+    is_virtual = any(k in name_lower for k in VIRTUAL_KEYWORDS)
+    max_ch = 4 if is_virtual else d["max_input_channels"]
+    for ch in range(min(max_ch, d["max_input_channels"])):
+        result.append({
+            "device_index":       i,
+            "name":               d["name"],
+            "channel":            ch,
+            "host_api":           api_name,
+            "max_input_channels": d["max_input_channels"],
+            "sample_rate":        int(d["default_samplerate"]),
+            "latency":            round(d["default_low_input_latency"] * 1000, 2),
+            "is_virtual":         is_virtual,
+        })
+print(json.dumps(result))
+"#;
+
+    match Command::new("python")
+        .env("SD_ENABLE_ASIO", "1")
+        .args(["-c", script])
+        .output()
+    {
+        Ok(o)  => serde_json::from_str(String::from_utf8_lossy(&o.stdout).trim()).unwrap_or_default(),
+        Err(e) => { eprintln!("[fetch_audio_devices_python] spawn failed: {}", e); vec![] }
+    }
+}
+
+fn filter_audio_by_type(devices: &[Value], device_type: &str) -> Vec<Value> {
+    devices.iter().filter(|d| {
+        let is_virtual = d["is_virtual"].as_bool().unwrap_or(false);
+        match device_type {
+            "virtual" => is_virtual,
+            "audio"   => !is_virtual,
+            _         => true,  // "all"
+        }
+    }).cloned().collect()
+}
+
+#[tauri::command]
+fn get_audio_devices(
+    device_type:   String,
+    force_refresh: Option<bool>,
+    cache:         State<AudioDeviceCache>,
+) -> Vec<Value> {
+    let force = force_refresh.unwrap_or(false);
+
+    if !force {
+        let guard = cache.0.lock().unwrap();
+        if let Some(ref all) = *guard {
+            println!("[get_audio_devices] cache hit ({} entries, type={})", all.len(), device_type);
+            return filter_audio_by_type(all, &device_type);
+        }
+    }
+
+    println!("[get_audio_devices] spawning Python (force={})", force);
+    let all = fetch_audio_devices_python();
+    *cache.0.lock().unwrap() = Some(all.clone());
+    filter_audio_by_type(&all, &device_type)
+}
+
+
+// Reconcile devices 
 #[tauri::command]
 fn reconcile_devices(_app: AppHandle) -> Result<Value, String> {
     let path = instruments_path()?;
@@ -456,84 +547,7 @@ pygame.midi.quit()
     Ok(Value::Object(config))
 }
 
-#[tauri::command]
-fn get_audio_devices(device_type: String) -> Vec<Value> {
-    let python_script = format!(
-        r#"
-import json, sounddevice as sd
-devices = sd.query_devices()
-host_apis = sd.query_hostapis()
-result = []
-VIRTUAL_KEYWORDS = ["vb", "virtual", "cable", "voicemeeter", "stereo mix"]
 
-EXCLUDE_KEYWORDS = [
-    "mapper",
-    "ndi",
-    "webcam",
-    "asio4all",
-    "realtek asio",
-    "pc speaker",
-    "hfenum",
-    "hands-free",
-    "microphone array",
-    "microphone (realtek",
-]
-
-for i, d in enumerate(devices):
-    api_name = host_apis[d["hostapi"]]["name"]
-    if d["max_input_channels"] == 0:
-        continue
-    if api_name not in ["Windows WASAPI", "MME", "ASIO"]:
-        continue
-
-    name_lower = d["name"].lower()
-
-    if any(k in name_lower for k in EXCLUDE_KEYWORDS):
-        continue
-
-    if "focusrite" in name_lower and api_name != "ASIO":
-        continue
-
-    is_virtual = any(k in name_lower for k in VIRTUAL_KEYWORDS)
-
-    if "{device_type}" != "all":
-        if "{device_type}" == "virtual" and not is_virtual:
-            continue
-        if "{device_type}" == "audio" and is_virtual:
-            continue
-
-    max_channels_to_show = 4 if is_virtual else d["max_input_channels"]
-
-    for ch in range(min(max_channels_to_show, d["max_input_channels"])):
-        result.append({{
-            "device_index": i,
-            "name": d["name"],
-            "channel": ch,
-            "host_api": api_name,
-            "max_input_channels": d["max_input_channels"],
-            "sample_rate": int(d["default_samplerate"]),
-            "latency": round(d["default_low_input_latency"] * 1000, 2),
-        }})
-
-print(json.dumps(result))
-"#
-    );
-
-    let output = match Command::new("python")
-        .env("SD_ENABLE_ASIO", "1")
-        .args(["-c", &python_script])
-        .output()
-    {
-        Ok(o) => o,
-        Err(e) => {
-            eprintln!("[get_audio_devices] Failed to spawn python: {}", e);
-            return vec![];
-        }
-    };
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(stdout.trim()).unwrap_or_default()
-}
 
 #[tauri::command]
 fn get_midi_devices() -> Vec<Value> {
@@ -835,23 +849,6 @@ fn start_pipeline(
         }
     }
 
-    // Auto-enable image gen when pipeline starts
-    {
-        let socket = UdpSocket::bind("0.0.0.0:0").ok();
-        if let Some(sock) = socket {
-            fn build_osc_img(address: &str, value: i32) -> Vec<u8> {
-                use rosc::{OscMessage, OscPacket, OscType};
-                rosc::encoder::encode(&OscPacket::Message(OscMessage {
-                    addr: address.to_string(),
-                    args: vec![OscType::Int(value)],
-                })).unwrap_or_default()
-            }
-            let msg = build_osc_img("/musinfo/image_gen_enabled", 1);
-            let _ = sock.send_to(&msg, "127.0.0.1:9001");
-            let _ = sock.send_to(&msg, "127.0.0.1:9002");
-            println!("[Tauri] image_gen_enabled -> 1 sent to image gen processes");
-        }
-    }
 
     // Notify TouchDesigner to reset OSC state
     {
@@ -1149,26 +1146,35 @@ pub fn run() {
         // Test processes
         .manage(TestProcess(Mutex::new(None)))
         .manage(MidiTestProcess(Mutex::new(None)))
+        .manage(AudioDeviceCache(Mutex::new(None)))
         .setup(|app| {
             let menu = menu::build_menu(&app.handle())?;
             app.set_menu(menu)?;
 
             start_osc_listener(app.handle().clone());
 
-            // Spawn persistent WSL processes immediately at startup.
-            // Models begin loading in the background while the user configures the session.
-            let wsl_state = app.state::<WslProcess>();
+            let wsl_state       = app.state::<WslProcess>();
             let wsl_heavy_state = app.state::<WslHeavyProcess>();
-
             let prompt_gen      = app.state::<PromptGeneratorProcess>();
             let image_gen       = app.state::<ImageGenProcess>();
 
-
             if let Err(e) = spawn_persistent_processes(&wsl_state, &wsl_heavy_state, &prompt_gen, &image_gen) {
                 eprintln!("[Tauri] Warning: failed to spawn persistent processes: {}", e);
-                // Non-fatal — user can still start the pipeline, it will just be slower
             }
-
+        
+            // Pre-warm the audio device cache in a background thread.
+            // The Python+ASIO spawn (~500ms, causes one audio glitch) happens here,
+            // before the UI renders, so get_audio_devices calls from AudioDevicesConfig
+            // always hit the cache instantly.
+            let app_handle = app.handle().clone();
+            thread::spawn(move || {
+                println!("[Tauri] Pre-warming audio device cache...");
+                let devices = fetch_audio_devices_python();
+                println!("[Tauri] Audio device cache ready ({} entries)", devices.len());
+                let cache = app_handle.state::<AudioDeviceCache>();
+                *cache.0.lock().unwrap() = Some(devices);
+            });
+        
             Ok(())
         })
         .on_menu_event(menu::handle_menu_event)
