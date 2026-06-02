@@ -1,6 +1,19 @@
 {
   "instruments": {
-    "backing_track": {
+    "bbacking_track": {
+      "analysers": [
+        "genre",
+        "pitch",
+        "mood",
+        "tempo",
+        "timbre",
+        "harmony",
+        "dynamics"
+      ],
+      "role_index": 0,
+      "role": "default",
+      "enabled": true,
+      "type": "virtual",
       "audio_device": {
         "name": "Stereo Mix (Realtek(R) Audio)",
         "device_id": 2,
@@ -9,20 +22,7 @@
         "channel": 0,
         "sample_rate": 44100,
         "connected": true
-      },
-      "analysers": [
-        "pitch",
-        "genre",
-        "mood",
-        "tempo",
-        "harmony",
-        "timbre",
-        "dynamics"
-      ],
-      "role_index": 0,
-      "role": "default",
-      "enabled": true,
-      "type": "virtual"
+      }
     }
   }
 }
