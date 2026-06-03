@@ -14,7 +14,7 @@ const Header = ({ activeTab, setActiveTab, pipelineStatus, onStart, onStop }) =>
     <header className={styles.header}>
       <div className={styles.logo}>
         <h3>MusInfo</h3>
-        <p>An interface for Harmonic Visuals</p>
+        <p>An interface for Visual Resonance</p>
       </div>
       <nav className={styles.nav}>
         <button onClick={() => setActiveTab('performance')}><p>Performance</p></button>
