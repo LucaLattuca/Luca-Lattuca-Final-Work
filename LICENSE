@@ -19,3 +19,21 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+THIRD-PARTY NOTICES
+
+This software uses Essentia, developed by the Music Technology Group at
+Universitat Pompeu Fabra (https://essentia.upf.edu).
+
+Essentia is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+Use of Essentia in this project is limited to local analysis and does not
+constitute a network service, but users who modify or redistribute this software
+should be aware of the AGPL-3.0 obligations that apply to the Essentia dependency.
+
+The full text of the AGPL-3.0 licence is available at:
+https://www.gnu.org/licenses/agpl-3.0.html
+
+Essentia source code is available at:
+https://github.com/MTG/essentia
