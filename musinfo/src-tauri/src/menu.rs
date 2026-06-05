@@ -5,22 +5,19 @@ use tauri::{
 };
 use tauri_plugin_opener::OpenerExt;
 
-// Menu Ids
+// ── Menu IDs ──────────────────────────────────────────────────────────────────
 
 const SAVE_SESSION: &str = "save-session";
 const HELP: &str = "help";
 const ABOUT: &str = "about";
 pub const LOAD_SESSION_PREFIX: &str = "load-session:";
 
-// Build Menu Handlers
+// ── Build ─────────────────────────────────────────────────────────────────────
 
 pub fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let file = build_file_submenu(app)?;
-
     let help = MenuItemBuilder::new("Help").id(HELP).build(app)?;
-
     let about = MenuItemBuilder::new("About").id(ABOUT).build(app)?;
-
     MenuBuilder::new(app)
         .item(&file)
         .item(&help)
@@ -36,10 +33,7 @@ fn build_file_submenu(app: &AppHandle) -> tauri::Result<tauri::menu::Submenu<tau
         .accelerator("CmdOrCtrl+S")
         .build(app)?;
 
-    // read sessions from disk
     let sessions = list_sessions_from_disk();
-
-    // build the Load Session submenu
     let mut load_builder = SubmenuBuilder::new(app, "Load Session");
 
     if sessions.is_empty() {
@@ -57,14 +51,13 @@ fn build_file_submenu(app: &AppHandle) -> tauri::Result<tauri::menu::Submenu<tau
     }
 
     let load = load_builder.build()?;
-
     SubmenuBuilder::new(app, "File")
         .item(&save)
         .item(&load)
         .build()
 }
 
-// Rebuild
+// ── Rebuild ───────────────────────────────────────────────────────────────────
 
 // Called after a session is saved to refresh the Load Session submenu.
 pub fn rebuild_menu(app: &AppHandle) -> Result<(), String> {
@@ -74,7 +67,7 @@ pub fn rebuild_menu(app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-// Event Handlers
+// ── Event Handlers ────────────────────────────────────────────────────────────
 
 pub fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
     let id = event.id().as_ref();
@@ -94,15 +87,79 @@ pub fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
                 eprintln!("[menu] Failed to emit menu-save-session: {}", e);
             });
         }
-
-        HELP => open_url(app, &docs_url("index.html")),
-        ABOUT => open_url(app, &docs_url("about.html")),
-
+        HELP => open_doc_browser(app, "index.html"),
+        ABOUT => open_doc_browser(app, "about.html"),
         other => eprintln!("[menu] Unknown menu event: {}", other),
     }
 }
 
-// Helpers
+// ── Doc Browser ───────────────────────────────────────────────────────────────
+
+// Opens a pre-rendered doc page in the system browser.
+//
+// Chrome and Edge block fetch() across file:// origins, so we cannot load
+// markdown at runtime from the browser. Instead, Rust reads both markdown files
+// and writes temporary HTML files with the content already embedded as
+// window.__DOC_CONTENT__. Both temps are generated every open so that the nav
+// link between Architecture and About continues to work.
+fn open_doc_browser(app: &AppHandle, target: &str) {
+    // CARGO_MANIFEST_DIR = musinfo/src-tauri
+    //   .parent()  → musinfo
+    //   .parent()  → repo root
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("[menu] could not resolve musinfo dir")
+        .parent()
+        .expect("[menu] could not resolve repo root");
+
+    let docs_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("[menu] could not resolve musinfo dir")
+        .join("docs");
+
+    // Generate both temp files so that nav links between Architecture ↔ About work.
+    let pages: [(&str, &str); 2] = [
+        ("index.html", "ARCHITECTURE.md"),
+        ("about.html", "README.md"),
+    ];
+
+    for (html_file, md_file) in &pages {
+        let md = std::fs::read_to_string(root.join(md_file))
+            .unwrap_or_else(|e| format!("# Could not read {}\n\n{}", md_file, e));
+
+        let template = match std::fs::read_to_string(docs_dir.join(html_file)) {
+            Ok(t) => t,
+            Err(e) => {
+                eprintln!("[menu] Failed to read template {}: {}", html_file, e);
+                continue;
+            }
+        };
+
+        let json = serde_json::to_string(&md).unwrap_or_else(|_| "\"\"".to_string());
+
+        // Inject the content before </head> and rewrite nav hrefs to the temp
+        // filenames so clicking between pages works from the browser.
+        let script_tag = format!(
+            "  <script>window.__DOC_CONTENT__ = {};</script>\n</head>",
+            json
+        );
+        let output = template
+            .replace("</head>", &script_tag)
+            .replace("href=\"index.html\"", "href=\"_tmp_index.html\"")
+            .replace("href=\"about.html\"", "href=\"_tmp_about.html\"");
+
+        let tmp_path = docs_dir.join(format!("_tmp_{}", html_file));
+        if let Err(e) = std::fs::write(&tmp_path, &output) {
+            eprintln!("[menu] Failed to write {}: {}", tmp_path.display(), e);
+        }
+    }
+
+    let tmp_path = docs_dir.join(format!("_tmp_{}", target));
+    let url = format!("file:///{}", tmp_path.to_string_lossy().replace('\\', "/"));
+    open_url(app, &url);
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn list_sessions_from_disk() -> Vec<String> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -129,20 +186,6 @@ fn list_sessions_from_disk() -> Vec<String> {
 
     names.sort();
     names
-}
-
-fn docs_url(filename: &str) -> String {
-    let project_root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("Could not resolve project root");
-
-    let path = project_root
-        .join("docs")
-        .join(filename)
-        .to_string_lossy()
-        .replace('\\', "/");
-
-    format!("file:///{}", path)
 }
 
 fn open_url(app: &AppHandle, url: &str) {
