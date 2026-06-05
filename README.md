@@ -6,20 +6,20 @@
 
 ## What is Visual Resonance?
 
-<!-- [YOUR TEXT HERE]
-     Describe the concept and artistic intent of the final work.
-     What does it mean for music to produce visuals in real time?
-     What is the viewer's experience? -->
+Visual Resonance is a real-time audiovisual installation that translates live musical performance into generative imagery TouchDesigner visual. Audio from multiple instruments is analysed simultaneously, extracting pitch, tempo, timbre, harmony, dynamics, mood and genre and is mapped to visual parameters in TouchDesigner and to AI-generated imagery via Stable Diffusion.
 
-Visual Resonance is a real-time audiovisual installation that translates live musical performance into generative imagery and abstract motion graphics. Audio from multiple instruments is analysed simultaneously — extracting pitch, tempo, timbre, harmony, dynamics, mood and genre — and mapped to visual parameters in TouchDesigner and to AI-generated imagery via Stable Diffusion.
+Visual resonance aims to expand on the auditive dimension of music, by creating a visual dimension that represents each element of music. By creating real time visualisation experience, this experience can serve as an extension of human creativity, allowing for a more profound understanding of music.
 
-<!-- [YOUR TEXT HERE] — expand, rephrase, make it yours -->
+This project was built as a Final Work for the bachelor Mulitimedia and Creative Technologies.
 
 ---
 
 ## MUSINFO
 
-MUSINFO is the supporting desktop application built for Visual Resonance. It manages the full audio analysis pipeline: configuring instruments and audio devices, launching all backend processes, and routing analysis data over OSC to TouchDesigner and the image generation system.
+MUSINFO is the supporting desktop application built for Visual Resonance. It manages the full audio analysis pipeline: configuring instruments and audio devices, and routing analysis data over OSC to TouchDesigner and the image generation system.
+
+This project uses Essentia, a library for musical analysis. While it is written in C++, it's python bindings are very fragile on windows and are made for Linux OS.
+Therefore a WSL (Windows Subsystem for Linux) envoronment has been built into this project and is necessary to run the essentia anlyser files.
 
 MUSINFO runs on **Windows only**. macOS is not supported due to the WSL-based analysis pipeline.
 
@@ -63,7 +63,7 @@ MUSINFO runs on **Windows only**. macOS is not supported due to the WSL-based an
 
 ### Setup
 
-> ⚠️ MUSINFO is developed and tested on Windows 11 with an NVIDIA GPU. It does not run on macOS.
+> ⚠️ MUSINFO is developed and tested on Windows 11 with an NVIDIA GPU. It does not run on macOS without proper refactoring and dependencies.
 
 ---
 
@@ -72,7 +72,7 @@ MUSINFO runs on **Windows only**. macOS is not supported due to the WSL-based an
 - [Node.js](https://nodejs.org/) 18 or later
 - [Rust](https://rustup.rs/) (stable toolchain)
 - [Python 3.13](https://www.python.org/downloads/) (Windows)
-- WSL2 with Ubuntu 22.04 or later — [install guide](https://learn.microsoft.com/en-us/windows/wsl/install)
+- WSL2 with Ubuntu 24.04 LTS (Noble) — [install guide](https://learn.microsoft.com/en-us/windows/wsl/install)
 - NVIDIA GPU with CUDA support (for genre, mood and TempoCNN analysers)
 - [loopMIDI](https://www.tobias-erichsen.de/software/loopmidi.html) — for MIDI routing
 - [TouchDesigner](https://derivative.ca/) (any recent build)
@@ -90,22 +90,15 @@ pip install sounddevice python-osc numpy aubio pygame scipy
 
 #### WSL — Python 3.12 setup
 
-Essentia currently requires Python 3.12. Ubuntu's default Python may be a different version, so install 3.12 explicitly using the deadsnakes PPA.
+Ubuntu 24.04 LTS (Noble) ships with Python 3.12 pre-installed. No additional installation is needed. Verify your version:
 
 ```bash
-# Update and add deadsnakes PPA
-sudo apt update && sudo apt install -y software-properties-common
-sudo add-apt-repository ppa:deadsnakes/ppa
-sudo apt update
-
-# Install Python 3.12 with venv and dev headers
-sudo apt install -y python3.12 python3.12-venv python3.12-dev
-
-# Verify
 python3.12 --version
 ```
 
-Then create a virtual environment inside the WSL backend folder:
+If you are on an earlier Ubuntu version, check that Python 3.12 is available before proceeding.
+
+Create a virtual environment inside the WSL backend folder:
 
 ```bash
 cd /mnt/c/<path-to-project>/musinfo/backend/wsl
@@ -119,9 +112,75 @@ Install the required packages inside the virtual environment:
 pip install essentia-tensorflow numpy scipy pythonosc librosa
 ```
 
-> `essentia-tensorflow` installs Essentia with TensorFlow support, which is required for the genre, mood, CREPE and TempoCNN models. This may take several minutes.
+> `essentia-tensorflow` installs Essentia with TensorFlow support, required for the genre, mood, CREPE and TempoCNN models. This may take several minutes.
 
 The WSL receiver scripts activate this venv automatically when launched by Tauri.
+
+---
+
+#### Essentia models
+
+All ML models must be downloaded manually and placed in the correct directories. Model files are not committed to the repository.
+
+Essentia model documentation: [essentia.upf.edu/models.html](https://essentia.upf.edu/models.html)  
+Essentia algorithm reference: [essentia.upf.edu/algorithms_reference.html](https://essentia.upf.edu/algorithms_reference.html)
+
+All Essentia models are licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/).
+
+---
+
+**Discogs-EffNet** — shared feature extractor for genre and mood  
+Place in: `musinfo/backend/wsl/models/`
+
+| File                         | Download                                                                                                 |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `discogs-effnet-bs64-1.pb`   | [download](https://essentia.upf.edu/models/feature-extractors/discogs-effnet/discogs-effnet-bs64-1.pb)   |
+| `discogs-effnet-bs64-1.json` | [download](https://essentia.upf.edu/models/feature-extractors/discogs-effnet/discogs-effnet-bs64-1.json) |
+
+---
+
+**CREPE pitch models** — neural pitch detection  
+Place in: `musinfo/backend/wsl/models/pitch_models/`  
+Both sizes are included; the active model is set by `MODEL_SIZE` in `pitch_crepe_analyser.py`.
+
+| File                  | Download                                                                    |
+| --------------------- | --------------------------------------------------------------------------- |
+| `crepe-medium-1.pb`   | [download](https://essentia.upf.edu/models/pitch/crepe/crepe-medium-1.pb)   |
+| `crepe-medium-1.json` | [download](https://essentia.upf.edu/models/pitch/crepe/crepe-medium-1.json) |
+| `crepe-large-1.pb`    | [download](https://essentia.upf.edu/models/pitch/crepe/crepe-large-1.pb)    |
+| `crepe-large-1.json`  | [download](https://essentia.upf.edu/models/pitch/crepe/crepe-large-1.json)  |
+
+---
+
+**Mood and danceability models**  
+Place in: `musinfo/backend/wsl/models/mood_models/`
+
+| File                                          | Download                                                                                                                           |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `mood_aggressive-discogs-effnet-1.pb`         | [download](https://essentia.upf.edu/models/classification-heads/mood_aggressive/mood_aggressive-discogs-effnet-1.pb)               |
+| `mood_aggressive-discogs-effnet-1.json`       | [download](https://essentia.upf.edu/models/classification-heads/mood_aggressive/mood_aggressive-discogs-effnet-1.json)             |
+| `mood_happy-discogs-effnet-1.pb`              | [download](https://essentia.upf.edu/models/classification-heads/mood_happy/mood_happy-discogs-effnet-1.pb)                         |
+| `mood_happy-discogs-effnet-1.json`            | [download](https://essentia.upf.edu/models/classification-heads/mood_happy/mood_happy-discogs-effnet-1.json)                       |
+| `mood_party-discogs-effnet-1.pb`              | [download](https://essentia.upf.edu/models/classification-heads/mood_party/mood_party-discogs-effnet-1.pb)                         |
+| `mood_party-discogs-effnet-1.json`            | [download](https://essentia.upf.edu/models/classification-heads/mood_party/mood_party-discogs-effnet-1.json)                       |
+| `mood_relaxed-discogs-effnet-1.pb`            | [download](https://essentia.upf.edu/models/classification-heads/mood_relaxed/mood_relaxed-discogs-effnet-1.pb)                     |
+| `mood_relaxed-discogs-effnet-1.json`          | [download](https://essentia.upf.edu/models/classification-heads/mood_relaxed/mood_relaxed-discogs-effnet-1.json)                   |
+| `mood_sad-discogs-effnet-1.pb`                | [download](https://essentia.upf.edu/models/classification-heads/mood_sad/mood_sad-discogs-effnet-1.pb)                             |
+| `mood_sad-discogs-effnet-1.json`              | [download](https://essentia.upf.edu/models/classification-heads/mood_sad/mood_sad-discogs-effnet-1.json)                           |
+| `danceability-discogs-effnet-1.pb`            | [download](https://essentia.upf.edu/models/classification-heads/danceability/danceability-discogs-effnet-1.pb)                     |
+| `danceability-discogs-effnet-1.json`          | [download](https://essentia.upf.edu/models/classification-heads/danceability/danceability-discogs-effnet-1.json)                   |
+| `mtg_jamendo_moodtheme-discogs-effnet-1.pb`   | [download](https://essentia.upf.edu/models/classification-heads/mtg_jamendo_moodtheme/mtg_jamendo_moodtheme-discogs-effnet-1.pb)   |
+| `mtg_jamendo_moodtheme-discogs-effnet-1.json` | [download](https://essentia.upf.edu/models/classification-heads/mtg_jamendo_moodtheme/mtg_jamendo_moodtheme-discogs-effnet-1.json) |
+
+---
+
+**TempoCNN** — neural BPM estimation  
+Place in: `musinfo/backend/wsl/models/bpm_models/`
+
+| File                    | Download                                                                         |
+| ----------------------- | -------------------------------------------------------------------------------- |
+| `deepsquare-k16-3.pb`   | [download](https://essentia.upf.edu/models/tempo/tempocnn/deepsquare-k16-3.pb)   |
+| `deepsquare-k16-3.json` | [download](https://essentia.upf.edu/models/tempo/tempocnn/deepsquare-k16-3.json) |
 
 ---
 
@@ -137,17 +196,15 @@ npm run tauri dev
 
 ## Music Visualisation
 
-<!-- [YOUR TEXT HERE]
-     Describe the TouchDesigner patch and what each visual parameter represents.
-     Describe the AI image pipeline — prompt construction, generation rate, crossfade. -->
+The visual output of Visual Resonance consists of two layers:
 
-The visual output consists of two layers:
+**TouchDesigner** receives real-time OSC data from the analysers and maps musical parameters to visual properties. Dynamics is mapped to scale, pitch to vertical position, timbre to shape and texture, harmony to colour...
 
-**TouchDesigner** receives real-time OSC data from the analysers and maps musical parameters to visual properties — dynamics to scale, pitch to vertical position, timbre to shape and texture, harmony to colour.
+In TouchDesigner, a complete osc map is built based on the analysers that are built into Musinfo. The TouchDesigner patch is located at `touchdesigner/Harmonic_Visuals.toe`.
+
+> **Git LFS required** — The `.toe` file is stored using Git Large File Storage. To pull the actual file after cloning the repository, install [Git LFS](https://git-lfs.com/) and run `git lfs pull`. Without this, the file in the `touchdesigner/` folder will be a text pointer rather than the binary patch.
 
 **AI image generation** uses a prompt constructed from genre, mood and harmonic context to generate images via SD Turbo, which are streamed into TouchDesigner via NDI and crossfaded on each new generation.
-
-The TouchDesigner patch is located at `touchdesigner/Harmonic_Visuals.toe`.
 
 ---
 
@@ -275,3 +332,7 @@ Despite the extensive use of Claude AI, a great deal of effort has been made to 
 ## reducing audio lag upon swapping to setup tab
 
 - https://claude.ai/share/998d52d7-a0d8-4f29-82fd-1d5120c93b3e
+
+## Creating Readme, Arcitecture and Maintenance.md files
+
+- https://claude.ai/share/964b9f8e-21ae-4da5-95d8-4ea373d6eb4f

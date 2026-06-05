@@ -174,7 +174,7 @@ python -c "import torch; torch.cuda.empty_cache(); torch.cuda.synchronize(); pri
 
 ---
 
-### One failing analyser can affect others
+### One failing analyser can silently affect others
 
 **Symptom:** An unhandled exception in one analyser's `push()` method may not crash the receiver process, but if it corrupts shared state or blocks the `ThreadedAnalyser` worker, other analysers in the same receiver may stop producing output without an obvious error message.
 
@@ -203,7 +203,7 @@ If OSC messages from WSL analysers stop arriving, verify the gateway IP manually
 
 ---
 
-### AUDIO device index changes between sessions
+### ASIO device index changes between sessions
 
 **Symptom:** After a system restart or USB device reconnection, a different integer index may be assigned to the same physical device.
 
