@@ -3,3 +3,5 @@ musinfo/src-tauri/Cargo.toml
 musinfo/logs.txt
 /musinfo/backend/audio_debug
 musinfo/backend/config/instruments.json
+musinfo/docs/_tmp_about.html
+musinfo/docs/_tmp_index.html
