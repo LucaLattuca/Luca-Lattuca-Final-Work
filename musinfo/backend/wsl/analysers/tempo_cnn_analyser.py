@@ -36,6 +36,7 @@ def _get_windows_host_ip():
 OSC_HOST = _get_windows_host_ip()
 OSC_PORT        = 9000
 OSC_PROMPT_PORT = 9001
+OSC_TD_PORT = 9100
 
 
 
@@ -61,6 +62,7 @@ class TempoCNNAnalyser:
 
         self.osc             = udp_client.SimpleUDPClient(OSC_HOST, OSC_PORT)
         self.prompt_osc_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_PROMPT_PORT)
+        self.td_client = udp_client.SimpleUDPClient(OSC_HOST, OSC_TD_PORT)
 
         self.bpm_address     = f"/tempo/{instrument_name}/bpm_accurate"
         self.feel_address    = f"/tempo/{instrument_name}/feel"
@@ -141,7 +143,8 @@ class TempoCNNAnalyser:
         if feel != self._last_feel:
             self.osc.send_message(self.feel_address, feel)
             self.prompt_osc_client.send_message("/prompt/tempo_feel", feel)
-            
+            self.td_client.send_message(f"/td/tempo/bpm", smoothed)
+
             if DEBUG : 
                 print(f"[tempo_cnn] {self.instrument_name}: {feel} -> {self.feel_address}")
             

@@ -29,7 +29,7 @@
     display: flex;
 }
 
-.nav button {
+.tabButton{
     width: 130px;
     margin: 0;
     padding: 0px 10px 0px 10px;
@@ -39,17 +39,22 @@
     border: none;
 }
 
-.nav button:hover {
+.tabButton:hover {
     background: linear-gradient(179deg, #2c2c2c 0%, #080808 100%);
 
 }
 
-.nav button p {
+.tabButton p {
     color: #9f9f9f;
     font-weight: 700;
 
 }
 
+
+.selectedTab {
+  background: linear-gradient(179deg, #2c2c2c 0%, #080808 60%);
+  opacity: 1;
+}
 
 
 
