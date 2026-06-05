@@ -17,10 +17,25 @@ const Header = ({ activeTab, setActiveTab, pipelineStatus, onStart, onStop }) =>
         <p>An interface for Visual Resonance</p>
       </div>
       <nav className={styles.nav}>
-        <button onClick={() => setActiveTab('performance')}><p>Performance</p></button>
-        <button onClick={() => setActiveTab('setup')}><p>Setup</p></button>
-        <button onClick={() => setActiveTab('osc')}><p>OSC config</p></button>
-      </nav>
+  <button 
+    className={`${styles.tabButton} ${activeTab === 'performance' ? styles.selectedTab : ''}`}
+    onClick={() => setActiveTab('performance')}
+  >
+    <p>Performance</p>
+  </button>
+  <button 
+    className={`${styles.tabButton} ${activeTab === 'setup' ? styles.selectedTab : ''}`}
+    onClick={() => setActiveTab('setup')}
+  >
+    <p>Setup</p>
+  </button>
+  <button 
+    className={`${styles.tabButton} ${activeTab === 'osc' ? styles.selectedTab : ''}`}
+    onClick={() => setActiveTab('osc')}
+  >
+    <p>OSC config</p>
+  </button>
+</nav>
       <div className={styles.controls}>
 
         {isLaunching && <span className={styles.statusLaunching}>Launching pipeline...</span>}

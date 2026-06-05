@@ -78,7 +78,7 @@ const Sidebar = ({ onAddInstrument, onSelectInstrument, selectedInstrument, inst
       
       <div className={styles.addInstrument}>
         <button onClick={onAddInstrument} className={styles.addInstrumentButton}>
-          Add Instruments
+          Add Instrument
         </button>
       </div>
     </div>

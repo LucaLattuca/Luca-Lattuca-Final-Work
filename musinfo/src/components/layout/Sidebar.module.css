@@ -60,6 +60,10 @@
 .addInstrumentButton {
     height: 35px;
     width: 150px;
+    background-color: #2e872d;
+    border: 2px outset #30AE30;
+    color: white;
+    font-size: 15px ;
     border-radius: 5px;
     cursor: pointer;
 }
