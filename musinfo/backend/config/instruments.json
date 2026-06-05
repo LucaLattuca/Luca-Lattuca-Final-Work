@@ -1,14 +1,15 @@
 {
   "instruments": {
     "vocals": {
+      "role": "vocals",
       "enabled": true,
-      "type": "audio",
+      "type": "virtual",
       "audio_device": {
-        "name": "Focusrite USB ASIO",
-        "device_id": 37,
-        "host_api": "ASIO",
-        "max_input_channels": 20,
-        "channel": 10,
+        "name": "Stereo Mix (Realtek(R) Audio)",
+        "device_id": 2,
+        "host_api": "MME",
+        "max_input_channels": 2,
+        "channel": 0,
         "sample_rate": 44100,
         "connected": true
       },
@@ -16,10 +17,12 @@
         "pitch",
         "dynamics",
         "timbre",
-        "tempo"
+        "tempo",
+        "mood",
+        "genre",
+        "harmony"
       ],
-      "role_index": 0,
-      "role": "vocals"
+      "role_index": 0
     }
   }
 }
