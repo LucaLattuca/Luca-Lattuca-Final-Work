@@ -16,6 +16,7 @@ import hashlib
 from collections import deque
 from math import gcd
 from scipy.signal import resample_poly
+import subprocess
 
 # Debugging 
 DEBUG = False
@@ -45,8 +46,28 @@ LOCAL_PORT      = 5005
 WSL_HOST        = "172.29.28.224"
 WSL_PORT        = 5006
 
-WSL_HEAVY_HOST  = "172.29.28.224"
+
+
+
+def get_wsl_ip():
+    try:
+        result = subprocess.run(
+            ["wsl", "hostname", "-I"],
+            capture_output=True, text=True, timeout=5
+        )
+        ip = result.stdout.strip().split()[0]
+        if not ip:
+            raise ValueError("Empty response")
+        return ip
+    except Exception as e:
+        print(f"[broadcaster] Could not resolve WSL IP: {e}")
+        print("[broadcaster] Falling back to hardcoded IP")
+        return "172.29.28.224"  # fallback
+
+WSL_HOST       = get_wsl_ip()
 WSL_HEAVY_PORT        = 5008
+WSL_HEAVY_HOST = WSL_HOST
+
 
 WINDOWS_HOST = "127.0.0.1"
 WINDOWS_PORT = 5007
