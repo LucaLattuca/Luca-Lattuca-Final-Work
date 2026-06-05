@@ -1,0 +1,105 @@
+{
+  "instruments": {
+    "drums": {
+      "audio_device": {
+        "name": "Focusrite USB ASIO",
+        "device_id": 37,
+        "host_api": "ASIO",
+        "max_input_channels": 20,
+        "channel": 7,
+        "sample_rate": 44100,
+        "connected": true
+      },
+      "analysers": [
+        "dynamics",
+        "tempo"
+      ],
+      "role_index": 0,
+      "role": "drums",
+      "enabled": true,
+      "type": "audio"
+    },
+    "vocals": {
+      "type": "audio",
+      "audio_device": {
+        "name": "Focusrite USB ASIO",
+        "device_id": 37,
+        "host_api": "ASIO",
+        "max_input_channels": 20,
+        "channel": 4,
+        "sample_rate": 44100,
+        "connected": true
+      },
+      "analysers": [
+        "pitch",
+        "dynamics"
+      ],
+      "role_index": 0,
+      "role": "vocals",
+      "enabled": true
+    },
+    "bass": {
+      "role_index": 0,
+      "role": "bass",
+      "enabled": true,
+      "type": "audio",
+      "audio_device": {
+        "name": "Focusrite USB ASIO",
+        "device_id": 37,
+        "host_api": "ASIO",
+        "max_input_channels": 20,
+        "channel": 5,
+        "sample_rate": 44100,
+        "connected": true
+      },
+      "analysers": [
+        "dynamics",
+        "timbre",
+        "pitch"
+      ]
+    },
+    "guitar": {
+      "role_index": 0,
+      "role": "guitar",
+      "enabled": true,
+      "type": "audio",
+      "audio_device": {
+        "name": "Focusrite USB ASIO",
+        "device_id": 37,
+        "host_api": "ASIO",
+        "max_input_channels": 20,
+        "channel": 6,
+        "sample_rate": 44100,
+        "connected": true
+      },
+      "analysers": [
+        "dynamics",
+        "harmony",
+        "timbre"
+      ]
+    },
+    "mix": {
+      "audio_device": {
+        "name": "Focusrite USB ASIO",
+        "device_id": 37,
+        "host_api": "ASIO",
+        "max_input_channels": 20,
+        "channel": 10,
+        "sample_rate": 44100,
+        "connected": true
+      },
+      "type": "mix",
+      "analysers": [
+        "genre",
+        "mood",
+        "tempo"
+      ],
+      "enabled": true,
+      "mix_source": "external",
+      "source_instruments": [
+        "drums",
+        "vocals"
+      ]
+    }
+  }
+}
