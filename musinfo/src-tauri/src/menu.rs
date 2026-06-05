@@ -95,13 +95,13 @@ pub fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
 
 // ── Doc Browser ───────────────────────────────────────────────────────────────
 
-// Opens a pre-rendered doc page in the system browser.
+// Opens a documentation page in the system browser.
 //
-// Chrome and Edge block fetch() across file:// origins, so we cannot load
-// markdown at runtime from the browser. Instead, Rust reads both markdown files
-// and writes temporary HTML files with the content already embedded as
-// window.__DOC_CONTENT__. Both temps are generated every open so that the nav
-// link between Architecture and About continues to work.
+// Chrome and Edge block fetch() across file:// origins, so markdown cannot be
+// loaded at runtime from the browser. Rust reads both markdown files and writes
+// temporary HTML files with the content already embedded as window.__DOC_CONTENT__.
+// Both temp files are (re)generated on every open so that the Architecture ↔ About
+// nav link continues to work.
 fn open_doc_browser(app: &AppHandle, target: &str) {
     // CARGO_MANIFEST_DIR = musinfo/src-tauri
     //   .parent()  → musinfo
@@ -117,7 +117,7 @@ fn open_doc_browser(app: &AppHandle, target: &str) {
         .expect("[menu] could not resolve musinfo dir")
         .join("docs");
 
-    // Generate both temp files so that nav links between Architecture ↔ About work.
+    // Generate both temp files so the nav link between the two pages works.
     let pages: [(&str, &str); 2] = [
         ("index.html", "ARCHITECTURE.md"),
         ("about.html", "README.md"),
@@ -137,8 +137,7 @@ fn open_doc_browser(app: &AppHandle, target: &str) {
 
         let json = serde_json::to_string(&md).unwrap_or_else(|_| "\"\"".to_string());
 
-        // Inject the content before </head> and rewrite nav hrefs to the temp
-        // filenames so clicking between pages works from the browser.
+        // Inject content before </head> and rewrite nav hrefs to the temp filenames.
         let script_tag = format!(
             "  <script>window.__DOC_CONTENT__ = {};</script>\n</head>",
             json
