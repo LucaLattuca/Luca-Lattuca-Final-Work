@@ -1,25 +1,14 @@
 {
   "instruments": {
-    "drums": {
-      "audio_device": {
-        "name": "Focusrite USB ASIO",
-        "device_id": 37,
-        "host_api": "ASIO",
-        "max_input_channels": 20,
-        "channel": 7,
-        "sample_rate": 44100,
-        "connected": true
-      },
+    "vocals": {
       "analysers": [
         "dynamics",
-        "tempo"
+        "timbre",
+        "pitch_crepe"
       ],
       "role_index": 0,
-      "role": "drums",
+      "role": "vocals",
       "enabled": true,
-      "type": "audio"
-    },
-    "vocals": {
       "type": "audio",
       "audio_device": {
         "name": "Focusrite USB ASIO",
@@ -29,14 +18,7 @@
         "channel": 4,
         "sample_rate": 44100,
         "connected": true
-      },
-      "analysers": [
-        "pitch",
-        "dynamics"
-      ],
-      "role_index": 0,
-      "role": "vocals",
-      "enabled": true
+      }
     },
     "bass": {
       "role_index": 0,
@@ -53,9 +35,9 @@
         "connected": true
       },
       "analysers": [
+        "pitch",
         "dynamics",
-        "timbre",
-        "pitch"
+        "timbre"
       ]
     },
     "guitar": {
@@ -73,33 +55,37 @@
         "connected": true
       },
       "analysers": [
-        "dynamics",
-        "harmony",
-        "timbre"
+        "timbre",
+        "dynamics"
       ]
     },
-    "mix": {
+    "drums": {
+      "role_index": 0,
+      "role": "drums",
+      "enabled": true,
+      "type": "audio",
       "audio_device": {
         "name": "Focusrite USB ASIO",
         "device_id": 37,
         "host_api": "ASIO",
         "max_input_channels": 20,
-        "channel": 10,
+        "channel": 7,
         "sample_rate": 44100,
         "connected": true
       },
+      "analysers": [
+        "dynamics",
+        "timbre"
+      ]
+    },
+    "mix": {
       "type": "mix",
       "analysers": [
-        "genre",
-        "mood",
-        "tempo"
+        "genre"
       ],
       "enabled": true,
-      "mix_source": "external",
-      "source_instruments": [
-        "drums",
-        "vocals"
-      ]
+      "mix_source": "internal",
+      "source_instruments": []
     }
   }
 }
