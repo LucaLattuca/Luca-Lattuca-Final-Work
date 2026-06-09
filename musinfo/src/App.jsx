@@ -227,6 +227,12 @@ function App() {
         next[formData.name] = { ...formData };
       }
 
+      // Always save the instrument itself first.
+      // For regular instruments this is also covered by newBucketPatch below, but
+      // mix has no role so resequenceRole returns {} and the loop never runs —
+      // without this line, mix changes are silently dropped.
+      await invoke('save_instrument', { instrument: { name: formData.name, ...next[formData.name] } });
+
       // Always resequence the new role bucket
       console.log('[handleUpdateInstrument] resequencing new bucket:', newRole);
       const newBucketPatch = resequenceRole(next, newRole);
