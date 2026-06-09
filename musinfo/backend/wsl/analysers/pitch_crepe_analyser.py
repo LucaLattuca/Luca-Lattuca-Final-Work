@@ -19,7 +19,7 @@ from essentia.standard import PitchCREPE
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 # Debugging
-DEBUG = True
+DEBUG = False
 INFO = True
 
 MODEL_RATE       = 16000
