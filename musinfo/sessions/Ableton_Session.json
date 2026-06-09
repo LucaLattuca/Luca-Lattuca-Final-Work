@@ -1,15 +1,6 @@
 {
   "instruments": {
     "vocals": {
-      "analysers": [
-        "dynamics",
-        "timbre",
-        "pitch_crepe"
-      ],
-      "role_index": 0,
-      "role": "vocals",
-      "enabled": true,
-      "type": "audio",
       "audio_device": {
         "name": "Focusrite USB ASIO",
         "device_id": 37,
@@ -18,7 +9,16 @@
         "channel": 4,
         "sample_rate": 44100,
         "connected": true
-      }
+      },
+      "analysers": [
+        "dynamics",
+        "timbre",
+        "pitch"
+      ],
+      "role_index": 0,
+      "role": "vocals",
+      "enabled": true,
+      "type": "audio"
     },
     "bass": {
       "role_index": 0,
