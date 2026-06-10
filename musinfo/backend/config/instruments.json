@@ -1,6 +1,10 @@
 {
   "instruments": {
     "vocals": {
+      "role_index": 0,
+      "role": "vocals",
+      "enabled": true,
+      "type": "audio",
       "audio_device": {
         "name": "Focusrite USB ASIO",
         "device_id": 37,
@@ -8,17 +12,13 @@
         "max_input_channels": 20,
         "channel": 4,
         "sample_rate": 44100,
-        "connected": true
+        "connected": false
       },
       "analysers": [
+        "pitch_crepe",
         "dynamics",
-        "timbre",
-        "pitch"
-      ],
-      "role_index": 0,
-      "role": "vocals",
-      "enabled": true,
-      "type": "audio"
+        "timbre"
+      ]
     },
     "bass": {
       "role_index": 0,
@@ -32,7 +32,7 @@
         "max_input_channels": 20,
         "channel": 5,
         "sample_rate": 44100,
-        "connected": true
+        "connected": false
       },
       "analysers": [
         "pitch",
@@ -52,7 +52,7 @@
         "max_input_channels": 20,
         "channel": 6,
         "sample_rate": 44100,
-        "connected": true
+        "connected": false
       },
       "analysers": [
         "timbre",
@@ -60,10 +60,6 @@
       ]
     },
     "drums": {
-      "analysers": [
-        "dynamics",
-        "timbre"
-      ],
       "role_index": 0,
       "role": "drums",
       "enabled": true,
@@ -75,26 +71,32 @@
         "max_input_channels": 20,
         "channel": 7,
         "sample_rate": 44100,
-        "connected": true
-      }
+        "connected": false
+      },
+      "analysers": [
+        "dynamics",
+        "timbre"
+      ]
     },
     "mix": {
+      "mix_source": "external",
       "audio_device": {
         "name": "Focusrite USB ASIO",
         "device_id": 37,
         "host_api": "ASIO",
         "max_input_channels": 20,
         "channel": 10,
-        "sample_rate": 44100
+        "sample_rate": 44100,
+        "connected": false
       },
       "type": "mix",
       "analysers": [
         "genre",
         "mood",
-        "tempo"
+        "tempo",
+        "harmony"
       ],
-      "enabled": true,
-      "mix_source": "external"
+      "enabled": true
     }
   }
 }

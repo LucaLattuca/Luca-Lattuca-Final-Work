@@ -79,13 +79,22 @@
       ]
     },
     "mix": {
+      "audio_device": {
+        "name": "Focusrite USB ASIO",
+        "device_id": 37,
+        "host_api": "ASIO",
+        "max_input_channels": 20,
+        "channel": 10,
+        "sample_rate": 44100
+      },
       "type": "mix",
       "analysers": [
-        "genre"
+        "genre",
+        "mood",
+        "tempo"
       ],
       "enabled": true,
-      "mix_source": "internal",
-      "source_instruments": []
+      "mix_source": "external"
     }
   }
 }
