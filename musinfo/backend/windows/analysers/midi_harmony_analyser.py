@@ -180,6 +180,7 @@ class MidiHarmonyAnalyser:
     def __init__(self, instrument_name: str, sample_rate: int = 0, instrument_role: str = "default", role_index: int = 0, instrument_index: int = 0):
         self.instrument_role  = instrument_role
         # role_index not used but here for consistency
+        self.role_index       = role_index
         self.instrument_index = instrument_index
         self.instrument_name  = instrument_name
 
