@@ -1,102 +1,53 @@
 {
   "instruments": {
-    "vocals": {
-      "role_index": 0,
-      "role": "vocals",
+    "backing_track": {
       "enabled": true,
-      "type": "audio",
+      "type": "virtual",
       "audio_device": {
-        "name": "Focusrite USB ASIO",
-        "device_id": 37,
-        "host_api": "ASIO",
-        "max_input_channels": 20,
-        "channel": 4,
+        "name": "Stereo Mix (Realtek(R) Audio)",
+        "device_id": 2,
+        "host_api": "MME",
+        "max_input_channels": 2,
+        "channel": 0,
         "sample_rate": 44100,
-        "connected": false
+        "connected": true
       },
       "analysers": [
-        "pitch_crepe",
         "dynamics",
-        "timbre"
-      ]
-    },
-    "bass": {
-      "role_index": 0,
-      "role": "bass",
-      "enabled": true,
-      "type": "audio",
-      "audio_device": {
-        "name": "Focusrite USB ASIO",
-        "device_id": 37,
-        "host_api": "ASIO",
-        "max_input_channels": 20,
-        "channel": 5,
-        "sample_rate": 44100,
-        "connected": false
-      },
-      "analysers": [
-        "pitch",
-        "dynamics",
-        "timbre"
-      ]
-    },
-    "guitar": {
-      "role_index": 0,
-      "role": "guitar",
-      "enabled": true,
-      "type": "audio",
-      "audio_device": {
-        "name": "Focusrite USB ASIO",
-        "device_id": 37,
-        "host_api": "ASIO",
-        "max_input_channels": 20,
-        "channel": 6,
-        "sample_rate": 44100,
-        "connected": false
-      },
-      "analysers": [
-        "timbre",
-        "dynamics"
-      ]
+        "tempo"
+      ],
+      "role_index": 1,
+      "role": "drums"
     },
     "drums": {
-      "role_index": 0,
-      "role": "drums",
       "enabled": true,
-      "type": "audio",
+      "type": "virtual",
       "audio_device": {
-        "name": "Focusrite USB ASIO",
-        "device_id": 37,
-        "host_api": "ASIO",
-        "max_input_channels": 20,
-        "channel": 7,
+        "name": "Stereo Mix (Realtek(R) Audio)",
+        "device_id": 2,
+        "host_api": "MME",
+        "max_input_channels": 2,
+        "channel": 1,
         "sample_rate": 44100,
-        "connected": false
+        "connected": true
       },
       "analysers": [
-        "dynamics",
-        "timbre"
-      ]
+        "dynamics"
+      ],
+      "role_index": 0,
+      "role": "drums"
     },
     "mix": {
-      "mix_source": "external",
-      "audio_device": {
-        "name": "Focusrite USB ASIO",
-        "device_id": 37,
-        "host_api": "ASIO",
-        "max_input_channels": 20,
-        "channel": 10,
-        "sample_rate": 44100,
-        "connected": false
-      },
-      "type": "mix",
       "analysers": [
-        "genre",
-        "mood",
-        "tempo",
-        "harmony"
+        "dynamics"
       ],
-      "enabled": true
+      "source_instruments": [
+        "backing_track",
+        "drums"
+      ],
+      "enabled": true,
+      "mix_source": "internal",
+      "type": "mix"
     }
   }
 }
