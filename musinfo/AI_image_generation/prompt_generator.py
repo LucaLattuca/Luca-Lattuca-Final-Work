@@ -28,8 +28,31 @@ LISTEN_PORT = 9001
 EMIT_HOST = "127.0.0.1"
 EMIT_PORT = 9002
 
-PROMPT_INTERVAL = 2.0  # seconds between prompt emissions
+PROMPT_INTERVAL = 4.0  # seconds between prompt emissions
 
+
+# ── Random prompt mode ─────────────────────────────────────────────────────────
+# RANDOM_PROMPT_MODE = True 
+RANDOM_PROMPT_MODE = False 
+
+
+RANDOM_PROMPTS = [
+    (
+        "vast ocean seascape, deep blue rolling waves, sea foam, horizon mist, "
+        "dramatic coastal light, abstract visual art, no text",
+    ),
+    (
+        "endless grass meadow, golden hour sunlight, swaying blades, wind ripples, "
+        "soft green palette, peaceful countryside, abstract visual art, no text",
+    ),
+    (
+        "arid desert landscape, warm sand dunes, harsh sunlight, distant heat haze, "
+        "ochre and burnt sienna tones, dry stillness, abstract visual art, no text",
+    ),
+]
+
+_random_prompt_index = 0
+_random_prompt_lock  = threading.Lock()
 
 # pipeline state — set by Tauri when start/stop_pipeline fires
 _pipeline_running = False
@@ -176,6 +199,15 @@ def assemble_prompt(state: dict) -> str:
     return ", ".join(parts)
 
 
+def _next_random_prompt() -> str:
+    global _random_prompt_index
+    with _random_prompt_lock:
+        prompt = RANDOM_PROMPTS[_random_prompt_index][0]
+        _random_prompt_index = (_random_prompt_index + 1) % len(RANDOM_PROMPTS)
+    return prompt
+
+
+
 # ── OSC handlers ───────────────────────────────────────────────────────────────
 def _on_genre(address, *args):
     raw = args[0] if args else "[]"
@@ -254,13 +286,19 @@ def _prompt_loop(emit_client):
             time.sleep(2.0)
             _pipeline_was_running = True
 
-        with _state_lock:
-            snapshot = dict(_state)
+        if RANDOM_PROMPT_MODE:
+            positive = _next_random_prompt()
+            emit_client.send_message("/image/prompt/positive", positive)
+            emit_client.send_message("/image/prompt/negative", NEGATIVE_PROMPT)
+            print(f"[prompt_gen] RANDOM PROMPT: {positive}", flush=True)
+        else:
+            with _state_lock:
+                snapshot = dict(_state)
 
-        positive = assemble_prompt(snapshot)
-        emit_client.send_message("/image/prompt/positive", positive)
-        emit_client.send_message("/image/prompt/negative", NEGATIVE_PROMPT)
-        print(f"[prompt_gen] PROMPT: {positive}", flush=True)
+            positive = assemble_prompt(snapshot)
+            emit_client.send_message("/image/prompt/positive", positive)
+            emit_client.send_message("/image/prompt/negative", NEGATIVE_PROMPT)
+            print(f"[prompt_gen] PROMPT: {positive}", flush=True)
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 d = dispatcher.Dispatcher()
