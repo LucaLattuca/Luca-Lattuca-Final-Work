@@ -266,6 +266,31 @@ fn toggle_image_generation(enabled: bool) -> Result<(), String> {
     println!("[Tauri] image_gen_enabled -> {} (prompt_generator + generate_image)", flag);
     Ok(())
 }
+
+// TOUCHDESIGNER
+
+
+#[tauri::command]
+fn toggle_tempo(enabled: bool) -> Result<(), String> {
+    let socket = UdpSocket::bind("0.0.0.0:0")
+        .map_err(|e| format!("Failed to bind OSC socket: {}", e))?;
+
+    fn build_osc(address: &str, value: i32) -> Vec<u8> {
+        use rosc::{OscMessage, OscPacket, OscType};
+        rosc::encoder::encode(&OscPacket::Message(OscMessage {
+            addr: address.to_string(),
+            args: vec![OscType::Int(value)],
+        })).unwrap_or_default()
+    }
+
+    let flag: i32 = if enabled { 1 } else { 0 };
+    let msg = build_osc("/musinfo/tempo_enabled", flag);
+    socket.send_to(&msg, "127.0.0.1:9111")
+        .map_err(|e| format!("Failed to send OSC: {}", e))?;
+
+    println!("[Tauri] tempo_enabled -> {}", flag);
+    Ok(())
+}
 // ─── INSTRUMENTS ──────────────────────────────────────────────────────────────
 
 #[tauri::command]
@@ -1317,7 +1342,8 @@ pub fn run() {
             load_session,
             list_sessions,
             save_performance_config,
-            toggle_image_generation,  
+            toggle_image_generation,
+            toggle_tempo,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
