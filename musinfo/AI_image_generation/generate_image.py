@@ -39,7 +39,7 @@ RESOLUTION_MAP = {
 }
 
 # RESOLUTION          = "512"
-RESOLUTION          = "wide_sm"
+RESOLUTION          = "wide"
 NUM_INFERENCE_STEPS = 1   # 1–4 for SDXL Turbo; 1 = fastest
 GUIDANCE_SCALE      = 0.0  # CFG-free for Turbo
 

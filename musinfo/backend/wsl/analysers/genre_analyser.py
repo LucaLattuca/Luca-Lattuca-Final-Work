@@ -31,6 +31,7 @@ MODEL_PB   = os.path.join(MODELS_DIR, "discogs-effnet-bs64-1.pb")
 MODEL_JSON = os.path.join(MODELS_DIR, "discogs-effnet-bs64-1.json")
 
 DETAILED_GENRES = False
+# DETAILED_GENRES = True
 
 
 def get_windows_host_ip():
