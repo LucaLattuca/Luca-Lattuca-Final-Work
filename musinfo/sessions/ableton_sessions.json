@@ -1,10 +1,13 @@
 {
   "instruments": {
     "vocals": {
+      "role_index": 0,
+      "role": "vocals",
+      "enabled": true,
       "type": "audio",
       "audio_device": {
         "name": "Focusrite USB ASIO",
-        "device_id": 35,
+        "device_id": 37,
         "host_api": "ASIO",
         "max_input_channels": 20,
         "channel": 4,
@@ -15,15 +18,12 @@
         "dynamics",
         "pitch_crepe",
         "timbre"
-      ],
-      "role_index": 0,
-      "role": "vocals",
-      "enabled": true
+      ]
     },
     "bass": {
       "audio_device": {
         "name": "Focusrite USB ASIO",
-        "device_id": 35,
+        "device_id": 37,
         "host_api": "ASIO",
         "max_input_channels": 20,
         "channel": 5,
@@ -41,28 +41,32 @@
       "type": "audio"
     },
     "guitar": {
-      "analysers": [
-        "dynamics",
-        "timbre"
-      ],
       "role_index": 0,
       "role": "guitar",
       "enabled": true,
       "type": "audio",
       "audio_device": {
         "name": "Focusrite USB ASIO",
-        "device_id": 35,
+        "device_id": 37,
         "host_api": "ASIO",
         "max_input_channels": 20,
         "channel": 6,
         "sample_rate": 44100,
         "connected": true
-      }
+      },
+      "analysers": [
+        "dynamics",
+        "timbre"
+      ]
     },
     "drums": {
+      "role_index": 0,
+      "role": "drums",
+      "enabled": true,
+      "type": "audio",
       "audio_device": {
         "name": "Focusrite USB ASIO",
-        "device_id": 35,
+        "device_id": 37,
         "host_api": "ASIO",
         "max_input_channels": 20,
         "channel": 7,
@@ -72,17 +76,12 @@
       "analysers": [
         "timbre",
         "dynamics"
-      ],
-      "role_index": 0,
-      "role": "drums",
-      "enabled": true,
-      "type": "audio"
+      ]
     },
     "mix": {
-      "enabled": true,
       "audio_device": {
         "name": "Focusrite USB ASIO",
-        "device_id": 35,
+        "device_id": 37,
         "host_api": "ASIO",
         "max_input_channels": 20,
         "channel": 10,
@@ -94,9 +93,10 @@
       "analysers": [
         "genre",
         "mood",
-        "harmony",
-        "tempo"
-      ]
+        "tempo",
+        "harmony"
+      ],
+      "enabled": true
     }
   }
 }
