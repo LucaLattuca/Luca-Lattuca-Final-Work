@@ -1,0 +1,1602 @@
+{
+  "Blues---Boogie Woogie": {
+    "landscape": "dimly lit roadhouse bar, worn wooden floor, single spotlight",
+    "modifier": "rollicking percussive energy, joyful driving rhythm"
+  },
+  "Blues---Chicago Blues": {
+    "landscape": "rain-soaked Chicago street at night, neon bar signs reflected in puddles",
+    "modifier": "gritty electric tension, urban melancholy"
+  },
+  "Blues---Country Blues": {
+    "landscape": "dusty rural porch at dusk, dry grass fields stretching to the horizon",
+    "modifier": "raw acoustic longing, sparse and earthy"
+  },
+  "Blues---Delta Blues": {
+    "landscape": "muddy Mississippi delta, twisted cypress trees, low grey sky",
+    "modifier": "deep primal sorrow, ancient resonance"
+  },
+  "Blues---Electric Blues": {
+    "landscape": "smoky club interior, exposed brick walls, amber stage light",
+    "modifier": "charged electric atmosphere, crackling intensity"
+  },
+  "Blues---Harmonica Blues": {
+    "landscape": "open railroad crossing at twilight, long flat plains",
+    "modifier": "wailing lonesome cry, drifting dusty wind"
+  },
+  "Blues---Jump Blues": {
+    "landscape": "1940s ballroom, spinning dancers, brass-lit stage",
+    "modifier": "swinging upbeat momentum, jubilant brass energy"
+  },
+  "Blues---Louisiana Blues": {
+    "landscape": "bayou swamp at night, Spanish moss, flickering fireflies",
+    "modifier": "humid mysterious atmosphere, sultry and languid"
+  },
+  "Blues---Modern Electric Blues": {
+    "landscape": "urban rooftop at night, city skyline glowing",
+    "modifier": "polished electric power, contemporary edge"
+  },
+  "Blues---Piano Blues": {
+    "landscape": "old jazz parlour, candlelit upright piano, velvet curtains",
+    "modifier": "intimate keyboard melancholy, rich and resonant"
+  },
+  "Blues---Rhythm & Blues": {
+    "landscape": "warm city street at night, corner bar, warm orange glow",
+    "modifier": "soulful groove, smooth rhythmic pulse"
+  },
+  "Blues---Texas Blues": {
+    "landscape": "sun-baked Texas highway, oil derricks on flat horizon",
+    "modifier": "strutting confident swagger, fierce guitar bite"
+  },
+  "Brass & Military---Brass Band": {
+    "landscape": "sunlit parade street, colourful banners, stone civic buildings",
+    "modifier": "triumphant communal energy, bold and ceremonial"
+  },
+  "Brass & Military---Marches": {
+    "landscape": "grand military square, polished stone, crisp blue sky",
+    "modifier": "disciplined rhythmic precision, formal grandeur"
+  },
+  "Brass & Military---Military": {
+    "landscape": "vast parade ground at dawn, flags in still air",
+    "modifier": "solemn authoritative power, structured and austere"
+  },
+  "Children's---Educational": {
+    "landscape": "bright classroom, colourful walls, soft natural light",
+    "modifier": "curious playful energy, warm and inviting"
+  },
+  "Children's---Nursery Rhymes": {
+    "landscape": "illustrated storybook meadow, soft pastel colours, gentle rolling hills",
+    "modifier": "innocent whimsical delight, simple and sweet"
+  },
+  "Children's---Story": {
+    "landscape": "cosy reading nook, warm lamp light, illustrated picture books",
+    "modifier": "gentle imaginative wonder, soft narrative warmth"
+  },
+  "Classical---Baroque": {
+    "landscape": "ornate gilded palace hall, candlelit chandeliers, polished marble",
+    "modifier": "intricate counterpoint elegance, formal and precise"
+  },
+  "Classical---Choral": {
+    "landscape": "towering Gothic cathedral, rose window light, stone vaults",
+    "modifier": "transcendent harmonic unity, sacred and uplifting"
+  },
+  "Classical---Classical": {
+    "landscape": "grand concert hall, tiered balconies, warm chandelier glow",
+    "modifier": "balanced structural clarity, refined and composed"
+  },
+  "Classical---Contemporary": {
+    "landscape": "minimalist modern concert space, clean geometric forms, diffused white light",
+    "modifier": "searching harmonic exploration, intellectual and precise"
+  },
+  "Classical---Impressionist": {
+    "landscape": "misty garden at dawn, soft watercolour light, lily pond reflection",
+    "modifier": "shimmering tonal colour, dreamlike and elusive"
+  },
+  "Classical---Medieval": {
+    "landscape": "stone monastery courtyard, torchlight, ancient arched cloisters",
+    "modifier": "austere modal resonance, ancient and devotional"
+  },
+  "Classical---Modern": {
+    "landscape": "stark concrete concert hall, angular architecture, cold focused light",
+    "modifier": "dissonant tension, bold structural experiment"
+  },
+  "Classical---Neo-Classical": {
+    "landscape": "elegant classical colonnade, soft grey stone, afternoon light",
+    "modifier": "clean melodic restraint, nostalgic formal clarity"
+  },
+  "Classical---Neo-Romantic": {
+    "landscape": "misty European forest, distant castle silhouette, warm dusk light",
+    "modifier": "lush emotional sweep, longing and expressive"
+  },
+  "Classical---Opera": {
+    "landscape": "lavish opera house stage, deep red curtains, ornate gilding",
+    "modifier": "dramatic emotional grandeur, soaring and theatrical"
+  },
+  "Classical---Post-Modern": {
+    "landscape": "fractured urban landscape, layered glass reflections, deconstructed space",
+    "modifier": "ironic layered complexity, fragmented and self-aware"
+  },
+  "Classical---Renaissance": {
+    "landscape": "Italian courtyard garden, warm terracotta, Renaissance archways",
+    "modifier": "polyphonic vocal grace, humanist and luminous"
+  },
+  "Classical---Romantic": {
+    "landscape": "misty mountain valley at sunset, pine forests, dramatic cloud peaks",
+    "modifier": "sweeping emotional intensity, passionate and expansive"
+  },
+  "Electronic---Abstract": {
+    "landscape": "formless digital void, shifting geometric fragments, deep black space",
+    "modifier": "disorienting non-linear texture, conceptual and alien"
+  },
+  "Electronic---Acid": {
+    "landscape": "pulsing underground tunnel, acid green and orange light trails",
+    "modifier": "squelching hypnotic resonance, warping and insistent"
+  },
+  "Electronic---Acid House": {
+    "landscape": "dark warehouse dance floor, strobing light, sweating bodies in silhouette",
+    "modifier": "relentless hypnotic groove, euphoric and repetitive"
+  },
+  "Electronic---Acid Jazz": {
+    "landscape": "hip urban lounge bar, warm low light, exposed brick",
+    "modifier": "funky groove intelligence, cool and laid-back"
+  },
+  "Electronic---Ambient": {
+    "landscape": "infinite misty horizon, slow cloud movement, soft diffused light",
+    "modifier": "expansive meditative stillness, drifting and weightless"
+  },
+  "Electronic---Bassline": {
+    "landscape": "dark UK club interior, bass bins glowing, floor vibrating",
+    "modifier": "deep low-end dominance, hypnotic and driving"
+  },
+  "Electronic---Beatdown": {
+    "landscape": "underground concrete bunker, minimal red light, pure function",
+    "modifier": "stripped percussive aggression, raw and relentless"
+  },
+  "Electronic---Berlin-School": {
+    "landscape": "vast dark concert space, slow laser sweeps, meditative stillness",
+    "modifier": "long evolving sequences, cosmic and hypnotic"
+  },
+  "Electronic---Big Beat": {
+    "landscape": "festival stage at night, massive crowd, explosive light rig",
+    "modifier": "bombastic breakbeat energy, loud and visceral"
+  },
+  "Electronic---Bleep": {
+    "landscape": "grey northern industrial cityscape, early morning silence",
+    "modifier": "sparse digital precision, cold and functional"
+  },
+  "Electronic---Breakbeat": {
+    "landscape": "urban street at night, flickering streetlights, restless energy",
+    "modifier": "syncopated rhythmic drive, gritty and kinetic"
+  },
+  "Electronic---Breakcore": {
+    "landscape": "shattered digital space, fragmented glitch imagery, chaos geometry",
+    "modifier": "extreme fragmented intensity, anarchic and frenetic"
+  },
+  "Electronic---Breaks": {
+    "landscape": "dim club interior, bass-heavy air, sweeping light beams",
+    "modifier": "rolling break momentum, fluid and powerful"
+  },
+  "Electronic---Broken Beat": {
+    "landscape": "late-night London studio, warm amber light, intimate creative space",
+    "modifier": "jazz-inflected rhythmic complexity, sophisticated and organic"
+  },
+  "Electronic---Chillwave": {
+    "landscape": "hazy summer beach at dusk, soft pastel sky, warm nostalgia",
+    "modifier": "lo-fi dreamy warmth, sun-bleached and wistful"
+  },
+  "Electronic---Chiptune": {
+    "landscape": "retro pixel game world, bright 8-bit colour blocks, simple geometry",
+    "modifier": "playful digital nostalgia, bright and precise"
+  },
+  "Electronic---Dance-pop": {
+    "landscape": "glossy pop stage, bold primary colours, perfect lighting rig",
+    "modifier": "infectious polished energy, bright and immediate"
+  },
+  "Electronic---Dark Ambient": {
+    "landscape": "vast underground cavern, absolute darkness, distant dripping echo",
+    "modifier": "oppressive atmospheric dread, slow and immersive"
+  },
+  "Electronic---Darkwave": {
+    "landscape": "moonlit ruin, dead trees silhouetted, cold purple sky",
+    "modifier": "brooding gothic atmosphere, cold and melancholic"
+  },
+  "Electronic---Deep House": {
+    "landscape": "warm underground club at 4am, bodies swaying, amber haze",
+    "modifier": "soulful rolling groove, deep and hypnotic"
+  },
+  "Electronic---Deep Techno": {
+    "landscape": "dark industrial space, minimal light, mechanical precision",
+    "modifier": "hypnotic mechanical depth, austere and relentless"
+  },
+  "Electronic---Disco": {
+    "landscape": "mirrored disco ballroom, spinning globe, coloured light shafts",
+    "modifier": "joyful danceable euphoria, glamorous and celebratory"
+  },
+  "Electronic---Disco Polo": {
+    "landscape": "rural fairground at night, bright coloured lights, festive crowd",
+    "modifier": "cheerful populist energy, simple and exuberant"
+  },
+  "Electronic---Donk": {
+    "landscape": "northern UK rave, fluorescent light, high energy crowd",
+    "modifier": "bouncing percussive insistence, raw and euphoric"
+  },
+  "Electronic---Downtempo": {
+    "landscape": "rooftop terrace at sunset, city below, warm haze",
+    "modifier": "languid electronic groove, reflective and atmospheric"
+  },
+  "Electronic---Drone": {
+    "landscape": "vast empty industrial space, single sustained tone, motionless air",
+    "modifier": "immersive continuous resonance, meditative and overwhelming"
+  },
+  "Electronic---Drum n Bass": {
+    "landscape": "dark urban warehouse, strobe light, frantic energy",
+    "modifier": "breakneck rhythmic intensity, deep bass pressure"
+  },
+  "Electronic---Dub": {
+    "landscape": "tropical night air, distant echo, deep bass through warm darkness",
+    "modifier": "spacious reverb depth, hypnotic reggae pulse"
+  },
+  "Electronic---Dub Techno": {
+    "landscape": "foggy industrial port at night, distant machinery, deep resonance",
+    "modifier": "cavernous reverberant space, minimal and hypnotic"
+  },
+  "Electronic---Dubstep": {
+    "landscape": "neon urban underpass, bass-heavy air, grime and concrete",
+    "modifier": "heavy bass wobble, dark urban tension"
+  },
+  "Electronic---Dungeon Synth": {
+    "landscape": "candlelit stone dungeon, damp walls, medieval darkness",
+    "modifier": "lo-fi fantasy atmosphere, solitary and archaic"
+  },
+  "Electronic---EBM": {
+    "landscape": "cold industrial complex, harsh fluorescent light, steel and concrete",
+    "modifier": "martial mechanical drive, cold and authoritarian"
+  },
+  "Electronic---Electro": {
+    "landscape": "futuristic cityscape at night, chrome surfaces, electric blue light",
+    "modifier": "robotic rhythmic precision, cold and futuristic"
+  },
+  "Electronic---Electro House": {
+    "landscape": "massive festival stage, huge light rig, euphoric crowd",
+    "modifier": "explosive peak-time energy, powerful and euphoric"
+  },
+  "Electronic---Electroclash": {
+    "landscape": "art-school loft party, ironic neon signage, cool urban pose",
+    "modifier": "provocative post-punk electronics, sharp and stylish"
+  },
+  "Electronic---Euro House": {
+    "landscape": "Mediterranean beach club, midday sun, carefree crowd",
+    "modifier": "bright melodic euphoria, accessible and uplifting"
+  },
+  "Electronic---Euro-Disco": {
+    "landscape": "European city club, polished floor, glossy 80s glamour",
+    "modifier": "slick danceable sophistication, polished and warm"
+  },
+  "Electronic---Eurobeat": {
+    "landscape": "Japanese highway at night, neon streaks, high speed motion",
+    "modifier": "relentless high-tempo drive, hyper and melodic"
+  },
+  "Electronic---Eurodance": {
+    "landscape": "90s pop stage, bright primary colours, energetic choreography",
+    "modifier": "anthemic pop momentum, euphoric and immediate"
+  },
+  "Electronic---Experimental": {
+    "landscape": "abstract installation space, shifting projections, undefined space",
+    "modifier": "unpredictable sonic exploration, challenging and original"
+  },
+  "Electronic---Freestyle": {
+    "landscape": "80s New York club, latin heat, passionate dancers",
+    "modifier": "passionate rhythmic freedom, warm and expressive"
+  },
+  "Electronic---Future Jazz": {
+    "landscape": "sleek modern lounge, soft geometric light, urban sophistication",
+    "modifier": "electronic jazz fusion intelligence, cool and innovative"
+  },
+  "Electronic---Gabber": {
+    "landscape": "Dutch rave bunker, strobe overload, extreme crowd energy",
+    "modifier": "extreme high-tempo aggression, chaotic and euphoric"
+  },
+  "Electronic---Garage House": {
+    "landscape": "New York warehouse, gospel-tinged air, soulful energy",
+    "modifier": "soulful uplifting groove, warm and spiritual"
+  },
+  "Electronic---Ghetto": {
+    "landscape": "raw urban street corner, raw concrete, authentic grit",
+    "modifier": "raw street energy, unfiltered and direct"
+  },
+  "Electronic---Ghetto House": {
+    "landscape": "Chicago underground party, raw energy, sweat and heat",
+    "modifier": "explicit raw groove, minimal and primal"
+  },
+  "Electronic---Glitch": {
+    "landscape": "corrupted digital space, screen artefacts, broken pixel fields",
+    "modifier": "fragmented error aesthetic, unstable and precise"
+  },
+  "Electronic---Goa Trance": {
+    "landscape": "Goa beach at night, bonfire light, psychedelic decoration",
+    "modifier": "spiralling psychedelic ascent, exotic and transcendent"
+  },
+  "Electronic---Grime": {
+    "landscape": "East London rooftop, grey sky, urban concrete panorama",
+    "modifier": "hard urban tension, cold and sharp"
+  },
+  "Electronic---Halftime": {
+    "landscape": "dark underground space, slow heavy air, weight and pressure",
+    "modifier": "half-speed crushing weight, ominous and powerful"
+  },
+  "Electronic---Hands Up": {
+    "landscape": "packed European club, hands raised, euphoric light show",
+    "modifier": "melodic trance euphoria, uplifting and direct"
+  },
+  "Electronic---Happy Hardcore": {
+    "landscape": "UK rave, smiley face imagery, pure euphoric chaos",
+    "modifier": "hyper-fast joyful intensity, innocent and euphoric"
+  },
+  "Electronic---Hard House": {
+    "landscape": "dark UK club, relentless energy, hard-edged atmosphere",
+    "modifier": "driving hard groove, aggressive and energetic"
+  },
+  "Electronic---Hard Techno": {
+    "landscape": "brutal industrial space, maximum pressure, pure function",
+    "modifier": "aggressive mechanical intensity, uncompromising and hard"
+  },
+  "Electronic---Hard Trance": {
+    "landscape": "massive European trance event, lasers, peak euphoria",
+    "modifier": "driving euphoric intensity, powerful and relentless"
+  },
+  "Electronic---Hardcore": {
+    "landscape": "raw rave space, extreme energy, industrial chaos",
+    "modifier": "maximum speed aggression, anarchic and intense"
+  },
+  "Electronic---Hardstyle": {
+    "landscape": "enormous Dutch festival, massive crowd, kick drum pressure",
+    "modifier": "euphoric hard kick intensity, massive and emotional"
+  },
+  "Electronic---Hi NRG": {
+    "landscape": "80s gay club, mirror ball, pure danceable joy",
+    "modifier": "high-energy euphoric drive, liberating and exuberant"
+  },
+  "Electronic---Hip Hop": {
+    "landscape": "urban street corner, graffiti walls, boom box bass",
+    "modifier": "rhythmic street energy, confident and expressive"
+  },
+  "Electronic---Hip-House": {
+    "landscape": "late 80s Chicago club, hip hop meets house energy",
+    "modifier": "hybrid groove fusion, energetic and innovative"
+  },
+  "Electronic---House": {
+    "landscape": "underground club at midnight, four-four kick, bodies moving",
+    "modifier": "deep cyclical groove, warm and communal"
+  },
+  "Electronic---IDM": {
+    "landscape": "private studio space, complex screen data, intellectual solitude",
+    "modifier": "intricate rhythmic complexity, cerebral and detailed"
+  },
+  "Electronic---Illbient": {
+    "landscape": "New York underground, dissonant urban noise, paranoid darkness",
+    "modifier": "unsettling urban atmosphere, dark and experimental"
+  },
+  "Electronic---Industrial": {
+    "landscape": "derelict factory, rusted machinery, harsh fluorescent light",
+    "modifier": "harsh mechanical brutality, cold and oppressive"
+  },
+  "Electronic---Italo House": {
+    "landscape": "Italian summer club, warm Mediterranean night, melodic euphoria",
+    "modifier": "warm melodic groove, passionate and uplifting"
+  },
+  "Electronic---Italo-Disco": {
+    "landscape": "80s Italian coastal club, glossy production, romantic glamour",
+    "modifier": "lush melodic romanticism, nostalgic and warm"
+  },
+  "Electronic---Italodance": {
+    "landscape": "90s Italian dance stage, energetic crowd, bright lights",
+    "modifier": "melodic high-energy euphoria, simple and direct"
+  },
+  "Electronic---Jazzdance": {
+    "landscape": "sophisticated urban club, warm low light, intelligent dancers",
+    "modifier": "jazz-inflected groove sophistication, smooth and inventive"
+  },
+  "Electronic---Juke": {
+    "landscape": "Chicago club, footwork dancers, hyper rhythmic floor",
+    "modifier": "hyper-rhythmic footwork intensity, intricate and fast"
+  },
+  "Electronic---Jumpstyle": {
+    "landscape": "Belgian rave, jumping crowd, hard kick energy",
+    "modifier": "energetic jumping momentum, direct and physical"
+  },
+  "Electronic---Jungle": {
+    "landscape": "early 90s London rave, chopped breaks, bass weight",
+    "modifier": "frantic chopped energy, deep and kinetic"
+  },
+  "Electronic---Latin": {
+    "landscape": "tropical electronic club, Latin heat, electronic rhythms",
+    "modifier": "warm Latin-electronic fusion, rhythmic and sensual"
+  },
+  "Electronic---Leftfield": {
+    "landscape": "abstract club space, unconventional sound, open experimentation",
+    "modifier": "genre-defying exploration, inventive and atmospheric"
+  },
+  "Electronic---Makina": {
+    "landscape": "Spanish underground rave, extreme tempo, hard energy",
+    "modifier": "extreme speed melodic drive, relentless and euphoric"
+  },
+  "Electronic---Minimal": {
+    "landscape": "empty white gallery, single sound source, pure space",
+    "modifier": "radical reduction, precise and hypnotic"
+  },
+  "Electronic---Minimal Techno": {
+    "landscape": "dark Berlin club, stripped function, pure repetition",
+    "modifier": "austere hypnotic minimalism, cold and focused"
+  },
+  "Electronic---Modern Classical": {
+    "landscape": "intimate modern concert hall, clean acoustic space, contemplative light",
+    "modifier": "electronic-acoustic hybrid, precise and emotional"
+  },
+  "Electronic---Musique Concrète": {
+    "landscape": "IRCAM studio, tape machines, concrete sound objects",
+    "modifier": "found sound transformation, avant-garde and conceptual"
+  },
+  "Electronic---Neofolk": {
+    "landscape": "northern European forest, twilight, ancient ritual atmosphere",
+    "modifier": "organic electronic pastoral, mythic and melancholic"
+  },
+  "Electronic---New Age": {
+    "landscape": "mountain crystal cave, soft healing light, pure silence",
+    "modifier": "gentle spiritual serenity, healing and transcendent"
+  },
+  "Electronic---New Beat": {
+    "landscape": "Belgian club at dawn, slow heavy groove, dark and slow",
+    "modifier": "slow hypnotic pressure, dark and sensual"
+  },
+  "Electronic---New Wave": {
+    "landscape": "post-industrial city, grey sky, angular 80s architecture",
+    "modifier": "cold synth romanticism, detached and stylish"
+  },
+  "Electronic---Noise": {
+    "landscape": "pure signal overload, white static field, sensory saturation",
+    "modifier": "extreme sonic aggression, overwhelming and formless"
+  },
+  "Electronic---Nu-Disco": {
+    "landscape": "modern rooftop party, warm sunset, retro-contemporary glamour",
+    "modifier": "sophisticated disco warmth, nostalgic and polished"
+  },
+  "Electronic---Power Electronics": {
+    "landscape": "oppressive concrete room, harsh white light, extreme pressure",
+    "modifier": "confrontational harsh noise, brutal and uncompromising"
+  },
+  "Electronic---Progressive Breaks": {
+    "landscape": "festival open stage at night, building journey, anticipation",
+    "modifier": "evolving breakbeat journey, dynamic and building"
+  },
+  "Electronic---Progressive House": {
+    "landscape": "large club, long build, emotional peak release",
+    "modifier": "long arching emotional journey, warm and expansive"
+  },
+  "Electronic---Progressive Trance": {
+    "landscape": "vast outdoor stage, horizon light, spiritual ascent",
+    "modifier": "sweeping emotional escalation, epic and transcendent"
+  },
+  "Electronic---Psy-Trance": {
+    "landscape": "outdoor psychedelic festival, fractal decoration, altered state",
+    "modifier": "spiralling psychedelic intensity, relentless and cosmic"
+  },
+  "Electronic---Rhythmic Noise": {
+    "landscape": "industrial warehouse, mechanical rhythm, dark and punishing",
+    "modifier": "percussive noise brutalism, aggressive and rhythmic"
+  },
+  "Electronic---Schranz": {
+    "landscape": "Frankfurt techno club, maximum pressure, industrial function",
+    "modifier": "hard industrial techno assault, relentless and extreme"
+  },
+  "Electronic---Sound Collage": {
+    "landscape": "studio edit suite, layered tape fragments, assembled chaos",
+    "modifier": "collaged sonic layers, eclectic and inventive"
+  },
+  "Electronic---Speed Garage": {
+    "landscape": "late 90s London club, pitched-up vocals, deep bass pressure",
+    "modifier": "UK bass groove sophistication, warm and driving"
+  },
+  "Electronic---Speedcore": {
+    "landscape": "extreme rave, maximum BPM, sensory chaos",
+    "modifier": "hyper-extreme speed, violent and relentless"
+  },
+  "Electronic---Synth-pop": {
+    "landscape": "80s city night, neon reflections, romantic electronic glow",
+    "modifier": "melodic electronic romanticism, polished and emotive"
+  },
+  "Electronic---Synthwave": {
+    "landscape": "retro-futuristic neon grid highway at night, pink and cyan glow",
+    "modifier": "nostalgic 80s cinematic atmosphere, dramatic and warm"
+  },
+  "Electronic---Tech House": {
+    "landscape": "underground club, functional darkness, precise groove",
+    "modifier": "minimal funky precision, driving and sophisticated"
+  },
+  "Electronic---Tech Trance": {
+    "landscape": "large dark club, technical precision, driving momentum",
+    "modifier": "hard precise trance drive, focused and powerful"
+  },
+  "Electronic---Techno": {
+    "landscape": "Berlin underground club, pure darkness, mechanical pulse",
+    "modifier": "relentless mechanical repetition, austere and hypnotic"
+  },
+  "Electronic---Trance": {
+    "landscape": "massive arena, euphoric peak, uplifting light show",
+    "modifier": "soaring emotional euphoria, uplifting and transcendent"
+  },
+  "Electronic---Tribal": {
+    "landscape": "outdoor ritual space, bonfire, percussive trance circle",
+    "modifier": "primal rhythmic hypnosis, communal and driving"
+  },
+  "Electronic---Tribal House": {
+    "landscape": "club dance floor, tribal percussion, primal groove",
+    "modifier": "earthy hypnotic groove, organic and driving"
+  },
+  "Electronic---Trip Hop": {
+    "landscape": "late-night Bristol street, rain, amber lamp reflection",
+    "modifier": "cinematic melancholic groove, dark and introspective"
+  },
+  "Electronic---Tropical House": {
+    "landscape": "sunset beach party, golden light, relaxed summer crowd",
+    "modifier": "warm breezy euphoria, light and feel-good"
+  },
+  "Electronic---UK Garage": {
+    "landscape": "South London club, warm bass, smooth late-night atmosphere",
+    "modifier": "skippy rhythmic sophistication, smooth and urban"
+  },
+  "Electronic---Vaporwave": {
+    "landscape": "glitchy mall interior, pastel 90s aesthetic, consumer dream",
+    "modifier": "nostalgic surreal consumerism, uncanny and dreamy"
+  },
+  "Folk, World, & Country---African": {
+    "landscape": "open savanna at golden hour, village fire, vast sky",
+    "modifier": "vibrant communal rhythm, earthy and celebratory"
+  },
+  "Folk, World, & Country---Bluegrass": {
+    "landscape": "Appalachian mountain porch, misty peaks, morning light",
+    "modifier": "fast acoustic virtuosity, earnest and rural"
+  },
+  "Folk, World, & Country---Cajun": {
+    "landscape": "Louisiana dance hall, bayou heat, accordion and fiddle",
+    "modifier": "festive Creole warmth, joyful and energetic"
+  },
+  "Folk, World, & Country---Canzone Napoletana": {
+    "landscape": "Naples harbour at dusk, warm Mediterranean light, romantic balcony",
+    "modifier": "passionate Italian romantic longing, warm and expressive"
+  },
+  "Folk, World, & Country---Catalan Music": {
+    "landscape": "Catalonian village square, stone buildings, late afternoon sun",
+    "modifier": "proud regional identity, warm and communal"
+  },
+  "Folk, World, & Country---Celtic": {
+    "landscape": "Irish coastal cliff, sea mist, ancient stone walls",
+    "modifier": "haunting modal beauty, ancient and melancholic"
+  },
+  "Folk, World, & Country---Country": {
+    "landscape": "open prairie at sunset, barn wood, golden wheat field",
+    "modifier": "heartfelt rural storytelling, warm and sincere"
+  },
+  "Folk, World, & Country---Fado": {
+    "landscape": "Lisbon backstreet at night, tiled walls, melancholic lamp glow",
+    "modifier": "profound Portuguese longing, soulful and sorrowful"
+  },
+  "Folk, World, & Country---Flamenco": {
+    "landscape": "Andalusian courtyard at night, candlelight, passionate intensity",
+    "modifier": "fierce passionate expression, dramatic and earthy"
+  },
+  "Folk, World, & Country---Folk": {
+    "landscape": "forest clearing, campfire under stars, organic simplicity",
+    "modifier": "honest acoustic storytelling, warm and grounded"
+  },
+  "Folk, World, & Country---Gospel": {
+    "landscape": "sunlit Southern church, stained glass, communal uplifting spirit",
+    "modifier": "joyful spiritual transcendence, powerful and communal"
+  },
+  "Folk, World, & Country---Highlife": {
+    "landscape": "West African coastal town, warm evening, joyful crowd",
+    "modifier": "bright celebratory warmth, melodic and optimistic"
+  },
+  "Folk, World, & Country---Hillbilly": {
+    "landscape": "remote mountain hollow, rough timber cabin, raw simplicity",
+    "modifier": "rough rural authenticity, raw and unpretentious"
+  },
+  "Folk, World, & Country---Hindustani": {
+    "landscape": "Indian concert hall at dusk, incense, meditative focus",
+    "modifier": "elaborate melodic improvisation, devotional and intricate"
+  },
+  "Folk, World, & Country---Honky Tonk": {
+    "landscape": "Texas roadside bar, neon sign, worn pool table",
+    "modifier": "rough working-class warmth, nostalgic and sincere"
+  },
+  "Folk, World, & Country---Indian Classical": {
+    "landscape": "temple courtyard at dawn, soft mist, devotional stillness",
+    "modifier": "intricate raga meditation, cyclical and transcendent"
+  },
+  "Folk, World, & Country---Laïkó": {
+    "landscape": "Greek taverna at night, bouzouki, emotional crowd",
+    "modifier": "passionate Greek folk emotion, raw and heartfelt"
+  },
+  "Folk, World, & Country---Nordic": {
+    "landscape": "Scandinavian winter forest, snow silence, pale northern light",
+    "modifier": "austere folk solitude, sparse and atmospheric"
+  },
+  "Folk, World, & Country---Pacific": {
+    "landscape": "Pacific island beach, palm trees, warm ocean breeze",
+    "modifier": "gentle tropical serenity, natural and unhurried"
+  },
+  "Folk, World, & Country---Polka": {
+    "landscape": "Central European dance hall, colourful folk costume, festive crowd",
+    "modifier": "exuberant communal dance energy, cheerful and vigorous"
+  },
+  "Folk, World, & Country---Raï": {
+    "landscape": "Algerian city night, warm air, passionate street music",
+    "modifier": "bold North African urban passion, modern and expressive"
+  },
+  "Folk, World, & Country---Romani": {
+    "landscape": "firelit camp at night, stars, nomadic freedom",
+    "modifier": "fiery passionate improvisation, wild and expressive"
+  },
+  "Folk, World, & Country---Soukous": {
+    "landscape": "Congolese dance venue, warm night, joyful dancers",
+    "modifier": "fluid Afro-Cuban groove, joyful and lyrical"
+  },
+  "Folk, World, & Country---Séga": {
+    "landscape": "Mauritius beach at sunset, warm breeze, festive colour",
+    "modifier": "rhythmic island joy, sensual and celebratory"
+  },
+  "Folk, World, & Country---Volksmusik": {
+    "landscape": "Alpine meadow, traditional costume, mountain village",
+    "modifier": "hearty folk tradition, communal and sincere"
+  },
+  "Folk, World, & Country---Zouk": {
+    "landscape": "Caribbean night club, warm breeze, close couple dancing",
+    "modifier": "sensual flowing rhythm, warm and romantic"
+  },
+  "Folk, World, & Country---Éntekhno": {
+    "landscape": "Greek concert stage, evening light, poetic atmosphere",
+    "modifier": "artistic Greek lyricism, poetic and heartfelt"
+  },
+  "Funk / Soul---Afrobeat": {
+    "landscape": "Lagos concert stage, massive crowd, political energy",
+    "modifier": "righteous rhythmic power, communal and urgent"
+  },
+  "Funk / Soul---Boogie": {
+    "landscape": "late 70s disco club, warm bass, dancing bodies",
+    "modifier": "warm danceable groove, feel-good and smooth"
+  },
+  "Funk / Soul---Contemporary R&B": {
+    "landscape": "sleek urban studio, soft LED light, intimate sophistication",
+    "modifier": "polished emotional intimacy, smooth and sensual"
+  },
+  "Funk / Soul---Disco": {
+    "landscape": "Studio 54 dance floor, mirror ball, pure liberation",
+    "modifier": "euphoric dancefloor freedom, glamorous and joyful"
+  },
+  "Funk / Soul---Free Funk": {
+    "landscape": "avant-garde loft space, experimental energy, raw improvisation",
+    "modifier": "anarchic groove exploration, raw and inventive"
+  },
+  "Funk / Soul---Funk": {
+    "landscape": "sweaty soul club, deep bass groove, dancing crowd",
+    "modifier": "deep syncopated pocket, earthy and irresistible"
+  },
+  "Funk / Soul---Gospel": {
+    "landscape": "gospel church, radiant light, uplifted congregation",
+    "modifier": "transcendent spiritual joy, powerful and communal"
+  },
+  "Funk / Soul---Neo Soul": {
+    "landscape": "intimate urban lounge, warm candlelight, sophisticated atmosphere",
+    "modifier": "organic soulful sophistication, warm and introspective"
+  },
+  "Funk / Soul---New Jack Swing": {
+    "landscape": "90s urban stage, sharp choreography, R&B glamour",
+    "modifier": "polished hip-hop-soul fusion, slick and confident"
+  },
+  "Funk / Soul---P.Funk": {
+    "landscape": "Mothership on stage, wild futurist costumes, cosmic funk",
+    "modifier": "cosmic funk mythology, outrageous and joyful"
+  },
+  "Funk / Soul---Psychedelic": {
+    "landscape": "psychedelic soul stage, swirling colour projections, altered groove",
+    "modifier": "mind-expanding soulful journey, trippy and emotional"
+  },
+  "Funk / Soul---Rhythm & Blues": {
+    "landscape": "warm 50s ballroom, sophisticated crowd, smooth stage light",
+    "modifier": "heartfelt soulful groove, warm and expressive"
+  },
+  "Funk / Soul---Soul": {
+    "landscape": "Motown studio stage, deep emotion, close mic warmth",
+    "modifier": "raw heartfelt human emotion, deep and resonant"
+  },
+  "Funk / Soul---Swingbeat": {
+    "landscape": "early 90s R&B club, smooth groove, romantic atmosphere",
+    "modifier": "smooth romantic groove, sensual and polished"
+  },
+  "Funk / Soul---UK Street Soul": {
+    "landscape": "London warehouse party, urban warmth, soulful community",
+    "modifier": "warm British soul groove, urban and sincere"
+  },
+  "Hip Hop---Bass Music": {
+    "landscape": "trunk rattling street, subwoofer pressure, southern heat",
+    "modifier": "extreme bass dominance, physical and confrontational"
+  },
+  "Hip Hop---Boom Bap": {
+    "landscape": "New York subway station, concrete columns, sharp shadows",
+    "modifier": "hard-hitting classic hip-hop, raw and authentic"
+  },
+  "Hip Hop---Bounce": {
+    "landscape": "New Orleans street party, second-line energy, block heat",
+    "modifier": "call-response crowd energy, celebratory and physical"
+  },
+  "Hip Hop---Britcore": {
+    "landscape": "British inner city, grey housing estate, sharp urban edge",
+    "modifier": "hard UK hip-hop grit, direct and confrontational"
+  },
+  "Hip Hop---Cloud Rap": {
+    "landscape": "hazy dreamlike studio, soft light, floaty atmosphere",
+    "modifier": "ethereal spacious atmosphere, introspective and drifting"
+  },
+  "Hip Hop---Conscious": {
+    "landscape": "urban community space, warm gathering, thoughtful energy",
+    "modifier": "reflective social awareness, thoughtful and sincere"
+  },
+  "Hip Hop---Crunk": {
+    "landscape": "Southern club, maximum energy, hyped crowd",
+    "modifier": "explosive high-energy hype, loud and physical"
+  },
+  "Hip Hop---Cut-up/DJ": {
+    "landscape": "DJ booth, spinning vinyl, crowd anticipation",
+    "modifier": "rhythmic turntable manipulation, skilled and kinetic"
+  },
+  "Hip Hop---DJ Battle Tool": {
+    "landscape": "DMC competition stage, intense focus, technical precision",
+    "modifier": "pure technical DJ function, precise and competitive"
+  },
+  "Hip Hop---Electro": {
+    "landscape": "80s New York breakdance spot, cardboard on concrete, electric energy",
+    "modifier": "robotic electro-funk precision, cool and innovative"
+  },
+  "Hip Hop---G-Funk": {
+    "landscape": "Compton street at sunset, slow cruise, Californian warmth",
+    "modifier": "languid West Coast groove, smooth and menacing"
+  },
+  "Hip Hop---Gangsta": {
+    "landscape": "LA street corner at night, cold light, urban tension",
+    "modifier": "unflinching urban realism, hard and cinematic"
+  },
+  "Hip Hop---Grime": {
+    "landscape": "East London rooftop, grey morning, concrete panorama",
+    "modifier": "icy rhythmic aggression, cold and sharp"
+  },
+  "Hip Hop---Hardcore Hip-Hop": {
+    "landscape": "New York housing project, raw concrete, fierce energy",
+    "modifier": "brutal lyrical intensity, raw and uncompromising"
+  },
+  "Hip Hop---Horrorcore": {
+    "landscape": "abandoned warehouse, horror imagery, dark and menacing",
+    "modifier": "dark horror theatrics, sinister and intense"
+  },
+  "Hip Hop---Instrumental": {
+    "landscape": "late-night studio, warm lamp, focused creative solitude",
+    "modifier": "atmospheric beat craft, cinematic and introspective"
+  },
+  "Hip Hop---Jazzy Hip-Hop": {
+    "landscape": "sophisticated urban lounge, warm light, cultured atmosphere",
+    "modifier": "jazz-sampled intellectual groove, smooth and layered"
+  },
+  "Hip Hop---Miami Bass": {
+    "landscape": "Miami night club, sub bass pressure, party heat",
+    "modifier": "heavy bass party energy, physical and hedonistic"
+  },
+  "Hip Hop---Pop Rap": {
+    "landscape": "glossy pop stage, massive crowd, commercial brightness",
+    "modifier": "accessible melodic energy, catchy and upbeat"
+  },
+  "Hip Hop---Ragga HipHop": {
+    "landscape": "Caribbean-influenced urban space, dancehall energy",
+    "modifier": "reggae-hip-hop fusion heat, rhythmic and vibrant"
+  },
+  "Hip Hop---RnB/Swing": {
+    "landscape": "90s R&B stage, smooth style, warm romantic light",
+    "modifier": "smooth romantic hip-hop groove, warm and sensual"
+  },
+  "Hip Hop---Screw": {
+    "landscape": "Houston slow ride, purple lean haze, slowed reality",
+    "modifier": "syrupy slowed atmosphere, heavy and dreamlike"
+  },
+  "Hip Hop---Thug Rap": {
+    "landscape": "hard street reality, tension, authentic grit",
+    "modifier": "raw street authenticity, hard and unflinching"
+  },
+  "Hip Hop---Trap": {
+    "landscape": "Atlanta night, hi-hat patterns, trap house atmosphere",
+    "modifier": "dark hi-hat intensity, ominous and hypnotic"
+  },
+  "Hip Hop---Trip Hop": {
+    "landscape": "Bristol night rain, cinematic melancholy, amber reflection",
+    "modifier": "dark cinematic groove, introspective and atmospheric"
+  },
+  "Hip Hop---Turntablism": {
+    "landscape": "competition stage, spotlight on decks, technical mastery",
+    "modifier": "virtuosic turntable artistry, precise and dynamic"
+  },
+  "Jazz---Afro-Cuban Jazz": {
+    "landscape": "Havana nightclub, warm tropical air, percussive heat",
+    "modifier": "polyrhythmic Afro-Cuban swing, passionate and intricate"
+  },
+  "Jazz---Afrobeat": {
+    "landscape": "Lagos concert stage, political energy, massive groove",
+    "modifier": "righteous rhythmic complexity, communal and hypnotic"
+  },
+  "Jazz---Avant-garde Jazz": {
+    "landscape": "loft jazz space, experimental tension, abstract space",
+    "modifier": "radical harmonic freedom, searching and dissonant"
+  },
+  "Jazz---Big Band": {
+    "landscape": "grand ballroom, full orchestra on stage, swinging crowd",
+    "modifier": "powerful orchestral swing, bold and exhilarating"
+  },
+  "Jazz---Bop": {
+    "landscape": "52nd Street club, cigarette smoke, fast chord changes",
+    "modifier": "lightning harmonic invention, virtuosic and restless"
+  },
+  "Jazz---Bossa Nova": {
+    "landscape": "Rio de Janeiro apartment at dusk, ocean breeze, warm shadow",
+    "modifier": "gentle samba-jazz elegance, intimate and melancholic"
+  },
+  "Jazz---Contemporary Jazz": {
+    "landscape": "modern jazz club, clean acoustic space, sophisticated audience",
+    "modifier": "refined harmonic sophistication, open and expressive"
+  },
+  "Jazz---Cool Jazz": {
+    "landscape": "West Coast studio, detached elegance, measured restraint",
+    "modifier": "relaxed understated cool, melodic and composed"
+  },
+  "Jazz---Dixieland": {
+    "landscape": "New Orleans French Quarter street, parade energy, warm brass",
+    "modifier": "joyful collective improvisation, exuberant and historic"
+  },
+  "Jazz---Easy Listening": {
+    "landscape": "hotel lounge, soft ambient light, refined background warmth",
+    "modifier": "smooth pleasant sophistication, gentle and undemanding"
+  },
+  "Jazz---Free Improvisation": {
+    "landscape": "bare studio space, complete openness, pure spontaneity",
+    "modifier": "total improvised freedom, open and unpredictable"
+  },
+  "Jazz---Free Jazz": {
+    "landscape": "avant-garde loft, raw collective energy, musical liberation",
+    "modifier": "explosive collective freedom, raw and transformative"
+  },
+  "Jazz---Fusion": {
+    "landscape": "electric jazz stage, rock energy meets jazz complexity",
+    "modifier": "electric jazz-rock power, complex and dynamic"
+  },
+  "Jazz---Gypsy Jazz": {
+    "landscape": "Paris café terrace, warm evening, Django-era romance",
+    "modifier": "virtuosic acoustic romance, swinging and nostalgic"
+  },
+  "Jazz---Hard Bop": {
+    "landscape": "Blue Note studio, soulful intensity, close-mic warmth",
+    "modifier": "soulful bluesy intensity, earthy and driving"
+  },
+  "Jazz---Jazz-Funk": {
+    "landscape": "70s funk jazz club, deep groove, warm stage light",
+    "modifier": "funky jazz groove, earthy and infectious"
+  },
+  "Jazz---Jazz-Rock": {
+    "landscape": "electric stage, amplified jazz energy, rock momentum",
+    "modifier": "electric jazz power, dynamic and expansive"
+  },
+  "Jazz---Latin Jazz": {
+    "landscape": "Latin jazz club, percussive heat, brass and rhythm",
+    "modifier": "vibrant Latin rhythmic complexity, passionate and driving"
+  },
+  "Jazz---Modal": {
+    "landscape": "dark intimate club, meditative space, open modal landscape",
+    "modifier": "hypnotic modal exploration, deep and meditative"
+  },
+  "Jazz---Post Bop": {
+    "landscape": "late-night jazz club, reflective space, searching harmony",
+    "modifier": "restless harmonic exploration, introspective and inventive"
+  },
+  "Jazz---Ragtime": {
+    "landscape": "early 20th century saloon, upright piano, nostalgic warmth",
+    "modifier": "syncopated piano elegance, joyful and nostalgic"
+  },
+  "Jazz---Smooth Jazz": {
+    "landscape": "upscale lounge, soft saxophone, evening sophistication",
+    "modifier": "polished melodic smoothness, relaxed and refined"
+  },
+  "Jazz---Soul-Jazz": {
+    "landscape": "60s soul-jazz club, warm organ, groovy atmosphere",
+    "modifier": "soulful organ groove, warm and earthy"
+  },
+  "Jazz---Space-Age": {
+    "landscape": "futuristic lounge, Space Age optimism, sleek modernism",
+    "modifier": "optimistic futurist fantasy, bright and exotic"
+  },
+  "Jazz---Swing": {
+    "landscape": "ballroom, dancers in motion, brass-lit stage",
+    "modifier": "irresistible rhythmic momentum, joyful and elegant"
+  },
+  "Latin---Afro-Cuban": {
+    "landscape": "Havana nightclub, tropical night, polyrhythmic heat",
+    "modifier": "deep Afro-Cuban rhythmic complexity, sensual and powerful"
+  },
+  "Latin---Baião": {
+    "landscape": "Brazilian northeast, dry landscape, accordion heat",
+    "modifier": "earthy northeastern Brazilian rhythm, rustic and joyful"
+  },
+  "Latin---Batucada": {
+    "landscape": "Rio carnival street, massive percussion, carnival heat",
+    "modifier": "explosive percussion community, joyful and relentless"
+  },
+  "Latin---Beguine": {
+    "landscape": "French Caribbean ballroom, romantic couples, warm evening",
+    "modifier": "romantic Caribbean elegance, slow and sensual"
+  },
+  "Latin---Bolero": {
+    "landscape": "candlelit Latin restaurant, deep romantic atmosphere",
+    "modifier": "intense romantic longing, passionate and intimate"
+  },
+  "Latin---Boogaloo": {
+    "landscape": "New York Latino club, 60s energy, fusion groove",
+    "modifier": "funky Latin-soul fusion, joyful and infectious"
+  },
+  "Latin---Bossanova": {
+    "landscape": "Ipanema apartment at dusk, gentle ocean light, intimacy",
+    "modifier": "understated Brazilian sophistication, gentle and reflective"
+  },
+  "Latin---Cha-Cha": {
+    "landscape": "Cuban dance studio, couples in motion, warm rhythm",
+    "modifier": "playful syncopated elegance, rhythmic and flirtatious"
+  },
+  "Latin---Charanga": {
+    "landscape": "Havana dance salon, flute and violin, elegant dancers",
+    "modifier": "elegant Cuban dance sophistication, refined and melodic"
+  },
+  "Latin---Compas": {
+    "landscape": "Haitian dance floor, warm Caribbean night, fluid movement",
+    "modifier": "smooth Haitian groove, romantic and flowing"
+  },
+  "Latin---Cubano": {
+    "landscape": "Havana street, tropical warmth, rich musical tradition",
+    "modifier": "vibrant Cuban musical heritage, rhythmic and passionate"
+  },
+  "Latin---Cumbia": {
+    "landscape": "Colombian coastal town, warm night, dancing crowd",
+    "modifier": "infectious Colombian groove, accessible and joyful"
+  },
+  "Latin---Descarga": {
+    "landscape": "Havana jazz session, improvising musicians, spontaneous energy",
+    "modifier": "spontaneous Cuban jam energy, virtuosic and joyful"
+  },
+  "Latin---Forró": {
+    "landscape": "Brazilian northeast festa, accordion heat, close dancing",
+    "modifier": "intimate forró warmth, earthy and romantic"
+  },
+  "Latin---Guaguancó": {
+    "landscape": "Afro-Cuban ritual space, percussion intensity, deep tradition",
+    "modifier": "primal Afro-Cuban percussion, fierce and ancestral"
+  },
+  "Latin---Guajira": {
+    "landscape": "Cuban countryside, guajiro tradition, rural warmth",
+    "modifier": "Cuban rural folk warmth, sincere and melodic"
+  },
+  "Latin---Guaracha": {
+    "landscape": "Havana 1940s club, fast and witty energy, crowd delight",
+    "modifier": "lively witty Cuban energy, fast and humorous"
+  },
+  "Latin---MPB": {
+    "landscape": "São Paulo sophisticated venue, urban Brazilian intelligence",
+    "modifier": "sophisticated Brazilian pop artistry, eclectic and warm"
+  },
+  "Latin---Mambo": {
+    "landscape": "Palladium ballroom New York, big band heat, wild dancers",
+    "modifier": "explosive brass-driven excitement, wild and exhilarating"
+  },
+  "Latin---Mariachi": {
+    "landscape": "Mexican plaza at sunset, colourful costumes, proud tradition",
+    "modifier": "proud passionate Mexican identity, warm and bold"
+  },
+  "Latin---Merengue": {
+    "landscape": "Dominican dance floor, fast rhythm, infectious crowd energy",
+    "modifier": "irresistible fast Latin groove, festive and direct"
+  },
+  "Latin---Norteño": {
+    "landscape": "northern Mexico landscape, accordion and bajo sexto",
+    "modifier": "border region folk honesty, sincere and earthy"
+  },
+  "Latin---Nueva Cancion": {
+    "landscape": "folk concert stage, political solidarity, earnest gathering",
+    "modifier": "political folk poetry, sincere and moving"
+  },
+  "Latin---Pachanga": {
+    "landscape": "New York Latin party, festive energy, joyful dancing",
+    "modifier": "festive celebratory Latin energy, joyful and fast"
+  },
+  "Latin---Porro": {
+    "landscape": "Colombian inland town, brass band, community celebration",
+    "modifier": "festive Colombian brass energy, communal and joyful"
+  },
+  "Latin---Ranchera": {
+    "landscape": "Mexican cantina, heartfelt singing, emotional crowd",
+    "modifier": "passionate Mexican emotional expression, sincere and intense"
+  },
+  "Latin---Reggaeton": {
+    "landscape": "Puerto Rican urban night club, dembow beat, street heat",
+    "modifier": "urban Latin street energy, heavy and infectious"
+  },
+  "Latin---Rumba": {
+    "landscape": "Afro-Cuban solar courtyard, percussion, community dance",
+    "modifier": "ancestral Afro-Cuban groove, earthy and passionate"
+  },
+  "Latin---Salsa": {
+    "landscape": "New York salsa club, brass heat, passionate dancers",
+    "modifier": "vibrant rhythmic passion, energetic and joyful"
+  },
+  "Latin---Samba": {
+    "landscape": "Rio carnival, massive percussion, pure joy and colour",
+    "modifier": "explosive communal celebration, joyful and rhythmic"
+  },
+  "Latin---Son": {
+    "landscape": "Santiago de Cuba patio, warm evening, musical roots",
+    "modifier": "foundational Cuban groove, warm and sincere"
+  },
+  "Latin---Son Montuno": {
+    "landscape": "Cuban mountain town, rural roots, improvisatory spirit",
+    "modifier": "improvisatory Cuban mountain spirit, earthy and joyful"
+  },
+  "Latin---Tango": {
+    "landscape": "Buenos Aires milonga, dim light, intense couple tension",
+    "modifier": "fierce passionate tension, dramatic and intimate"
+  },
+  "Latin---Tejano": {
+    "landscape": "Texas-Mexican border town, proud identity, warm community",
+    "modifier": "Tex-Mex cultural pride, warm and vibrant"
+  },
+  "Latin---Vallenato": {
+    "landscape": "Colombian Caribbean village, accordion, storytelling tradition",
+    "modifier": "warm accordion storytelling, sincere and poetic"
+  },
+  "Non-Music---Audiobook": {
+    "landscape": "quiet private library, soft reading lamp, paper and silence",
+    "modifier": "intimate narrative focus, contemplative and still"
+  },
+  "Non-Music---Comedy": {
+    "landscape": "comedy club stage, spotlight, expectant laughing crowd",
+    "modifier": "playful comic energy, light and irreverent"
+  },
+  "Non-Music---Dialogue": {
+    "landscape": "intimate conversation space, two chairs, focused human exchange",
+    "modifier": "direct human connection, present and attentive"
+  },
+  "Non-Music---Education": {
+    "landscape": "bright lecture hall, focused attention, curious minds",
+    "modifier": "clear structured curiosity, open and illuminating"
+  },
+  "Non-Music---Field Recording": {
+    "landscape": "untouched natural environment, wind through grass, pure space",
+    "modifier": "immersive environmental presence, raw and documentary"
+  },
+  "Non-Music---Interview": {
+    "landscape": "studio interview set, soft professional light, direct exchange",
+    "modifier": "focused investigative energy, present and revealing"
+  },
+  "Non-Music---Monolog": {
+    "landscape": "bare stage, single spotlight, solitary human voice",
+    "modifier": "concentrated individual expression, direct and personal"
+  },
+  "Non-Music---Poetry": {
+    "landscape": "intimate reading space, warm light, attentive silence",
+    "modifier": "lyrical concentrated language, resonant and precise"
+  },
+  "Non-Music---Political": {
+    "landscape": "public square, crowd gathered, urgent collective energy",
+    "modifier": "urgent civic energy, direct and purposeful"
+  },
+  "Non-Music---Promotional": {
+    "landscape": "clean commercial space, bright product light, persuasive clarity",
+    "modifier": "polished commercial clarity, bright and direct"
+  },
+  "Non-Music---Radioplay": {
+    "landscape": "BBC radio studio, vintage microphone, imagined worlds",
+    "modifier": "theatrical audio imagination, evocative and narrative"
+  },
+  "Non-Music---Religious": {
+    "landscape": "sacred space, filtered light, devotional stillness",
+    "modifier": "transcendent devotional solemnity, reverent and still"
+  },
+  "Non-Music---Spoken Word": {
+    "landscape": "spoken word venue, intimate crowd, poetic urban energy",
+    "modifier": "rhythmic language power, direct and expressive"
+  },
+  "Pop---Ballad": {
+    "landscape": "empty concert hall, single spotlight, emotional silence",
+    "modifier": "sweeping emotional vulnerability, sincere and open"
+  },
+  "Pop---Bollywood": {
+    "landscape": "lavish film set, vibrant colour, spectacular choreography",
+    "modifier": "exuberant cinematic spectacle, bright and romantic"
+  },
+  "Pop---Bubblegum": {
+    "landscape": "bright candy-coloured space, pure cheerful simplicity",
+    "modifier": "innocent sugary delight, light and immediate"
+  },
+  "Pop---Chanson": {
+    "landscape": "Paris café, warm literary atmosphere, autumn rain",
+    "modifier": "poetic intimate emotion, literary and warm"
+  },
+  "Pop---City Pop": {
+    "landscape": "Tokyo night cityscape, glossy 80s urban sophistication",
+    "modifier": "nostalgic urban glamour, smooth and atmospheric"
+  },
+  "Pop---Europop": {
+    "landscape": "European summer stage, carefree crowd, bright colours",
+    "modifier": "melodic accessible euphoria, upbeat and polished"
+  },
+  "Pop---Indie Pop": {
+    "landscape": "intimate small venue, warm stage light, earnest young crowd",
+    "modifier": "heartfelt melodic charm, honest and colourful"
+  },
+  "Pop---J-pop": {
+    "landscape": "Tokyo concert arena, perfect production, passionate fans",
+    "modifier": "polished infectious energy, bright and precise"
+  },
+  "Pop---K-pop": {
+    "landscape": "Seoul mega arena, choreographic perfection, intense fan energy",
+    "modifier": "flawless high-production spectacle, intense and polished"
+  },
+  "Pop---Kayōkyoku": {
+    "landscape": "60s Japanese TV studio, elegant performance, warm nostalgia",
+    "modifier": "graceful Japanese melodic warmth, nostalgic and refined"
+  },
+  "Pop---Light Music": {
+    "landscape": "BBC concert hall, pleasant afternoon, refined comfort",
+    "modifier": "pleasant orchestral warmth, gentle and tasteful"
+  },
+  "Pop---Music Hall": {
+    "landscape": "Victorian music hall, bawdy crowd, footlight glow",
+    "modifier": "theatrical popular entertainment, warm and communal"
+  },
+  "Pop---Novelty": {
+    "landscape": "comedy stage, absurdist props, laughing crowd",
+    "modifier": "playful absurdist humour, light and irreverent"
+  },
+  "Pop---Parody": {
+    "landscape": "satirical stage, knowing audience, clever subversion",
+    "modifier": "witty knowing humour, clever and self-aware"
+  },
+  "Pop---Schlager": {
+    "landscape": "Scandinavian summer festival, warm crowd, simple joy",
+    "modifier": "uncomplicated melodic warmth, sincere and accessible"
+  },
+  "Pop---Vocal": {
+    "landscape": "intimate studio microphone, warm recording light, pure voice",
+    "modifier": "pure vocal emotion, direct and expressive"
+  },
+  "Reggae---Calypso": {
+    "landscape": "Caribbean carnival street, colourful costume, warm sun",
+    "modifier": "witty celebratory Caribbean energy, bright and joyful"
+  },
+  "Reggae---Dancehall": {
+    "landscape": "Jamaican night club, heavy bass, energetic crowd",
+    "modifier": "heavy bass energy, urban and raw"
+  },
+  "Reggae---Dub": {
+    "landscape": "studio as instrument, echo-filled space, bass and space",
+    "modifier": "deep reverberant bass architecture, hypnotic and spatial"
+  },
+  "Reggae---Lovers Rock": {
+    "landscape": "London reggae club, romantic atmosphere, close dancing",
+    "modifier": "soft romantic reggae warmth, gentle and intimate"
+  },
+  "Reggae---Ragga": {
+    "landscape": "dancehall stage, digital riddim, fierce vocal energy",
+    "modifier": "digital dancehall intensity, sharp and driving"
+  },
+  "Reggae---Reggae": {
+    "landscape": "tropical island, palm trees, warm ocean breeze and bass",
+    "modifier": "righteous bass groove, warm and conscious"
+  },
+  "Reggae---Reggae-Pop": {
+    "landscape": "sunny outdoor stage, crossover crowd, warm accessibility",
+    "modifier": "accessible reggae warmth, melodic and uplifting"
+  },
+  "Reggae---Rocksteady": {
+    "landscape": "late 60s Kingston yard, transitional heat, steady groove",
+    "modifier": "cool measured groove, soulful and confident"
+  },
+  "Reggae---Roots Reggae": {
+    "landscape": "Jamaican countryside, Rastafari spirit, deep roots",
+    "modifier": "spiritual bass righteousness, profound and conscious"
+  },
+  "Reggae---Ska": {
+    "landscape": "Kingston dance hall, upstroke guitar, joyful energy",
+    "modifier": "upbeat offbeat joy, energetic and optimistic"
+  },
+  "Reggae---Soca": {
+    "landscape": "Trinidad carnival, maximum energy, pure festive joy",
+    "modifier": "explosive carnival joy, physical and celebratory"
+  },
+  "Rock---AOR": {
+    "landscape": "FM radio station, smooth production, wide open highway",
+    "modifier": "polished melodic accessibility, warm and driving"
+  },
+  "Rock---Acid Rock": {
+    "landscape": "60s psychedelic ballroom, swirling projections, expanded mind",
+    "modifier": "mind-expanding psychedelic exploration, raw and searching"
+  },
+  "Rock---Acoustic": {
+    "landscape": "intimate folk club, single microphone, honest simplicity",
+    "modifier": "pure acoustic honesty, warm and direct"
+  },
+  "Rock---Alternative Rock": {
+    "landscape": "indie venue, raw stage, authentic alternative energy",
+    "modifier": "restless guitar-driven energy, honest and expressive"
+  },
+  "Rock---Arena Rock": {
+    "landscape": "massive stadium, huge light rig, 80,000 person crowd",
+    "modifier": "anthemic massive scale, triumphant and euphoric"
+  },
+  "Rock---Art Rock": {
+    "landscape": "avant-garde concert space, visual art integration, conceptual stage",
+    "modifier": "intellectual artistic ambition, experimental and grand"
+  },
+  "Rock---Atmospheric Black Metal": {
+    "landscape": "mountain wilderness at night, vast dark sky, primal solitude",
+    "modifier": "transcendent natural darkness, epic and spiritual"
+  },
+  "Rock---Avantgarde": {
+    "landscape": "experimental art space, deconstruction, pure concept",
+    "modifier": "radical formal experimentation, challenging and original"
+  },
+  "Rock---Beat": {
+    "landscape": "early 60s dance hall, Merseybeat energy, youthful excitement",
+    "modifier": "bright energetic simplicity, joyful and vital"
+  },
+  "Rock---Black Metal": {
+    "landscape": "Norwegian winter forest, corpse paint, raw darkness",
+    "modifier": "raw satanic darkness, cold and extreme"
+  },
+  "Rock---Blues Rock": {
+    "landscape": "dusty club stage, electric guitar, raw power",
+    "modifier": "raw electric blues power, earthy and intense"
+  },
+  "Rock---Brit Pop": {
+    "landscape": "90s London pub, cool Britannia energy, working class cool",
+    "modifier": "catchy ironic British confidence, melodic and direct"
+  },
+  "Rock---Classic Rock": {
+    "landscape": "70s stadium, classic guitar riff, pure rock mythology",
+    "modifier": "timeless rock power, confident and enduring"
+  },
+  "Rock---Coldwave": {
+    "landscape": "cold European city, minimalist stage, emotional restraint",
+    "modifier": "cold emotional minimalism, detached and melancholic"
+  },
+  "Rock---Country Rock": {
+    "landscape": "California ranch at dusk, warm country-rock sound",
+    "modifier": "warm country-rock ease, relaxed and sincere"
+  },
+  "Rock---Crust": {
+    "landscape": "squat venue, raw DIY space, anarchist energy",
+    "modifier": "raw anarchic intensity, fierce and uncompromising"
+  },
+  "Rock---Death Metal": {
+    "landscape": "underground club, maximum brutality, dark crushing force",
+    "modifier": "extreme technical brutality, dark and overwhelming"
+  },
+  "Rock---Deathcore": {
+    "landscape": "dark metal venue, breakdown pit energy, brutal force",
+    "modifier": "crushing breakdown intensity, dark and aggressive"
+  },
+  "Rock---Deathrock": {
+    "landscape": "gothic cemetery at night, dead trees, cold moonlight",
+    "modifier": "cold post-punk darkness, theatrical and haunting"
+  },
+  "Rock---Depressive Black Metal": {
+    "landscape": "desolate winter landscape, absolute solitude, pale cold sky",
+    "modifier": "bleak introspective despair, raw and suffocating"
+  },
+  "Rock---Doo Wop": {
+    "landscape": "1950s street corner, lamppost glow, close vocal harmony",
+    "modifier": "tender romantic innocence, warm and nostalgic"
+  },
+  "Rock---Doom Metal": {
+    "landscape": "vast ruined cathedral, slow crushing darkness, heavy atmosphere",
+    "modifier": "slow crushing weight, mournful and immense"
+  },
+  "Rock---Dream Pop": {
+    "landscape": "hazy sunlit bedroom, soft curtains blowing, dreamy warmth",
+    "modifier": "ethereal melodic reverie, soft and luminous"
+  },
+  "Rock---Emo": {
+    "landscape": "suburban bedroom at night, dim lamp, raw emotional solitude",
+    "modifier": "confessional emotional intensity, sincere and vulnerable"
+  },
+  "Rock---Ethereal": {
+    "landscape": "moonlit forest, soft mist between trees, otherworldly stillness",
+    "modifier": "delicate transcendent beauty, floating and spectral"
+  },
+  "Rock---Experimental": {
+    "landscape": "abstract studio space, undefined boundaries, pure exploration",
+    "modifier": "boundary-dissolving sonic investigation, open and unpredictable"
+  },
+  "Rock---Folk Metal": {
+    "landscape": "northern forest at twilight, ancient standing stones, tribal fire",
+    "modifier": "folk-metal mythic power, earthy and epic"
+  },
+  "Rock---Folk Rock": {
+    "landscape": "English countryside, acoustic stage, earnest crowd",
+    "modifier": "warm acoustic-electric storytelling, honest and melodic"
+  },
+  "Rock---Funeral Doom Metal": {
+    "landscape": "vast dark void, infinite slow descent, absolute desolation",
+    "modifier": "funeral slowness, overwhelming grief and darkness"
+  },
+  "Rock---Funk Metal": {
+    "landscape": "sweaty rock club, heavy groove, intense crowd energy",
+    "modifier": "heavy funk-rock power, raw and physical"
+  },
+  "Rock---Garage Rock": {
+    "landscape": "suburban garage, raw DIY energy, loose and live",
+    "modifier": "raw lo-fi rock energy, spontaneous and visceral"
+  },
+  "Rock---Glam": {
+    "landscape": "glitter-strewn stage, feather boas, theatrical excess",
+    "modifier": "flamboyant theatrical excess, glittering and bold"
+  },
+  "Rock---Goregrind": {
+    "landscape": "extreme underground venue, pure sonic brutality, no concession",
+    "modifier": "extreme grotesque intensity, brutal and unrelenting"
+  },
+  "Rock---Goth Rock": {
+    "landscape": "dark club, black clothing, velvet and candlelight",
+    "modifier": "romantic gothic darkness, melancholic and atmospheric"
+  },
+  "Rock---Gothic Metal": {
+    "landscape": "ruined gothic cathedral, dramatic darkness, ornate decay",
+    "modifier": "epic gothic drama, dark and romantic"
+  },
+  "Rock---Grindcore": {
+    "landscape": "tiny underground venue, maximum chaos, pure noise assault",
+    "modifier": "extreme speed brutality, anarchic and intense"
+  },
+  "Rock---Grunge": {
+    "landscape": "Seattle rain, dirty club, flannel and feedback",
+    "modifier": "raw distorted angst, heavy and authentic"
+  },
+  "Rock---Hard Rock": {
+    "landscape": "classic rock arena, heavy riff, driving power",
+    "modifier": "powerful rock drive, confident and direct"
+  },
+  "Rock---Hardcore": {
+    "landscape": "raw underground venue, pit energy, direct confrontation",
+    "modifier": "aggressive fast intensity, raw and committed"
+  },
+  "Rock---Heavy Metal": {
+    "landscape": "dark metal stage, Marshall stacks, heavy power",
+    "modifier": "crushing heavy power, dark and commanding"
+  },
+  "Rock---Indie Rock": {
+    "landscape": "small independent venue, authentic stage, honest crowd",
+    "modifier": "independent spirit, melodic and expressive"
+  },
+  "Rock---Industrial": {
+    "landscape": "derelict factory floor, harsh machinery, cold brutality",
+    "modifier": "mechanical noise aggression, harsh and cold"
+  },
+  "Rock---Krautrock": {
+    "landscape": "1970s Cologne studio, motorik pulse, hypnotic repetition",
+    "modifier": "hypnotic motorik groove, cosmic and experimental"
+  },
+  "Rock---Lo-Fi": {
+    "landscape": "home recording bedroom, tape hiss, intimate rawness",
+    "modifier": "warm imperfect intimacy, honest and direct"
+  },
+  "Rock---Lounge": {
+    "landscape": "cocktail lounge, dim light, sophisticated evening crowd",
+    "modifier": "smooth sophisticated ease, warm and relaxed"
+  },
+  "Rock---Math Rock": {
+    "landscape": "focused rehearsal space, complex notation, precise geometry",
+    "modifier": "intricate rhythmic complexity, precise and inventive"
+  },
+  "Rock---Melodic Death Metal": {
+    "landscape": "Gothenburg winter, crushing melody, dark power",
+    "modifier": "melodic death metal intensity, dark and sweeping"
+  },
+  "Rock---Melodic Hardcore": {
+    "landscape": "sweaty hardcore venue, emotional energy, committed crowd",
+    "modifier": "emotional hardcore urgency, fast and sincere"
+  },
+  "Rock---Metalcore": {
+    "landscape": "metal venue, breakdown energy, intense crowd",
+    "modifier": "heavy breakdown intensity, aggressive and melodic"
+  },
+  "Rock---Mod": {
+    "landscape": "60s London club, sharp suits, scooter culture",
+    "modifier": "sharp stylish 60s cool, energetic and precise"
+  },
+  "Rock---Neofolk": {
+    "landscape": "northern European forest ritual, twilight, ancient atmosphere",
+    "modifier": "dark acoustic mythology, solemn and archaic"
+  },
+  "Rock---New Wave": {
+    "landscape": "post-punk city, angular 80s style, cold synth romanticism",
+    "modifier": "angular post-punk sophistication, cool and melodic"
+  },
+  "Rock---No Wave": {
+    "landscape": "New York art loft, radical deconstruction, pure confrontation",
+    "modifier": "radical anti-music confrontation, harsh and conceptual"
+  },
+  "Rock---Noise": {
+    "landscape": "feedback overload space, pure signal distortion, sonic wall",
+    "modifier": "extreme noise texture, overwhelming and physical"
+  },
+  "Rock---Noisecore": {
+    "landscape": "chaotic underground venue, pure sonic chaos, no structure",
+    "modifier": "chaotic noise brutality, extreme and unstructured"
+  },
+  "Rock---Nu Metal": {
+    "landscape": "late 90s arena, angst and aggression, massive production",
+    "modifier": "aggressive hybrid intensity, heavy and direct"
+  },
+  "Rock---Oi": {
+    "landscape": "British pub backroom, working class solidarity, direct energy",
+    "modifier": "raw working class directness, honest and forceful"
+  },
+  "Rock---Parody": {
+    "landscape": "comedy rock stage, knowing audience, clever subversion",
+    "modifier": "witty rock parody, humorous and self-aware"
+  },
+  "Rock---Pop Punk": {
+    "landscape": "suburban venue, young crowd, fast melodic energy",
+    "modifier": "fast melodic teenage energy, bright and direct"
+  },
+  "Rock---Pop Rock": {
+    "landscape": "mainstream rock stage, broad crowd, melodic accessibility",
+    "modifier": "polished melodic rock, accessible and warm"
+  },
+  "Rock---Pornogrind": {
+    "landscape": "underground extreme venue, maximum provocation, pure excess",
+    "modifier": "extreme provocative intensity, crude and relentless"
+  },
+  "Rock---Post Rock": {
+    "landscape": "vast concert space, slow build, cinematic crescendo",
+    "modifier": "cinematic orchestral build, expansive and emotional"
+  },
+  "Rock---Post-Hardcore": {
+    "landscape": "intense small venue, emotional urgency, raw expression",
+    "modifier": "emotional post-hardcore intensity, complex and urgent"
+  },
+  "Rock---Post-Metal": {
+    "landscape": "massive dark space, slow atmospheric build, crushing weight",
+    "modifier": "atmospheric heavy immersion, slow and overwhelming"
+  },
+  "Rock---Post-Punk": {
+    "landscape": "grey post-industrial city, angular energy, dark intelligence",
+    "modifier": "angular dark intelligence, cold and expressive"
+  },
+  "Rock---Power Metal": {
+    "landscape": "fantasy epic stage, soaring melody, triumphant spectacle",
+    "modifier": "epic melodic triumph, soaring and grandiose"
+  },
+  "Rock---Power Pop": {
+    "landscape": "bright pop-rock stage, hooks and harmonies, energetic crowd",
+    "modifier": "bright hook-driven energy, melodic and immediate"
+  },
+  "Rock---Power Violence": {
+    "landscape": "tiny chaotic venue, maximum speed, pure aggression",
+    "modifier": "hyper-speed brutal intensity, raw and uncompromising"
+  },
+  "Rock---Prog Rock": {
+    "landscape": "elaborate concert stage, complex arrangements, epic scale",
+    "modifier": "ambitious compositional complexity, epic and exploratory"
+  },
+  "Rock---Progressive Metal": {
+    "landscape": "theatrical metal stage, technical complexity, epic scale",
+    "modifier": "complex technical grandeur, powerful and ambitious"
+  },
+  "Rock---Psychedelic Rock": {
+    "landscape": "60s ballroom, swirling light show, expanded consciousness",
+    "modifier": "mind-expanding psychedelic colour, trippy and exploratory"
+  },
+  "Rock---Psychobilly": {
+    "landscape": "rockabilly club, horror imagery, wild energy",
+    "modifier": "wild horror-tinged rock energy, frenetic and irreverent"
+  },
+  "Rock---Pub Rock": {
+    "landscape": "British pub stage, no-nonsense crowd, honest performance",
+    "modifier": "honest no-frills rock, direct and unpretentious"
+  },
+  "Rock---Punk": {
+    "landscape": "raw DIY venue, ripped clothing, pure anti-establishment energy",
+    "modifier": "raw anarchic directness, fast and uncompromising"
+  },
+  "Rock---Rock & Roll": {
+    "landscape": "50s dance hall, jukebox glow, youthful rebellion",
+    "modifier": "vital joyful rebellion, energetic and free"
+  },
+  "Rock---Rockabilly": {
+    "landscape": "50s roadside diner, slicked hair, raw country-rock heat",
+    "modifier": "raw country-blues rock energy, wild and vital"
+  },
+  "Rock---Shoegaze": {
+    "landscape": "hazy club, effects pedals, wall of layered guitar sound",
+    "modifier": "dense layered guitar dreamscape, introspective and immersive"
+  },
+  "Rock---Ska": {
+    "landscape": "Jamaican-influenced dance hall, offbeat guitar, joyful crowd",
+    "modifier": "upbeat offbeat energy, joyful and energetic"
+  },
+  "Rock---Sludge Metal": {
+    "landscape": "murky swamp, slow crushing pressure, dark heaviness",
+    "modifier": "slow crushing sludge, oppressive and heavy"
+  },
+  "Rock---Soft Rock": {
+    "landscape": "warm FM radio studio, easy listening, smooth production",
+    "modifier": "warm melodic ease, gentle and polished"
+  },
+  "Rock---Southern Rock": {
+    "landscape": "Southern US roadhouse, dual guitar, hot sun and wide roads",
+    "modifier": "warm Southern pride, loose and driving"
+  },
+  "Rock---Space Rock": {
+    "landscape": "cosmic void, infinite space, slow drifting stellar light",
+    "modifier": "vast cosmic drift, hypnotic and expansive"
+  },
+  "Rock---Speed Metal": {
+    "landscape": "raw metal stage, maximum tempo, intense energy",
+    "modifier": "lightning speed precision, fierce and driving"
+  },
+  "Rock---Stoner Rock": {
+    "landscape": "desert highway, heat haze, heavy slow riff",
+    "modifier": "heavy psychedelic groove, slow and hazy"
+  },
+  "Rock---Surf": {
+    "landscape": "California beach, reverb guitar, sun and surf energy",
+    "modifier": "bright reverb-soaked freedom, sunny and kinetic"
+  },
+  "Rock---Symphonic Rock": {
+    "landscape": "grand concert stage, orchestral sweep, epic production",
+    "modifier": "orchestral rock grandeur, sweeping and dramatic"
+  },
+  "Rock---Technical Death Metal": {
+    "landscape": "underground metal stage, extreme technical precision, dark force",
+    "modifier": "hyper-technical death metal, precise and brutal"
+  },
+  "Rock---Thrash": {
+    "landscape": "mosh pit, high-speed aggression, raw powerful energy",
+    "modifier": "aggressive thrash intensity, fast and relentless"
+  },
+  "Rock---Twist": {
+    "landscape": "early 60s dance show, TV studio, Chubby Checker energy",
+    "modifier": "fun dance craze energy, simple and joyful"
+  },
+  "Rock---Viking Metal": {
+    "landscape": "Nordic coastline, longship at sea, epic mythic horizon",
+    "modifier": "epic Norse mythology, proud and powerful"
+  },
+  "Rock---Yé-Yé": {
+    "landscape": "60s Paris ye-ye TV show, bright pop colour, youthful charm",
+    "modifier": "carefree French pop innocence, bright and playful"
+  },
+  "Stage & Screen---Musical": {
+    "landscape": "Broadway stage, curtain call, dazzling theatrical light",
+    "modifier": "theatrical dramatic emotion, showstopping and expressive"
+  },
+  "Stage & Screen---Score": {
+    "landscape": "film scoring studio, orchestral recording, cinematic space",
+    "modifier": "cinematic orchestral narrative, dramatic and evocative"
+  },
+  "Stage & Screen---Soundtrack": {
+    "landscape": "cinematic landscape, widescreen scene, narrative atmosphere",
+    "modifier": "evocative scene-setting atmosphere, cinematic and immersive"
+  },
+  "Stage & Screen---Theme": {
+    "landscape": "title card on dark screen, iconic musical identity, memorable moment",
+    "modifier": "memorable thematic identity, bold and recognisable"
+  }
+}

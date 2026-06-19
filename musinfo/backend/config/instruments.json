@@ -1,28 +1,56 @@
 {
   "instruments": {
     "backing_track": {
+      "analysers": [
+        "dynamics",
+        "pitch_crepe",
+        "harmony",
+        "timbre",
+        "genre",
+        "mood",
+        "tempo"
+      ],
       "role_index": 0,
       "role": "default",
       "enabled": true,
-      "type": "virtual",
+      "type": "audio",
       "audio_device": {
-        "name": "Stereo Mix (Realtek(R) Audio)",
-        "device_id": 2,
-        "host_api": "MME",
-        "max_input_channels": 2,
-        "channel": 0,
+        "name": "Focusrite USB ASIO",
+        "device_id": 37,
+        "host_api": "ASIO",
+        "max_input_channels": 20,
+        "channel": 10,
         "sample_rate": 44100,
         "connected": true
-      },
+      }
+    },
+    "vocals": {
       "analysers": [
-        "mood",
-        "genre",
+        "pitch",
         "dynamics",
-        "tempo",
         "harmony",
-        "timbre",
-        "pitch"
-      ]
+        "timbre"
+      ],
+      "role_index": 0,
+      "role": "vocals",
+      "enabled": true,
+      "type": "audio",
+      "audio_device": {
+        "name": "Focusrite USB ASIO",
+        "device_id": 37,
+        "host_api": "ASIO",
+        "max_input_channels": 20,
+        "channel": 11,
+        "sample_rate": 44100,
+        "connected": true
+      }
+    },
+    "mix": {
+      "source_instruments": [],
+      "type": "mix",
+      "analysers": [],
+      "enabled": false,
+      "mix_source": "internal"
     }
   }
 }
