@@ -937,6 +937,23 @@ fn start_pipeline(
         }
     }
 
+    // Notify TouchDesigner that pipeline is active
+    {
+        let socket = UdpSocket::bind("0.0.0.0:0").ok();
+        if let Some(sock) = socket {
+            fn build_osc_active(address: &str, value: i32) -> Vec<u8> {
+                use rosc::{OscMessage, OscPacket, OscType};
+                rosc::encoder::encode(&OscPacket::Message(OscMessage {
+                    addr: address.to_string(),
+                    args: vec![OscType::Int(value)],
+                })).unwrap_or_default()
+            }
+            let msg = build_osc_active("/musinfo/active", 1);
+            let _ = sock.send_to(&msg, "127.0.0.1:9110");
+            println!("[Tauri] /musinfo/active -> 1 sent to TouchDesigner on port 9110");
+        }
+    }
+
     send_instrument_config_osc();
     
     app.emit("pipeline-ready", ())
@@ -1007,6 +1024,25 @@ fn stop_pipeline(
             println!("[Tauri] image_gen_enabled -> 0 sent to image gen processes");
         }
     }
+
+    // Notify TouchDesigner that pipeline is inactive
+    {
+        let socket = UdpSocket::bind("0.0.0.0:0").ok();
+        if let Some(sock) = socket {
+            fn build_osc_active(address: &str, value: i32) -> Vec<u8> {
+                use rosc::{OscMessage, OscPacket, OscType};
+                rosc::encoder::encode(&OscPacket::Message(OscMessage {
+                    addr: address.to_string(),
+                    args: vec![OscType::Int(value)],
+                })).unwrap_or_default()
+            }
+            let msg = build_osc_active("/musinfo/active", 0);
+            let _ = sock.send_to(&msg, "127.0.0.1:9110");
+            println!("[Tauri] /musinfo/active -> 0 sent to TouchDesigner on port 9110");
+        }
+    }
+
+
     let root = project_root_windows()?;
 
     // Kill capture first — stops audio flowing into broadcaster
