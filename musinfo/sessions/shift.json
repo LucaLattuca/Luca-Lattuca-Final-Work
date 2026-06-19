@@ -1,7 +1,6 @@
 {
   "instruments": {
     "vocals": {
-      "type": "audio",
       "audio_device": {
         "name": "Focusrite USB ASIO",
         "device_id": 35,
@@ -18,7 +17,8 @@
       ],
       "role_index": 0,
       "role": "vocals",
-      "enabled": true
+      "enabled": true,
+      "type": "audio"
     },
     "bass": {
       "audio_device": {
@@ -77,6 +77,46 @@
       "role": "drums",
       "enabled": true,
       "type": "audio"
+    },
+    "vocals_1": {
+      "analysers": [
+        "pitch_crepe",
+        "dynamics",
+        "timbre"
+      ],
+      "role_index": 1,
+      "role": "vocals",
+      "enabled": true,
+      "type": "audio",
+      "audio_device": {
+        "name": "Focusrite USB ASIO",
+        "device_id": 35,
+        "host_api": "ASIO",
+        "max_input_channels": 20,
+        "channel": 0,
+        "sample_rate": 44100,
+        "connected": true
+      }
+    },
+    "vocals_2": {
+      "role_index": 2,
+      "role": "vocals",
+      "enabled": true,
+      "type": "audio",
+      "audio_device": {
+        "name": "Focusrite USB ASIO",
+        "device_id": 35,
+        "host_api": "ASIO",
+        "max_input_channels": 20,
+        "channel": 1,
+        "sample_rate": 44100,
+        "connected": true
+      },
+      "analysers": [
+        "dynamics",
+        "pitch_crepe",
+        "timbre"
+      ]
     },
     "mix": {
       "enabled": true,

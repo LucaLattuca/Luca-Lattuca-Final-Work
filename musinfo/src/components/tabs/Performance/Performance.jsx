@@ -7,13 +7,14 @@ import PianoKeyboard from '../Performance/PianoKeyboard/PianoKeyboard';
 
 const Performance = ({ performanceState, setPerformanceState }) => {
   
-  const { enabled, selectedKey, selectedScale, imageGenEnabled } = performanceState;
+  const { enabled, selectedKey, selectedScale, imageGenEnabled, tempoEnabled  } = performanceState;
 
 
   const setEnabled      = (v) => setPerformanceState(s => ({ ...s, enabled: v }));
   const setSelectedKey  = (v) => setPerformanceState(s => ({ ...s, selectedKey: v }));
   const setSelectedScale = (v) => setPerformanceState(s => ({ ...s, selectedScale: v }));
   const setImageGenEnabled = (v) => setPerformanceState(s => ({ ...s, imageGenEnabled: v }));
+  const setTempoEnabled = (v) => setPerformanceState(s => ({ ...s, tempoEnabled: v }));
 
 
   const handleScaleSelect = (scale) => {
@@ -44,6 +45,13 @@ const Performance = ({ performanceState, setPerformanceState }) => {
     setImageGenEnabled(next);
     invoke('toggle_image_generation', { enabled: next })
       .catch(e => console.error('[toggle_image_generation] failed:', e));
+  };
+
+  const handleTempoToggle = () => {
+      const next = !tempoEnabled;
+      setTempoEnabled(next);
+      invoke('toggle_tempo', { enabled: next })
+          .catch(e => console.error('[toggle_tempo] failed:', e));
   };
 
   return (
@@ -127,6 +135,19 @@ const Performance = ({ performanceState, setPerformanceState }) => {
           />
         </div>
 
+        <div className={Styles.imageGenerationConfig}>
+            <label>Tempo</label>
+            <button
+                type="button"
+                onClick={handleTempoToggle}
+                className={Styles.toggleSwitch}
+                style={{
+                    borderColor: tempoEnabled ? '#30AE30' : '#434343',
+                }}
+                data-enabled={tempoEnabled}
+            />
+        </div>
+            
       </div>
     </>
   );

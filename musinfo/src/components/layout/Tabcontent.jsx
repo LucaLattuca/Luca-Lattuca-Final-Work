@@ -19,6 +19,7 @@ const Tabcontent = ({
     enabled: false,
     selectedKey: 'C',
     selectedScale: 'major',
+    tempoEnabled: true,
   });
 
   console.log('[Tabcontent] pipelineStatus:', pipelineStatus);

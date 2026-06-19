@@ -266,6 +266,31 @@ fn toggle_image_generation(enabled: bool) -> Result<(), String> {
     println!("[Tauri] image_gen_enabled -> {} (prompt_generator + generate_image)", flag);
     Ok(())
 }
+
+// TOUCHDESIGNER
+
+
+#[tauri::command]
+fn toggle_tempo(enabled: bool) -> Result<(), String> {
+    let socket = UdpSocket::bind("0.0.0.0:0")
+        .map_err(|e| format!("Failed to bind OSC socket: {}", e))?;
+
+    fn build_osc(address: &str, value: i32) -> Vec<u8> {
+        use rosc::{OscMessage, OscPacket, OscType};
+        rosc::encoder::encode(&OscPacket::Message(OscMessage {
+            addr: address.to_string(),
+            args: vec![OscType::Int(value)],
+        })).unwrap_or_default()
+    }
+
+    let flag: i32 = if enabled { 1 } else { 0 };
+    let msg = build_osc("/musinfo/tempo_enabled", flag);
+    socket.send_to(&msg, "127.0.0.1:9111")
+        .map_err(|e| format!("Failed to send OSC: {}", e))?;
+
+    println!("[Tauri] tempo_enabled -> {}", flag);
+    Ok(())
+}
 // ─── INSTRUMENTS ──────────────────────────────────────────────────────────────
 
 #[tauri::command]
@@ -937,6 +962,23 @@ fn start_pipeline(
         }
     }
 
+    // Notify TouchDesigner that pipeline is active
+    {
+        let socket = UdpSocket::bind("0.0.0.0:0").ok();
+        if let Some(sock) = socket {
+            fn build_osc_active(address: &str, value: i32) -> Vec<u8> {
+                use rosc::{OscMessage, OscPacket, OscType};
+                rosc::encoder::encode(&OscPacket::Message(OscMessage {
+                    addr: address.to_string(),
+                    args: vec![OscType::Int(value)],
+                })).unwrap_or_default()
+            }
+            let msg = build_osc_active("/musinfo/active", 1);
+            let _ = sock.send_to(&msg, "127.0.0.1:9110");
+            println!("[Tauri] /musinfo/active -> 1 sent to TouchDesigner on port 9110");
+        }
+    }
+
     send_instrument_config_osc();
     
     app.emit("pipeline-ready", ())
@@ -1007,6 +1049,25 @@ fn stop_pipeline(
             println!("[Tauri] image_gen_enabled -> 0 sent to image gen processes");
         }
     }
+
+    // Notify TouchDesigner that pipeline is inactive
+    {
+        let socket = UdpSocket::bind("0.0.0.0:0").ok();
+        if let Some(sock) = socket {
+            fn build_osc_active(address: &str, value: i32) -> Vec<u8> {
+                use rosc::{OscMessage, OscPacket, OscType};
+                rosc::encoder::encode(&OscPacket::Message(OscMessage {
+                    addr: address.to_string(),
+                    args: vec![OscType::Int(value)],
+                })).unwrap_or_default()
+            }
+            let msg = build_osc_active("/musinfo/active", 0);
+            let _ = sock.send_to(&msg, "127.0.0.1:9110");
+            println!("[Tauri] /musinfo/active -> 0 sent to TouchDesigner on port 9110");
+        }
+    }
+
+
     let root = project_root_windows()?;
 
     // Kill capture first — stops audio flowing into broadcaster
@@ -1281,7 +1342,8 @@ pub fn run() {
             load_session,
             list_sessions,
             save_performance_config,
-            toggle_image_generation,  
+            toggle_image_generation,
+            toggle_tempo,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
