@@ -43,7 +43,6 @@ const Setup = ({
     };
 
 
-
     const patch = (fields) =>
     setFormData(prev => ({ ...prev, ...fields }));
 
@@ -80,29 +79,30 @@ const Setup = ({
     // handles source change for mix instrument
     const handleSourceChange = (source) => {
       if (source === 'internal') {
-        // Switch to internal: remove audio_device, add source_instruments
-        const allInstruments = Object.keys(instruments).filter(name => 
+        const allInstruments = Object.keys(instruments).filter(name =>
           instruments[name].type !== 'mix'
         );
 
-        // Create new object without audio_device
+        // Strip audio_device when switching to internal
         const { audio_device, ...cleanData } = formData;
 
         const updated = {
           ...cleanData,
           mix_source: 'internal',
-          source_instruments: allInstruments
+          source_instruments: allInstruments,
         };
 
-        // Update state and save
         setFormData(updated);
         onUpdateInstrument(savedInstrumentKey, updated);
 
       } else if (source === 'external') {
-        // Switch to external: just change source, audio_device added when device selected
+        // FIX: strip source_instruments when switching to external,
+        // otherwise it lingers in the JSON and the pipeline treats it as internal.
+        const { source_instruments, ...cleanData } = formData;
+
         const updated = {
-          ...formData,
-          mix_source: 'external'
+          ...cleanData,
+          mix_source: 'external',
         };
 
         setFormData(updated);
@@ -140,7 +140,6 @@ const Setup = ({
         {/* MIX CONFIGURATION */}
         {isMix ? (
           <>
-            {/* Mix Header */}
             <div className={styles.setupMixContent}>
               <div className={styles.mixHeader}>
                 <p className={styles.mixDescription}>Combines multiple instruments for full-mix analysis</p>
@@ -191,7 +190,6 @@ const Setup = ({
                 />
               </div>
             </div>
-            {/* add signal path */}
           </>
         ) : (
           <>

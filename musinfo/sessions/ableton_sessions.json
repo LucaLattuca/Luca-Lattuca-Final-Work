@@ -1,0 +1,102 @@
+{
+  "instruments": {
+    "vocals": {
+      "role_index": 0,
+      "role": "vocals",
+      "enabled": true,
+      "type": "audio",
+      "audio_device": {
+        "name": "Focusrite USB ASIO",
+        "device_id": 37,
+        "host_api": "ASIO",
+        "max_input_channels": 20,
+        "channel": 4,
+        "sample_rate": 44100,
+        "connected": true
+      },
+      "analysers": [
+        "dynamics",
+        "pitch_crepe",
+        "timbre"
+      ]
+    },
+    "bass": {
+      "audio_device": {
+        "name": "Focusrite USB ASIO",
+        "device_id": 37,
+        "host_api": "ASIO",
+        "max_input_channels": 20,
+        "channel": 5,
+        "sample_rate": 44100,
+        "connected": true
+      },
+      "analysers": [
+        "dynamics",
+        "timbre",
+        "pitch_crepe"
+      ],
+      "role_index": 0,
+      "role": "bass",
+      "enabled": true,
+      "type": "audio"
+    },
+    "guitar": {
+      "role_index": 0,
+      "role": "guitar",
+      "enabled": true,
+      "type": "audio",
+      "audio_device": {
+        "name": "Focusrite USB ASIO",
+        "device_id": 37,
+        "host_api": "ASIO",
+        "max_input_channels": 20,
+        "channel": 6,
+        "sample_rate": 44100,
+        "connected": true
+      },
+      "analysers": [
+        "dynamics",
+        "timbre"
+      ]
+    },
+    "drums": {
+      "role_index": 0,
+      "role": "drums",
+      "enabled": true,
+      "type": "audio",
+      "audio_device": {
+        "name": "Focusrite USB ASIO",
+        "device_id": 37,
+        "host_api": "ASIO",
+        "max_input_channels": 20,
+        "channel": 7,
+        "sample_rate": 44100,
+        "connected": true
+      },
+      "analysers": [
+        "timbre",
+        "dynamics"
+      ]
+    },
+    "mix": {
+      "audio_device": {
+        "name": "Focusrite USB ASIO",
+        "device_id": 37,
+        "host_api": "ASIO",
+        "max_input_channels": 20,
+        "channel": 10,
+        "sample_rate": 44100,
+        "connected": true
+      },
+      "mix_source": "external",
+      "type": "mix",
+      "analysers": [
+        "genre",
+        "mood",
+        "tempo",
+        "harmony"
+      ],
+      "enabled": true
+    }
+  }
+}

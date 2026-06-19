@@ -89,9 +89,9 @@ INSTRUMENT_INDICES, INSTRUMENT_ROLES = load_instrument_metadata()
 ANALYSER_QUEUE_SIZES = {
     "pitch_crepe": 2,
     "tempo":       1,  # tempo_cnn
-    "dynamics":    4,
+    "dynamics":    32,
     "timbre":      4,
-    "harmony":     32,
+    "harmony":     8,
 }
 
 class ThreadedAnalyser:

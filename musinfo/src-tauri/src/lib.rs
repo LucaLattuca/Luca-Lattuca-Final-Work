@@ -104,6 +104,8 @@ fn write_config(path: &Path, config: &serde_json::Map<String, Value>) -> Result<
     fs::write(path, out).map_err(|e| format!("Write error: {}", e))
 }
 
+
+
 // ─── PERSISTENT TIER — spawned once, kept alive across pipeline stop/start ───
 
 /// Spawns wsl_receiver.py and wsl_receiver_heavy.py inside WSL.
@@ -264,6 +266,31 @@ fn toggle_image_generation(enabled: bool) -> Result<(), String> {
     println!("[Tauri] image_gen_enabled -> {} (prompt_generator + generate_image)", flag);
     Ok(())
 }
+
+// TOUCHDESIGNER
+
+
+#[tauri::command]
+fn toggle_tempo(enabled: bool) -> Result<(), String> {
+    let socket = UdpSocket::bind("0.0.0.0:0")
+        .map_err(|e| format!("Failed to bind OSC socket: {}", e))?;
+
+    fn build_osc(address: &str, value: i32) -> Vec<u8> {
+        use rosc::{OscMessage, OscPacket, OscType};
+        rosc::encoder::encode(&OscPacket::Message(OscMessage {
+            addr: address.to_string(),
+            args: vec![OscType::Int(value)],
+        })).unwrap_or_default()
+    }
+
+    let flag: i32 = if enabled { 1 } else { 0 };
+    let msg = build_osc("/musinfo/tempo_enabled", flag);
+    socket.send_to(&msg, "127.0.0.1:9111")
+        .map_err(|e| format!("Failed to send OSC: {}", e))?;
+
+    println!("[Tauri] tempo_enabled -> {}", flag);
+    Ok(())
+}
 // ─── INSTRUMENTS ──────────────────────────────────────────────────────────────
 
 #[tauri::command]
@@ -303,9 +330,74 @@ fn save_instrument(_app: AppHandle, instrument: Value) -> Result<String, String>
     fs::write(&config_path, output)
         .map_err(|e| format!("Failed to write instruments.json: {}", e))?;
 
+
+    send_instrument_config_osc(); 
+
+
     Ok("Instrument saved".to_string())
 }
 
+fn send_instrument_config_osc() {
+    let path = match instruments_path() {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("[Tauri] send_instrument_config_osc: {}", e);
+            return;
+        }
+    };
+
+    let config = match read_config(&path) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("[Tauri] send_instrument_config_osc: {}", e);
+            return;
+        }
+    };
+
+    let instruments = match config.get("instruments").and_then(|v| v.as_object()) {
+        Some(i) => i,
+        None => {
+            eprintln!("[Tauri] send_instrument_config_osc: no instruments key");
+            return;
+        }
+    };
+
+    // Always initialise all known roles to 0 first
+    let mut role_counts: std::collections::HashMap<String, i32> = std::collections::HashMap::new();
+    for role in &["default", "drums", "bass", "guitar", "vocals", "piano"] {
+        role_counts.insert(role.to_string(), 0);
+    }
+
+    // Count what's actually in instruments.json, excluding mix
+    for (name, data) in instruments.iter() {
+        if name == "mix" { continue; }
+        let role = data["role"].as_str().unwrap_or("default").to_string();
+        *role_counts.entry(role).or_insert(0) += 1;
+    }
+
+    let socket = match UdpSocket::bind("0.0.0.0:0") {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("[Tauri] send_instrument_config_osc: socket error: {}", e);
+            return;
+        }
+    };
+
+    let td_addr = "127.0.0.1:9103";
+
+    for (role, count) in &role_counts {
+        use rosc::{OscMessage, OscPacket, OscType};
+
+        let msg = rosc::encoder::encode(&OscPacket::Message(OscMessage {
+            addr: format!("/td/config/{}", role),
+            args: vec![OscType::Int(*count)],
+        })).unwrap_or_default();
+
+        socket.send_to(&msg, td_addr).ok();
+    }
+
+    println!("[Tauri] Role counts sent to TouchDesigner: {:?}", role_counts);
+}
 
 #[tauri::command]
 fn delete_instrument(_app: AppHandle, name: String) -> Result<String, String> {
@@ -317,6 +409,9 @@ fn delete_instrument(_app: AppHandle, name: String) -> Result<String, String> {
         .ok_or("instruments.json has no 'instruments' key")?
         .remove(&name);
     write_config(&path, &config)?;
+
+    send_instrument_config_osc();
+
     Ok("Instrument deleted".to_string())
 }
 
@@ -867,6 +962,25 @@ fn start_pipeline(
         }
     }
 
+    // Notify TouchDesigner that pipeline is active
+    {
+        let socket = UdpSocket::bind("0.0.0.0:0").ok();
+        if let Some(sock) = socket {
+            fn build_osc_active(address: &str, value: i32) -> Vec<u8> {
+                use rosc::{OscMessage, OscPacket, OscType};
+                rosc::encoder::encode(&OscPacket::Message(OscMessage {
+                    addr: address.to_string(),
+                    args: vec![OscType::Int(value)],
+                })).unwrap_or_default()
+            }
+            let msg = build_osc_active("/musinfo/active", 1);
+            let _ = sock.send_to(&msg, "127.0.0.1:9110");
+            println!("[Tauri] /musinfo/active -> 1 sent to TouchDesigner on port 9110");
+        }
+    }
+
+    send_instrument_config_osc();
+    
     app.emit("pipeline-ready", ())
         .unwrap_or_else(|e| eprintln!("[Tauri] emit error: {}", e));
 
@@ -935,6 +1049,25 @@ fn stop_pipeline(
             println!("[Tauri] image_gen_enabled -> 0 sent to image gen processes");
         }
     }
+
+    // Notify TouchDesigner that pipeline is inactive
+    {
+        let socket = UdpSocket::bind("0.0.0.0:0").ok();
+        if let Some(sock) = socket {
+            fn build_osc_active(address: &str, value: i32) -> Vec<u8> {
+                use rosc::{OscMessage, OscPacket, OscType};
+                rosc::encoder::encode(&OscPacket::Message(OscMessage {
+                    addr: address.to_string(),
+                    args: vec![OscType::Int(value)],
+                })).unwrap_or_default()
+            }
+            let msg = build_osc_active("/musinfo/active", 0);
+            let _ = sock.send_to(&msg, "127.0.0.1:9110");
+            println!("[Tauri] /musinfo/active -> 0 sent to TouchDesigner on port 9110");
+        }
+    }
+
+
     let root = project_root_windows()?;
 
     // Kill capture first — stops audio flowing into broadcaster
@@ -1161,7 +1294,10 @@ pub fn run() {
             if let Err(e) = spawn_persistent_processes(&wsl_state, &wsl_heavy_state, &prompt_gen, &image_gen) {
                 eprintln!("[Tauri] Warning: failed to spawn persistent processes: {}", e);
             }
-        
+            
+            send_instrument_config_osc();
+
+
             // Pre-warm the audio device cache in a background thread.
             // The Python+ASIO spawn (~500ms, causes one audio glitch) happens here,
             // before the UI renders, so get_audio_devices calls from AudioDevicesConfig
@@ -1206,7 +1342,8 @@ pub fn run() {
             load_session,
             list_sessions,
             save_performance_config,
-            toggle_image_generation,  
+            toggle_image_generation,
+            toggle_tempo,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

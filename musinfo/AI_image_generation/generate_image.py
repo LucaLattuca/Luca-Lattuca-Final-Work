@@ -32,11 +32,13 @@ _td_client = udp_client.SimpleUDPClient(TD_HOST, TD_PORT)
 RESOLUTION_MAP = {
     "512":  (512, 512),
     "768":  (768, 768),
+    "wide_sm": (768, 512),
     "1024": (1024, 768),
     "wide": (1280, 720),   # 720p widescreen
     "1080": (1920, 1080), # need touchdesigner license
 }
 
+# RESOLUTION          = "512"
 RESOLUTION          = "wide"
 NUM_INFERENCE_STEPS = 1   # 1–4 for SDXL Turbo; 1 = fastest
 GUIDANCE_SCALE      = 0.0  # CFG-free for Turbo
